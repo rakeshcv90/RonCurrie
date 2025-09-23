@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,159 +10,102 @@ import {
   Platform,
   UIManager,
   LayoutAnimation,
+  ActivityIndicator,
+  Animated,
+  TextInput,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { ScaledSheet, moderateScale } from 'react-native-size-matters';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Color, FONT, IconData } from '../Component/Image';
 import { MaterialDesignIcons } from '@react-native-vector-icons/material-design-icons';
-const categories = [
-  {
-    id: '1',
-    title: 'Untreated Carcassing',
-    items: [
-      '3x2 CLS',
-      '4x2 CLS',
-      '2x2 CLS',
-      '3x2ru',
-      '4x2ru',
-      '6x2ru',
-      '4x3ru',
-      '8x3ru',
-      '1x1su',
-      '2NDS CLS',
-    ],
-  },
-  {
-    id: '2',
-    title: 'Treated Timber',
-    items: [
-      '3x2 CLS',
-      '4x2 CLS',
-      '2x2 CLS',
-      '3x2ru',
-      '4x2ru',
-      '6x2ru',
-      '4x3ru',
-      '8x3ru',
-      '1x1su',
-      '2NDS CLS',
-    ],
-  },
-  {
-    id: '3',
-    title: 'Planed Timber',
-    items: [
-      '3x2 CLS',
-      '4x2 CLS',
-      '2x2 CLS',
-      '3x2ru',
-      '4x2ru',
-      '6x2ru',
-      '4x3ru',
-      '8x3ru',
-      '1x1su',
-      '2NDS CLS',
-    ],
-  },
-  {
-    id: '4',
-    title: 'Pine Skirting, Architrave, Windowboard',
-    items: [
-      '3x2 CLS',
-      '4x2 CLS',
-      '2x2 CLS',
-      '3x2ru',
-      '4x2ru',
-      '6x2ru',
-      '4x3ru',
-      '8x3ru',
-      '1x1su',
-      '2NDS CLS',
-    ],
-  },
-  {
-    id: '5',
-    title: 'Floorboards and Cladding',
-    items: [
-      '3x2 CLS',
-      '4x2 CLS',
-      '2x2 CLS',
-      '3x2ru',
-      '4x2ru',
-      '6x2ru',
-      '4x3ru',
-      '8x3ru',
-      '1x1su',
-      '2NDS CLS',
-    ],
-  },
-  {
-    id: '6',
-    title: 'Floorboards and Cladding',
-    items: [
-      '3x2 CLS',
-      '4x2 CLS',
-      '2x2 CLS',
-      '3x2ru',
-      '4x2ru',
-      '6x2ru',
-      '4x3ru',
-      '8x3ru',
-      '1x1su',
-      '2NDS CLS',
-    ],
-  },
-  {
-    id: '7',
-    title: 'Floorboards and Cladding',
-    items: [
-      '3x2 CLS',
-      '4x2 CLS',
-      '2x2 CLS',
-      '3x2ru',
-      '4x2ru',
-      '6x2ru',
-      '4x3ru',
-      '8x3ru',
-      '1x1su',
-      '2NDS CLS',
-    ],
-  },
-  {
-    id: '8',
-    title: 'Floorboards and Cladding',
-    items: [
-      '3x2 CLS',
-      '4x2 CLS',
-      '2x2 CLS',
-      '3x2ru',
-      '4x2ru',
-      '6x2ru',
-      '4x3ru',
-      '8x3ru',
-      '1x1su',
-      '2NDS CLS',
-    ],
-  },
-];
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchProducts } from '../Redux/Slice/ProductMenuSlice';
+import { useFocusEffect } from '@react-navigation/native';
+import Loader from '../Component/Loader';
+import { showToast } from '../utility/showToast';
+import { usePermissions } from '../Component/usePermissions';
 
-const Home = () => {
-  const [expanded, setExpanded] = useState(categories[0]?.id);
+const Home = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const { products, loading, error } = useSelector(state => state.product);
+
+  const { hasPermission } = usePermissions();
+
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     dispatch(fetchProducts());
+  //   }, [dispatch]),
+  // );
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchData = async () => {
+        try {
+          await dispatch(fetchProducts()).unwrap(); // unwrap gives real error
+        } catch (error) {
+          if (error.type === 'network') {
+            showToast('danger', 'Network Error', error.message);
+          } else if (error.type === 'response') {
+            showToast('danger', 'API Error', error.message);
+          } else {
+            showToast(
+              'danger',
+              'Unexpected Error',
+              error.message || 'Something went wrong',
+            );
+          }
+        }
+      };
+      fetchData();
+    }, [dispatch]),
+  );
+  const [expanded, setExpanded] = useState(0);
+
+  const [searchActive, setSearchActive] = useState(false);
+
+  const logoAnim = useRef(new Animated.Value(1)).current;
+  const searchAnim = useRef(new Animated.Value(-300)).current;
+
+  const toggleSearch = () => {
+    if (!searchActive) {
+      setSearchActive(true);
+      Animated.parallel([
+        Animated.timing(logoAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(searchAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(logoAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(searchAnim, {
+          toValue: -300,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setSearchActive(false));
+    }
+  };
 
   const toggleExpand = id => {
-     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(expanded === id ? null : id);
   };
 
   const handleItemPress = item => {
-    console.log('Clicked:', item);
+ 
+    navigation.navigate('DisplayItems', { itemData: item });
   };
 
   return (
@@ -172,86 +115,105 @@ const Home = () => {
         backgroundColor="transparent"
         barStyle="dark-content"
       />
+
       <View style={styles.headerContainer}>
-        <Image
-          source={IconData.Logo}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <View style={styles.leftContainer}>
+          {searchActive ? (
+            <Animated.View
+              style={[
+                styles.searchContainer,
+                { transform: [{ translateX: searchAnim }] },
+              ]}
+            >
+              <TextInput style={styles.searchInput} placeholder="Search..." />
+            </Animated.View>
+          ) : (
+            <Image
+              source={IconData.Logo}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          )}
+        </View>
 
         <View style={styles.rightIcons}>
-          <TouchableOpacity style={styles.searchButton}>
-            <Image
-              source={IconData.Search}
-              style={styles.icon}
-              resizeMode="contain"
-            />
+          <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}>
+            <Image source={IconData.Search} style={styles.icon} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuButton}>
-            <Image
-              source={IconData.Menu}
-              style={styles.icon}
-              resizeMode="contain"
-            />
+          <TouchableOpacity style={styles.iconButton}>
+            <Image source={IconData.Menu} style={styles.icon} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
+      <FlatList
+        data={products}
+        keyExtractor={(item, index) => (item.id || index).toString()}
         contentContainerStyle={{ paddingBottom: 100 }}
-      >
-        {categories.map(category => (
-          <View key={category.id} style={styles.card}>
+        renderItem={({ item: category, index }) => (
+          <View key={category.id || index} style={styles.card}>
             <TouchableOpacity
               activeOpacity={1}
               style={[
                 styles.header,
-                expanded === category.id && styles.headerActive,
+                expanded === (category.id || index) && styles.headerActive,
               ]}
-              onPress={() => toggleExpand(category.id)}
+              onPress={() => toggleExpand(category?.id || index)}
             >
               <Text
                 style={[
                   styles.title,
-                  expanded === category.id && styles.titleActive,
+                  expanded === (category.id || index) && styles.titleActive,
                 ]}
               >
-                {category.title}
+                {category?.main_heading}
               </Text>
               <Ionicons
-                name={expanded === category.id ? 'chevron-up' : 'chevron-down'}
+                name={
+                  expanded === (category.id || index)
+                    ? 'chevron-up'
+                    : 'chevron-down'
+                }
                 size={moderateScale(20)}
-                color={expanded === category.id ? '#fff' : '#000'}
+                color={expanded === (category.id || index) ? '#fff' : '#000'}
               />
             </TouchableOpacity>
 
-            {expanded === category.id && category.items.length > 0 && (
-              <View style={styles.itemsContainer}>
-                <FlatList
-                  data={category.items}
-                  numColumns={3}
-                  keyExtractor={(item, index) => index.toString()}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={styles.itemBox}
-                      onPress={() => handleItemPress(item)}
-                    >
-                      <Text style={styles.itemText}>{item}</Text>
-                    </TouchableOpacity>
-                  )}
-                />
-              </View>
-            )}
+            {expanded === (category.id || index) &&
+              category?.product_data?.length > 0 && (
+                <View style={styles.itemsContainer}>
+                  <FlatList
+                    data={category.product_data}
+                    numColumns={3}
+                    keyExtractor={(item, index) => index.toString()}
+                    scrollEnabled={false} // 👈 disables inner scroll
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.itemBox}
+                        onPress={() => handleItemPress(item)}
+                      >
+                        <Text style={styles.itemText}>
+                          {item.epos_tile_title}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              )}
           </View>
-        ))}
-      </ScrollView>
+        )}
+      />
       <View style={styles.bottomCard}>
-        <View style={styles.circleLeft}>
+        <TouchableOpacity
+          style={styles.circleLeft}
+          onPress={() => {
+            navigation.navigate('AddCartScreen');
+          }}
+        >
           <View style={styles.circleLeft1}>
-            <MaterialDesignIcons name="cart" color={Color.WHITE} size={25} />
+            <MaterialDesignIcons name="cart" color={Color.WHITE} size={20} />
           </View>
-          <Text style={{ color: 'white', fontSize: 20 }}>£ 0.00</Text>
+          <Text style={{ color: 'white', fontSize: 16 }}>£ 0.00</Text>
           <View
             style={{
               height: 20,
@@ -261,10 +223,10 @@ const Home = () => {
             }}
           />
           <View>
-            <Text style={{ color: 'white', fontSize: 12 }}>1 (1)</Text>
+            <Text style={{ color: 'white', fontSize: 1 }}>1 (1)</Text>
             <Text style={{ color: 'white', fontSize: 10 }}>ITEMS (GROUP)</Text>
           </View>
-        </View>
+        </TouchableOpacity>
         <View
           style={{
             height: 30,
@@ -273,14 +235,32 @@ const Home = () => {
             borderRadius: 2,
           }}
         />
-        <View style={styles.circleRight}>
-          <MaterialDesignIcons
-            name="barcode-scan"
-            color={Color.WHITE}
-            size={25}
-          />
-        </View>
+        <TouchableOpacity
+          style={styles.circleRight}
+          onPress={() => {
+            navigation.navigate('BarCodeReader');
+          }}
+        >
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: '#B71C1C', // red
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <MaterialDesignIcons
+              name="barcode-scan"
+              color={Color.WHITE}
+              size={25}
+            />
+          </View>
+        </TouchableOpacity>
       </View>
+
+      {products?.length <= 0 && <Loader visible={loading} />}
     </SafeAreaView>
   );
 };
@@ -291,17 +271,8 @@ const styles = ScaledSheet.create({
     backgroundColor: '#fff',
   },
 
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '10@s',
-    backgroundColor: '#f8f8f8',
-    borderBottomWidth: 2,
-    borderBottomColor: '#eee',
-  },
   logo: {
-    width: '65%',
+    width: '90%',
     height: moderateScale(45),
   },
   rightIcons: {
@@ -326,7 +297,35 @@ const styles = ScaledSheet.create({
     width: moderateScale(40),
     height: moderateScale(40),
   },
-
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    backgroundColor: '#f8f8f8',
+  },
+  leftContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    overflow: 'hidden', // prevents search bar from covering icons
+  },
+  searchContainer: {
+    marginLeft: 10,
+    flex: 1, // take remaining space next to logo
+  },
+  searchInput: {
+    height: moderateScale(45),
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  rightIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   card: {
     backgroundColor: '#fff',
     borderBottomWidth: 2,
@@ -377,7 +376,7 @@ const styles = ScaledSheet.create({
     position: 'absolute',
     bottom: 20,
     width: '75%',
-    height: 70,
+    height: 50,
     flexDirection: 'row',
     backgroundColor: Color.WHITE,
     borderRadius: 40,
@@ -395,29 +394,26 @@ const styles = ScaledSheet.create({
   },
   circleLeft: {
     width: '75%',
-    height: 60,
+    height: 45,
     borderRadius: 50,
     backgroundColor: '#3D3D3D',
     justifyContent: 'flex-start',
-
     alignItems: 'center',
     flexDirection: 'row',
     gap: 5,
   },
   circleLeft1: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'black',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: '5@ms',
+    marginLeft: '3@ms',
   },
   circleRight: {
     width: '20%',
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#B71C1C', // red
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },

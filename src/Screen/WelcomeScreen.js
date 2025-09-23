@@ -13,8 +13,10 @@ import { Color, FONT, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import FastImage from 'react-native-fast-image';
+import { MMKVStorage } from '../utility/MmkvStore';
 
 const WelcomeScreen = ({ navigation }) => {
+ 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -51,8 +53,16 @@ const WelcomeScreen = ({ navigation }) => {
         <View style={styles.button}>
           <Text style={styles.buttonText}>Continue</Text>
           <TouchableOpacity
-            onPress={() => {
-              navigation.navigate('Login');
+            onPress={async () => {
+              const userData = await MMKVStorage.getItem('User_Data');
+           
+           
+
+              if (!userData) {
+                navigation.replace('Login');
+              } else {
+                navigation.replace('Home');
+              }
             }}
           >
             <Image

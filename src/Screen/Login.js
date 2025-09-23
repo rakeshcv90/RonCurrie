@@ -15,24 +15,65 @@ import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import FastImage from 'react-native-fast-image';
+import { postData } from '../utility/ApiCall';
+import { Api } from '../utility/api';
+import * as Keychain from 'react-native-keychain';
+import { showToast } from '../utility/showToast';
+import { MMKVStorage } from '../utility/MmkvStore';
+import Loader from '../Component/Loader';
 
 const Login = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
-  const loginFunction = () => {
-    navigation.navigate('Home');
-    // if (!email.trim()) {
-    //   Alert.alert('Validation Error', 'Please enter your email');
-    //   return;
-    // }
-    // if (!password.trim()) {
-    //   Alert.alert('Validation Error', 'Please enter your password');
-    //   return;
-    // }
+  const [loader, setLoader] = useState(false);
+  const loginFunction = async () => {
+    try {
+      if (!email.trim()) {
+        Alert.alert('Validation Error', 'Please enter your email');
+        return;
+      }
+      if (!password.trim()) {
+        Alert.alert('Validation Error', 'Please enter your password');
+        return;
+      }
+      setLoader(true);
+      const response = await postData(Api.LOGIN, { email, password });
+      if (response?.status == 200) {
+        setLoader(false);
+        const token = response?.data?.data?.token;
+        if (token) {
+          // Store token securely
+          await Keychain.setGenericPassword('userToken', token);
+          await MMKVStorage.setItem('User_Data', response?.data?.data?.user);
 
-    // console.log('Logging in with:', email, password);
-    // Alert.alert('Success', 'Login successful (demo)');
+          showToast('success', 'Success!', 'Data saved successfully');
+
+          // // Navigate to Home
+          navigation.replace('Home');
+        } else {
+          setLoader(false);
+          Alert.alert('Login Failed', 'Invalid credentials');
+        }
+      } else {
+        setLoader(false);
+        Alert.alert('Login Failed', 'Invalid credentials');
+      }
+    } catch (error) {
+      setLoader(false);
+
+      if (error.type === 'network') {
+        showToast('danger', 'Network Error', error.message);
+      } else if (error.type === 'response') {
+        showToast('danger', 'Login Failed', error.message);
+      } else {
+        showToast(
+          'danger',
+          'Unexpected Error',
+          error.message || 'Something went wrong',
+        );
+      }
+    }
   };
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -52,7 +93,6 @@ const Login = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.topContainer}>
-         
             <FastImage
               source={ImageData.LoginNew}
               style={styles.topImage}
@@ -103,9 +143,11 @@ const Login = ({ navigation }) => {
             </View>
 
             <View style={styles.row}>
-              <TouchableOpacity onPress={()=>{
-                navigation.navigate('ForgotPassword')
-              }}>
+              <TouchableOpacity
+                onPress={() => {
+                  navigation.navigate('ForgotPassword');
+                }}
+              >
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
@@ -128,6 +170,7 @@ const Login = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Loader visible={loader} />
     </SafeAreaView>
   );
 };
