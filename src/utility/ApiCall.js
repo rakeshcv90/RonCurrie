@@ -1,4 +1,12 @@
-import { BaseUrl } from "./api";
+import { BaseUrl } from './api';
+import axios from 'axios';
+import * as Keychain from 'react-native-keychain';
+import { createNavigationContainerRef } from '@react-navigation/native';
+import { MMKVStorage } from './MmkvStore';
+import { showToast } from './showToast';
+import { resetRoot } from '../Navigation/NavigationService';
+
+export const navigationRef = createNavigationContainerRef();
 
 const apiClient = axios.create({
   baseURL: BaseUrl,
@@ -10,44 +18,42 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   async config => {
-    // const userDataString = await reduxStorage.getItem('userData');
+    try {
+      const credentials = await Keychain.getGenericPassword();
 
-    if (userDataString) {
-      try {
-        const userData = JSON.parse(userDataString);
-        const token = userData?.token;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (err) {
-        console.warn('Invalid userData in MMKV:', err);
+      if (credentials) {
+        const token = credentials.password; // your token
+
+        config.headers.Authorization = `Bearer ${token}`;
       }
+    } catch (err) {
+      console.warn('Error getting token from Keychain:', err);
     }
+
     return config;
   },
   error => Promise.reject(error),
 );
 
-function handleApiError(error) {
+
+const handleApiError = async error => {
+  // console.log('XCvcxvxcvcxvcxvcx', error);
+
+  // 1️⃣ If server responded with a status code
   if (error.response) {
-    const {status, data} = error.response;
+    const { status, data } = error.response;
 
-    // try {
-    //   if (status === 401) {
-    //     reduxStorage.removeItem('userData');
+    try {
+      if (status === 401) {
+        await MMKVStorage.clearAllData();
+        await Keychain.resetGenericPassword();
 
-    //     // Reset navigation to login
-    //     navigationRef.current?.reset({
-    //       index: 0,
-    //       routes: [{name: 'Login'}],
-    //     });
-
-    //     // Optionally, toast error
-    //     console.warn('Session expired, logging out');
-    //   }
-    // } catch (logoutError) {
-    //   console.log('Logout cleanup failed:', logoutError);
-    // }
+        resetRoot([{ name: 'Welcome' }]);
+        showToast('danger', 'Session expired', 'Please log in again');
+      }
+    } catch (logoutError) {
+      console.log('Logout cleanup failed:', logoutError);
+    }
 
     throw {
       type: 'response',
@@ -55,42 +61,42 @@ function handleApiError(error) {
       message: data?.message || `Request failed with status ${status}`,
     };
   } else if (error.request) {
+    console.log('Network error, request made but no response');
+
+    showToast('danger', 'Network Error', 'No response received from server');
+
     throw {
       type: 'network',
       message: 'Network error, no response received',
     };
   } else {
+    console.log('Unknown error', error.message);
+
+    showToast('danger', 'Error', error.message || 'Something went wrong');
+
     throw {
       type: 'unknown',
       message: error.message || 'Something went wrong',
     };
   }
-}
-
+};
 
 // ✅ GET wrapper
 export const getData = async (endpoint, params = {}) => {
- 
   try {
-    const response = await apiClient.get(endpoint, {params});
-
-    return response.data;
+    const response = await apiClient.get(endpoint, { params });
+  
+    return response?.data;
   } catch (error) {
-    console.log('💥 getData error:', error);
-
     handleApiError(error);
-    // Return null or throw the error to prevent undefined return
-    return null;
   }
 };
 
 // ✅ POST wrapper
 export const postData = async (endpoint, body = {}) => {
- 
   try {
     const response = await apiClient.post(endpoint, body);
-
-    return response.data;
+    return response;
   } catch (error) {
     handleApiError(error);
   }
