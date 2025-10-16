@@ -8,6 +8,7 @@ import store from './src/Redux/store';
 import {navigationRef} from './src/Navigation/NavigationService'
 
 export const toastRef = createRef();
+
 const App = () => {
   return (
     <Provider store={store}>

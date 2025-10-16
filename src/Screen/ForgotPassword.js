@@ -73,20 +73,52 @@ const ForgotPassword = ({ navigation }) => {
               Enter the e-mail address associated with your account. Click
               submit to have your password e-mailed to you.
             </Text>
-            <View style={styles.inputRow}>
-              <Ionicons
-                name="mail-outline"
-                size={moderateScale(20)}
-                color="#999"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="demo@email.com"
-                placeholderTextColor={Color.GRAY2}
-                value={email}
-                onChangeText={setEmail}
-              />
+
+            <View
+              style={{
+                marginBottom: moderateScale(5),
+                marginTop: moderateScale(10),
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: FONT.BOLD,
+                  fontSize: moderateScale(16),
+                  color: Color.GRAY,
+                }}
+              >
+                Email{' '}
+                <Text
+                  style={{
+                    fontFamily: FONT.BOLD,
+                    fontSize: moderateScale(16),
+                    color: Color.RED,
+                  }}
+                >
+                  *
+                </Text>
+              </Text>
             </View>
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: Color.GRAY2,
+                marginBottom: 10,
+                height: 45,
+              }}
+            >
+              <View style={styles.inputRow}>
+            
+                <TextInput
+                  style={styles.input}
+                  placeholder="demo@email.com"
+                  placeholderTextColor={Color.GRAY2}
+                  value={email}
+                  onChangeText={setEmail}
+                />
+              </View>
+            </View>
+           
 
             <TouchableOpacity
               style={styles.loginBtn}
@@ -145,13 +177,8 @@ const styles = ScaledSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    gap: '5@vs',
-    justifyContent: 'center',
-    borderBottomColor: Color.GRAY2,
-    marginTop: '20@vs',
-    marginBottom: '30@vs',
-    paddingBottom: '5@vs',
+    paddingHorizontal: '5@vs',
+    height: '100%',
   },
 
   input: {
@@ -175,9 +202,10 @@ const styles = ScaledSheet.create({
 
   loginBtn: {
     backgroundColor: Color.RED,
-    paddingVertical: '14@vs',
+    paddingVertical: '15@vs',
     borderRadius: '10@ms',
     alignItems: 'center',
+    marginTop: '15@vs',
   },
 
   loginText: {

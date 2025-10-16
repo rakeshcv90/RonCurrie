@@ -35,7 +35,8 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-vision-camera": "^4.7.2",
     "react-redux": "^9.2.0",
-    "redux": "^5.0.1"
+    "redux": "^5.0.1",
+    "use-lodash-debounce": "^1.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

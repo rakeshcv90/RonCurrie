@@ -4,7 +4,8 @@ import React, {
   useImperativeHandle,
   useRef,
 } from 'react';
-import { View, Text, Animated, Easing } from 'react-native';
+import { View, Text, Animated, Easing, Image } from 'react-native';
+import { ImageData } from '../Component/Image';
 
 const ToastMessage = forwardRef(({ timeout = 3000 }, ref) => {
   const [toast, setToast] = useState({
@@ -95,6 +96,11 @@ const ToastMessage = forwardRef(({ timeout = 3000 }, ref) => {
       }}
     >
       {/* <FontAwesome5 name={icon} size={30} color="#FFF" /> */}
+
+      {/* <Image
+        source={ImageData.Succ}
+        style={{ width: 30, height: 30, resizeMode: 'contain' }}
+      /> */}
       <View style={{ marginLeft: 12, flexShrink: 1 }}>
         <Text style={{ fontSize: 18, fontWeight: '600', color: '#FFF' }}>
           {toast.text}

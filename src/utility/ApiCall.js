@@ -35,21 +35,26 @@ apiClient.interceptors.request.use(
   error => Promise.reject(error),
 );
 
-
 const handleApiError = async error => {
-  // console.log('XCvcxvxcvcxvcxvcx', error);
-
-  // 1️⃣ If server responded with a status code
   if (error.response) {
     const { status, data } = error.response;
 
     try {
-      if (status === 401) {
+      if (status === 403) {
         await MMKVStorage.clearAllData();
         await Keychain.resetGenericPassword();
-
         resetRoot([{ name: 'Welcome' }]);
         showToast('danger', 'Session expired', 'Please log in again');
+      } else if (status === 404) {
+        showToast('danger', 'Data List', data?.message);
+      } else if (status === 422) {
+        const messagesObj = data?.messages;
+        const messagesArray = Object.values(messagesObj).flat().join('\n');
+        showToast('danger', 'Validation Error', messagesArray);
+      } else if (status === 400) {
+        showToast('danger', 'Validation Error', data?.message);
+      } else if (status === 401) {
+        showToast('danger', 'Validation Error', data?.message);
       }
     } catch (logoutError) {
       console.log('Logout cleanup failed:', logoutError);
@@ -85,10 +90,11 @@ const handleApiError = async error => {
 export const getData = async (endpoint, params = {}) => {
   try {
     const response = await apiClient.get(endpoint, { params });
-  
+
     return response?.data;
   } catch (error) {
     handleApiError(error);
+    throw error;
   }
 };
 
@@ -96,8 +102,11 @@ export const getData = async (endpoint, params = {}) => {
 export const postData = async (endpoint, body = {}) => {
   try {
     const response = await apiClient.post(endpoint, body);
+
     return response;
   } catch (error) {
+    console.log('rrrrrrr', error);
     handleApiError(error);
+    // throw error
   }
 };

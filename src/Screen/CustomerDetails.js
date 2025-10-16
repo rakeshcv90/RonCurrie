@@ -9,6 +9,7 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,34 +22,106 @@ import {
 import { Color, FONT, IconData } from '../Component/Image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Dropdown } from 'react-native-element-dropdown';
+import Loader from '../Component/Loader';
+import { getData, postData } from '../utility/ApiCall';
+import { Api } from '../utility/api';
+import { showToast } from '../utility/showToast';
 
-const data = [
-  { label: 'Item 1', value: '1' },
-  { label: 'Item 2', value: '2' },
-  { label: 'Item 3', value: '3' },
-  { label: 'Item 4', value: '4' },
-  { label: 'Item 5', value: '5' },
-  { label: 'Item 6', value: '6' },
-  { label: 'Item 7', value: '7' },
-  { label: 'Item 8', value: '8' },
-];
 const CustomerDetails = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState('Get Delivery');
   const [pushEnabled, setPushEnabled] = useState(true);
   const [value, setValue] = useState(null);
   const [isFocus, setIsFocus] = useState(false);
+  const [postcode, setPostcode] = useState('HA3 0JA');
+  const [loader, setLoader] = useState(false);
+  const [addressData, setAddressData] = useState([]);
+  const [resData, setResData] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [customerName, setCustomerName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [carDetails, setCarDetails] = useState('');
 
-  // const renderLabel = () => {
-  //   if (value || isFocus) {
-  //     return (
-  //       <Text style={[styles.label, isFocus && { color: 'blue' }]}>
-  //         Dropdown label
-  //       </Text>
-  //     );
-  //   }
-  //   return null;
-  // };
+  const handleFindAddress = async () => {
+    try {
+      const trimmedPostcode = postcode.trim();
 
+      if (!trimmedPostcode) {
+        Alert.alert('Validation Error', 'Please enter your postcode');
+        return; // Exit BEFORE setting loader
+      }
+
+      setLoader(true);
+      const res = await getData(
+        `${Api.FIND_ADDRESS}?postcode=${encodeURIComponent(trimmedPostcode)}`,
+      );
+
+      setLoader(false);
+      if (res?.responseCode === 200) {
+        showToast('success', 'Success!', res?.message || 'Address found');
+
+        setResData(res || []);
+        const transformedData =
+          res.data?.map((address, index) => ({
+            label: address,
+            value: index.toString(),
+            originalAddress: address,
+          })) || [];
+        setAddressData(transformedData);
+      } else {
+        showToast('danger', 'Error', res?.message || 'Address not found');
+        setAddressData([]);
+      }
+    } catch (error) {
+      setLoader(false);
+      setAddressData([]);
+      console.log('Find Address Error:', error);
+      if (error.type === 'network') {
+        showToast('danger', 'Network Error', error.message);
+      } else if (error.type === 'response') {
+        showToast('danger', 'Login Failed', error.message);
+      } else {
+        showToast(
+          'danger',
+          'Unexpected Error',
+          error.message || 'Something went wrong',
+        );
+      }
+    }
+  };
+
+  const onCreateOrder = async () => {
+    const formData = {
+      postcode: postcode.trim(),
+      customerName: customerName.trim(),
+      address: selectedAddress.trim(),
+      phone: contactNumber.trim(),
+      carDetails: carDetails.trim(),
+    };
+
+    let validations = [];
+    if (selectedTab === 'Get Delivery') {
+      validations = [
+        { field: 'postcode', message: 'Please enter your postcode' },
+        { field: 'customerName', message: 'Please enter customer name' },
+        { field: 'address', message: 'Please enter address' },
+        { field: 'phone', message: 'Please enter your phone number' },
+      ];
+    } else {
+      validations = [
+        { field: 'phone', message: 'Please enter your phone number' },
+        { field: 'carDetails', message: 'Please enter car details' },
+      ];
+    }
+
+    // Check validations
+    for (let i = 0; i < validations.length; i++) {
+      const { field, message } = validations[i];
+      if (!formData[field]) {
+        Alert.alert('Validation Error', message);
+        return;
+      }
+    }
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -69,12 +142,6 @@ const CustomerDetails = ({ navigation }) => {
               style={styles.logo}
               resizeMode="contain"
             />
-          </View>
-
-          <View style={styles.rightIcons}>
-            <TouchableOpacity style={styles.iconButton}>
-              <Image source={IconData.Menu} style={styles.icon} />
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -118,61 +185,108 @@ const CustomerDetails = ({ navigation }) => {
           contentContainerStyle={{ paddingBottom: verticalScale(50) }}
         >
           <View style={{ padding: scale(10) }}>
-            <Text style={styles.sectionTitle}>Delivery</Text>
-            <Text style={styles.sectionDesc}>
-              Enter your destination to get a delivery estimate.
-            </Text>
+            {selectedTab === 'Get Delivery' ? (
+              <View>
+                <Text style={styles.sectionTitle}>Delivery</Text>
+                <Text style={styles.sectionDesc}>
+                  Enter your destination to get a delivery estimate.
+                </Text>
+                <Text style={styles.label}>POST CODE *</Text>
+                <View style={styles.row}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="NG14 5HN"
+                    placeholderTextColor="#999"
+                    value={postcode}
+                    onChangeText={setPostcode}
+                    keyboardType="default"
+                    autoCapitalize="characters"
+                  />
 
-            <Text style={styles.label}>POST CODE *</Text>
-            <View style={styles.row}>
-              <TextInput style={styles.input} placeholder="NG14 5HN" />
-              <TouchableOpacity style={styles.findBtn}>
-                <Text style={styles.findBtnText}>Find Address</Text>
-              </TouchableOpacity>
-            </View>
+                  <TouchableOpacity
+                    style={styles.findBtn}
+                    onPress={() => handleFindAddress()}
+                  >
+                    <Text style={styles.findBtnText}>Find Address</Text>
+                  </TouchableOpacity>
+                </View>
 
-            <View style={styles.container}>
-              <Dropdown
-                style={styles.input2}
-                placeholderStyle={styles.placeholderStyle}
-                selectedTextStyle={styles.selectedTextStyle}
-                inputSearchStyle={styles.inputSearchStyle}
-                iconStyle={styles.iconStyle}
-                data={data}
-                search
-                maxHeight={300}
-                labelField="label"
-                valueField="value"
-                placeholder={'Select item'}
-                searchPlaceholder="Search..."
-                value={value}
-                onFocus={() => setIsFocus(true)}
-                onBlur={() => setIsFocus(false)}
-                onChange={item => {
-                  setValue(item.value);
-                  setIsFocus(false);
-                }}
-              />
-            </View>
+                <View style={styles.container}>
+                  <Dropdown
+                    style={styles.input2}
+                    placeholderStyle={styles.placeholderStyle}
+                    selectedTextStyle={styles.selectedTextStyle}
+                    inputSearchStyle={styles.inputSearchStyle}
+                    iconStyle={styles.iconStyle}
+                    data={addressData}
+                    search
+                    maxHeight={300}
+                    labelField="label"
+                    valueField="value"
+                    placeholder={'Select item'}
+                    searchPlaceholder="Search..."
+                    value={value}
+                    onFocus={() => setIsFocus(true)}
+                    onBlur={() => setIsFocus(false)}
+                    onChange={item => {
+                      console.log('Selected Item:', item);
+                      setValue(item.value);
+                      setSelectedAddress(prev =>
+                        prev && prev !== '' ? prev : item.originalAddress,
+                      );
+                      setIsFocus(false);
+                    }}
+                  />
+                </View>
+                <Text style={styles.sectionTitle}>Customer Information</Text>
 
-            <Text style={styles.sectionTitle}>Customer Information</Text>
-            <Text style={styles.sectionDesc}>Lorem Ipsum Jafoie.</Text>
+                <Text style={styles.label}>CUSTOMER NAME</Text>
+                <TextInput
+                  style={styles.input2}
+                  placeholder="Enter Name"
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                />
 
-            <Text style={styles.label}>CUSTOMER NAME</Text>
-            <TextInput style={styles.input2} placeholder="Enter Name" />
+                <Text style={styles.label}>CUSTOMER DELIVERY ADDRESS</Text>
+                <TextInput
+                  style={[styles.input2, styles.multilineInput]}
+                  placeholder="Delivery Address"
+                  value={selectedAddress}
+                  multiline={true}
+                  textAlignVertical="top"
+                  onChangeText={text => setSelectedAddress(text)}
+                />
 
-            <Text style={styles.label}>CUSTOMER DELIVERY ADDRESS</Text>
-            <TextInput
-              style={styles.input2}
-              placeholder="Delivery Address"
-              value="40 Kirkby Folly Road, Sutton-In-Ashfield"
-            />
-
-            <Text style={styles.label}>CUSTOMER CONTACT NUMBER</Text>
-            <TextInput
-              style={styles.input2}
-              placeholder="Enter Contact Number"
-            />
+                <Text style={styles.label}>CUSTOMER CONTACT NUMBER</Text>
+                <TextInput
+                  style={styles.input2}
+                  placeholder="Enter Contact Number"
+                  value={contactNumber}
+                  onChangeText={setContactNumber}
+                  keyboardType="phone-pad"
+                />
+              </View>
+            ) : (
+              <View>
+                <Text style={styles.sectionTitle}>Customer Details</Text>
+                <Text style={styles.label}>CUSTOMER CONTACT NUMBER</Text>
+                <TextInput
+                  style={styles.input2}
+                  placeholder="Enter Contact Number"
+                  value={contactNumber}
+                  onChangeText={setContactNumber}
+                  keyboardType="phone-pad"
+                />
+                <Text style={styles.label}>CAR DETAILS</Text>
+                <TextInput
+                  style={styles.input2}
+                  placeholder="Enter car details"
+                  value={carDetails}
+                  onChangeText={setCarDetails}
+                />
+              </View>
+            )}
           </View>
         </ScrollView>
         <View style={styles.actionRow}>
@@ -183,16 +297,21 @@ const CustomerDetails = ({ navigation }) => {
                 size={moderateScale(15)}
                 color={Color.WHITE}
               />
-              {/* <Text style={styles.checkMark}>✓</Text> */}
             </View>
             <Text style={styles.toggleText}>Push Notification</Text>
           </View>
 
-          <TouchableOpacity style={styles.createOrderBtn}>
+          <TouchableOpacity
+            style={styles.createOrderBtn}
+            onPress={() => {
+              onCreateOrder();
+            }}
+          >
             <Text style={styles.createOrderText}>Create Order</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <Loader visible={loader} />
     </SafeAreaView>
   );
 };
@@ -217,8 +336,8 @@ const styles = ScaledSheet.create({
     overflow: 'hidden',
   },
   logo: {
-    width: '90%',
-    height: verticalScale(45),
+    width: '80%',
+    height: verticalScale(40),
   },
   rightIcons: {
     flexDirection: 'row',
@@ -335,14 +454,17 @@ const styles = ScaledSheet.create({
     marginTop: verticalScale(10),
     marginBottom: verticalScale(10),
   },
-
+  multilineInput: {
+    height: moderateScale(100),
+    paddingTop: verticalScale(10),
+    textAlignVertical: 'top',
+  },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: Color.GRAY3,
     padding: moderateScale(10),
-
     borderTopWidth: 1,
     borderTopColor: Color.GRAY2,
   },

@@ -18,7 +18,7 @@ const Loader = ({ visible }) => {
           <FastImage
             source={ImageData.Loader}
             style={styles.gif}
-            tintColor={'red'}
+            // tintColor={'red'}
             resizeMode={FastImage.resizeMode.contain}
           />
         ) : (
