@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  FlatList,
 } from 'react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,7 +19,7 @@ import {
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import { Color, FONT, IconData } from '../Component/Image';
+import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { fetchProductsList } from '../Redux/Slice/ProductListSlice';
@@ -29,6 +30,7 @@ import { showToast } from '../utility/showToast';
 import { postData } from '../utility/ApiCall';
 import { MMKVStorage } from '../utility/MmkvStore';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
+import FastImage from 'react-native-fast-image';
 
 const DisplayItems = ({ navigation, route }) => {
   const ItemData = route.params.itemData;
@@ -37,7 +39,7 @@ const DisplayItems = ({ navigation, route }) => {
   const { productsList, loading, error } = useSelector(
     state => state.productsList,
   );
-  console.log('Response Data', ItemData?.slug);
+
   const [selectedTab, setSelectedTab] = useState('Sales');
   const [customLength, setCustomLength] = useState('');
 
@@ -61,43 +63,18 @@ const DisplayItems = ({ navigation, route }) => {
       dispatch(fetchProductsList(ItemData?.slug));
     }, [dispatch]),
   );
-
-  // const handleIncrease = index => {
-  //   if (index !== 'custom') return;
-
-  //   setRowQuantities(prev => {
-  //     const qty = (prev.custom?.qty || 0) + 1;
-  //     const length = prev.custom?.length || 1;
-  //     const safeFactor = Number(bespokeFactor) || 0;
-  //     const price = (length * safeFactor * qty).toFixed(2);
-
-  //     return { ...prev, custom: { qty, length, price } };
-  //   });
-  // };
-
-  // const handleDecrease = index => {
-  //   if (index !== 'custom') return;
-
-  //   setRowQuantities(prev => {
-  //     const qty = Math.max((prev.custom?.qty || 0) - 1, 0);
-  //     const length = prev.custom?.length || 1;
-  //     const safeFactor = Number(bespokeFactor) || 0;
-  //     const price = (length * safeFactor * qty).toFixed(2);
-
-  //     return { ...prev, custom: { qty, length, price } };
-  //   });
-  // };
-
   const handleIncrease = (index, stock = 0) => {
     setRowQuantities(prev => {
       if (index === 'custom') {
         const qty = (prev.custom?.qty || 0) + 1;
-        const length = prev.custom?.length || 1;
+        const length = Number(customLength) || 1;
         const price = (length * bespokeFactor * qty).toFixed(2);
         return { ...prev, custom: { qty, length, price } };
+      } else if (index === 'single') {
+        const qty = Math.min((prev.single?.qty || 0) + 1, stock);
+        return { ...prev, single: { qty } };
       } else {
-        // Normal row
-        const qty = Math.min((prev[index] || 0) + 1, stock); // do not exceed stock
+        const qty = Math.min((prev[index] || 0) + 1, stock);
         return { ...prev, [index]: qty };
       }
     });
@@ -107,19 +84,21 @@ const DisplayItems = ({ navigation, route }) => {
     setRowQuantities(prev => {
       if (index === 'custom') {
         const qty = Math.max((prev.custom?.qty || 0) - 1, 0);
-        const length = prev.custom?.length || 1;
+        const length = Number(customLength) || 1;
         const price = (length * bespokeFactor * qty).toFixed(2);
         return { ...prev, custom: { qty, length, price } };
+      } else if (index === 'single') {
+        const qty = Math.max((prev.single?.qty || 0) - 1, 0);
+        return { ...prev, single: { qty } };
       } else {
-        // Normal row
         const qty = Math.max((prev[index] || 0) - 1, 0);
         return { ...prev, [index]: qty };
       }
     });
   };
-
   const handleCustomLengthChange = val => {
     const lengthNum = parseFloat(val) || 0;
+
     setCustomLength(val);
 
     setRowQuantities(prev => {
@@ -131,36 +110,42 @@ const DisplayItems = ({ navigation, route }) => {
       };
     });
   };
+
   const addToBasket = async () => {
-    const items = (productsList?.options?.[0]?.option_values || [])
-      .map((item, index) => {
-        const quantity = rowQuantities[index] ?? 0;
+    let items = [];
 
-        if (quantity === 0) return null;
+  
+    if (productsList?.options?.[0]?.option_values?.length > 0) {
+      items = productsList?.options?.[0]?.option_values
+        .map((item, index) => {
+          const quantity = rowQuantities[index] ?? 0;
+          if (quantity === 0) return null;
 
-        let optionString;
+          let optionString;
 
-        if (
-          customLength &&
-          index === productsList?.options[0]?.option_values?.length - 1
-        ) {
-          optionString = `{'${item.product_option_id}':'bespoke_option#${customLength}#${item.price}'}`;
-        } else {
-          optionString = `{'${item.product_option_id}':'${item.product_option_value_id}'}`;
-        }
+          if (
+            customLength &&
+            index === productsList?.options[0]?.option_values?.length - 1
+          ) {
+            optionString = `{'${item.product_option_id}':'bespoke_option#${customLength}#${item.price}'}`;
+          } else {
+            optionString = `{'${item.product_option_id}':'${item.product_option_value_id}'}`;
+          }
 
-        let modeObj = {};
-        if (selectedTab === 'Refund') modeObj.mode = 1;
-        else if (selectedTab === 'Refund - No Stock') modeObj.mode = 2;
-        return {
-          customer_id: userData?.customer_id,
-          product_id: item.product_id,
-          option: optionString,
-          quantity,
-          ...modeObj,
-        };
-      })
-      .filter(Boolean);
+          let modeObj = {};
+          if (selectedTab === 'Refund') modeObj.mode = 1;
+          else if (selectedTab === 'Refund - No Stock') modeObj.mode = 2;
+
+          return {
+            customer_id: userData?.customer_id,
+            product_id: item.product_id,
+            option: optionString,
+            quantity,
+            ...modeObj,
+          };
+        })
+        .filter(Boolean);
+    }
     if (rowQuantities['custom']?.qty > 0) {
       const custom = rowQuantities['custom'];
       const customItem = {
@@ -169,13 +154,30 @@ const DisplayItems = ({ navigation, route }) => {
         option: `{'${productsList?.options?.[0]?.product_option_id}':'bespoke_option#${custom.length}#${custom.price}'}`,
         quantity: custom.qty,
       };
+      
       if (selectedTab === 'Refund') customItem.mode = 1;
       else if (selectedTab === 'Refund - No Stock') customItem.mode = 2;
 
       items.push(customItem);
     }
 
-    console.log('Payload to send:', items);
+
+    if (
+      productsList?.options?.length === 0 &&
+      rowQuantities['single']?.qty > 0
+    ) {
+      const singleItem = {
+        customer_id: userData?.customer_id,
+        product_id: productsList?.product_id,
+        option: '[]',
+        quantity: rowQuantities['single'].qty,
+      };
+      if (selectedTab === 'Refund') singleItem.mode = 1;
+      else if (selectedTab === 'Refund - No Stock') singleItem.mode = 2;
+
+      items.push(singleItem);
+    }
+
     if (items.length === 0) {
       showToast(
         'danger',
@@ -184,9 +186,9 @@ const DisplayItems = ({ navigation, route }) => {
       );
       return;
     }
+    console.log('Payload to send:', items);
     setLoader(true);
     try {
-      setLoader(true);
       const response = await postData(Api.ADD_CART, { items });
       console.log('Response Data', response?.data);
 
@@ -199,6 +201,7 @@ const DisplayItems = ({ navigation, route }) => {
           resData.message || 'Items added to cart successfully.',
         );
 
+        // clear selections if needed
         // setRowQuantities({});
         // setCustomLength('');
       } else {
@@ -208,10 +211,10 @@ const DisplayItems = ({ navigation, route }) => {
           resData?.message || 'Something went wrong.',
         );
       }
-      setLoader(false);
     } catch (error) {
       console.error('Error adding to basket:', error);
       showToast('danger', 'Error', error.message || 'Something went wrong.');
+    } finally {
       setLoader(false);
     }
   };
@@ -239,11 +242,27 @@ const DisplayItems = ({ navigation, route }) => {
           </View>
           <Loader visible={loader} />
           <View style={styles.rightIcons}>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity style={styles.iconButton}  onPress={() => {
+              navigation.navigate('SearchScreen');
+            }}>
               <Image source={IconData.Search} style={styles.icon} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <Image source={IconData.Menu} style={styles.icon} />
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate('AccountProfile');
+              }}
+              style={{
+                width: moderateScale(40),
+                height: moderateScale(40),
+                borderRadius: moderateScale(40),
+                borderWidth: 1,
+                borderColor: Color.GRAY5,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              {/* <Image source={IconData.Menu} style={styles.icon} /> */}
+              <Ionicons name={'menu'} size={moderateScale(25)} />
             </TouchableOpacity>
           </View>
         </View>
@@ -294,9 +313,15 @@ const DisplayItems = ({ navigation, route }) => {
 
         <View style={styles.productContainer}>
           {productsList?.image && productsList?.image.trim() !== '' ? (
-            <Image
-              source={{ uri: ImageBaseUrl + productsList.image }}
+            <FastImage
               style={styles.productImage}
+              source={{
+                uri: ImageBaseUrl + productsList.image,
+                priority: FastImage.priority.normal,
+                cache: FastImage.cacheControl.immutable,
+              }}
+              resizeMode={FastImage.resizeMode.cover}
+              // onError={handleError}
             />
           ) : (
             <Ionicons
@@ -340,60 +365,141 @@ const DisplayItems = ({ navigation, route }) => {
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.headerRow}>
-            <Text style={styles.headerText}>LENGTH</Text>
-            <Text style={[styles.headerText]}>PRICE</Text>
-          </View>
-          {(productsList?.options?.[0]?.option_values || []).map(
-            (item, index) => {
-              const qty = rowQuantities[index] ?? 0;
+          {productsList?.options?.length > 0 &&
+            productsList?.has_option != 0 && (
+              <View style={styles.headerRow}>
+                <Text style={styles.headerText}>LENGTH</Text>
+                <Text style={[styles.headerText]}>PRICE</Text>
+              </View>
+            )}
+       
+          {productsList?.has_option != 0 &&
+          productsList?.options?.length > 0 ? (
+            <FlatList
+              data={productsList?.options?.[0]?.option_values}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item, index }) => {
+                const qty = rowQuantities[index] ?? 0;
 
-              return (
-                <View key={index}>
-                  <View style={styles.row}>
-                    <View style={styles.box}>
-                      <Text style={styles.boxText}>
-                        {item?.option_values_name[0]?.name}
-                      </Text>
+                return (
+                  <View key={index}>
+                    <View style={styles.row}>
+                      <View style={styles.box}>
+                        <Text style={styles.boxText}>
+                          {item?.option_values_name[0]?.name}
+                        </Text>
+                      </View>
+
+                      <View style={styles.box}>
+                        <Text style={styles.boxText}>
+                          £ {parseFloat(item?.price).toFixed(2)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.counterBox}>
+                        <TouchableOpacity
+                          style={styles.circleBtn}
+                          onPress={() => handleDecrease(index)}
+                        >
+                          <View style={styles.circleBtn2}>
+                            <Text style={styles.counterBtnText}>−</Text>
+                          </View>
+                        </TouchableOpacity>
+
+                        <Text style={styles.counterValue}>{qty}</Text>
+
+                        <TouchableOpacity
+                          style={styles.circleBtn}
+                          onPress={() => handleIncrease(index, item.quantity)}
+                        >
+                          <View style={styles.circleBtn2}>
+                            <Text style={styles.counterBtnText}>+</Text>
+                          </View>
+                        </TouchableOpacity>
+                      </View>
                     </View>
 
-                    <View style={styles.box}>
-                      <Text style={styles.boxText}>
-                        £ {parseFloat(item?.price).toFixed(2)}
+                    <View style={{ paddingRight: moderateScale(10) }}>
+                      <Text style={styles.inStock}>
+                        In-Stock: {item?.quantity}
                       </Text>
-                    </View>
-
-                    <View style={styles.counterBox}>
-                      <TouchableOpacity
-                        style={styles.circleBtn}
-                        onPress={() => handleDecrease(index)}
-                      >
-                        <View style={styles.circleBtn2}>
-                          <Text style={styles.counterBtnText}>−</Text>
-                        </View>
-                      </TouchableOpacity>
-
-                      <Text style={styles.counterValue}>{qty}</Text>
-
-                      <TouchableOpacity
-                        style={styles.circleBtn}
-                        onPress={() => handleIncrease(index, item.quantity)}
-                      >
-                        <View style={styles.circleBtn2}>
-                          <Text style={styles.counterBtnText}>+</Text>
-                        </View>
-                      </TouchableOpacity>
                     </View>
                   </View>
+                );
+              }}
+              showsVerticalScrollIndicator={false}
+              initialNumToRender={10}
+              maxToRenderPerBatch={5}
+              windowSize={5}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  {Platform.OS == 'android' ? (
+                    <FastImage
+                      source={ImageData.NoData}
+                      style={styles.gif}
+                      // tintColor={'red'}
+                      resizeMode={FastImage.resizeMode.contain}
+                    />
+                  ) : (
+                    <Text style={styles.emptyText}>No items available</Text>
+                  )}
+                </View>
+              }
+              contentContainerStyle={
+                productsList?.options?.[0]?.option_values?.length === 0
+                  ? styles.emptyContentContainer
+                  : {}
+              }
+            />
+          ) : (
+            <>
+              <View>
+                <View style={styles.row}>
+                  <View style={styles.box}>
+                    <Text style={styles.boxText}>{productsList?.sku}</Text>
+                  </View>
 
-                  <View style={{ paddingRight: moderateScale(10) }}>
-                    <Text style={styles.inStock}>
-                      In-Stock: {item?.quantity}
+                  <View style={styles.box}>
+                    <Text style={styles.boxText}>
+                      £ {parseFloat(productsList?.price).toFixed(2)}
                     </Text>
                   </View>
+
+                  <View style={styles.counterBox}>
+                    <TouchableOpacity
+                      style={styles.circleBtn}
+                      onPress={() => handleDecrease('single')}
+                    >
+                      <View style={styles.circleBtn2}>
+                        <Text style={styles.counterBtnText}>−</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    <Text style={styles.counterValue}>
+                      {rowQuantities.single?.qty ?? 0}
+                    </Text>
+
+                    <TouchableOpacity
+                      style={styles.circleBtn}
+                      onPress={() =>
+                        handleIncrease('single', productsList?.quantity)
+                      }
+                    >
+                      <View style={styles.circleBtn2}>
+                        <Text style={styles.counterBtnText}>+</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              );
-            },
+
+                <View style={{ paddingRight: moderateScale(10) }}>
+                  <Text style={styles.inStock}>
+                    In-Stock:
+                    {productsList?.quantity}
+                  </Text>
+                </View>
+              </View>
+            </>
           )}
 
           {productsList?.options?.[0]?.display == 1 &&
@@ -496,7 +602,7 @@ const DisplayItems = ({ navigation, route }) => {
                 width: 40,
                 height: 40,
                 borderRadius: 20,
-                backgroundColor: '#B71C1C', // red
+                backgroundColor: '#B71C1C',
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
@@ -509,6 +615,7 @@ const DisplayItems = ({ navigation, route }) => {
             </View>
           </TouchableOpacity>
         </View>
+        {productsList?.length <= 0 && <Loader visible={loading} />}
       </KeyboardAvoidingView>
       <ProductModal
         visible={visibleModal}
@@ -749,7 +856,7 @@ const styles = ScaledSheet.create({
     fontWeight: '600',
     color: 'red',
   },
-    bottomCard: {
+  bottomCard: {
     position: 'absolute',
     bottom: 20,
     width: '75%',
@@ -793,6 +900,25 @@ const styles = ScaledSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 350, // or whatever height you prefer
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  emptyContentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  gif: {
+    width: 200,
+    height: 200,
   },
 });
 export default DisplayItems;

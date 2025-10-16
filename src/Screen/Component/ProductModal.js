@@ -16,6 +16,7 @@ import { ImageBaseUrl } from '../../utility/api';
 import RenderHTML from 'react-native-render-html';
 import { decode } from 'html-entities';
 import { FONT } from '../../Component/Image';
+import FastImage from 'react-native-fast-image';
 
 const { width } = Dimensions.get('window');
 
@@ -49,11 +50,22 @@ const ProductModal = ({ visible, onClose, product }) => {
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({ item }) => (
-              <Image
-                source={{ uri: ImageBaseUrl + item?.image }}
-                style={styles.productImage}
-                resizeMode="cover"
-              />
+              // <Image
+              //   source={{ uri: ImageBaseUrl + item?.image }}
+              //   style={styles.productImage}
+              //   resizeMode="cover"
+              // />
+
+              <FastImage
+              style={styles.productImage}
+              source={{
+                uri: ImageBaseUrl + item.image,
+                priority: FastImage.priority.normal,
+                cache: FastImage.cacheControl.immutable,
+              }}
+              resizeMode={FastImage.resizeMode.cover}
+              // onError={handleError}
+            />
             )}
           />
 

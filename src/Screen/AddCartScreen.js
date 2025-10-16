@@ -1,5 +1,3 @@
-
-
 import {
   View,
   Text,
@@ -104,31 +102,36 @@ const AddCartScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.headerContainer}>
           <View style={styles.leftContainer}>
-            {searchActive ? (
-              <Animated.View
-                style={[
-                  styles.searchContainer,
-                  { transform: [{ translateX: searchAnim }] },
-                ]}
-              >
-                <TextInput style={styles.searchInput} placeholder="Search..." />
-              </Animated.View>
-            ) : (
+            
               <Image
                 source={IconData.Logo}
                 style={styles.logo}
                 resizeMode="contain"
               />
-            )}
+       
           </View>
 
           <View style={styles.rightIcons}>
-            <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}>
+            {/* <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}>
               <Image source={IconData.Search} style={styles.icon} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <Image source={IconData.Menu} style={styles.icon} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
+            {/* <TouchableOpacity
+              onPress={() => {
+                navigation.navigate('AccountProfile');
+              }}
+              style={{
+                width: moderateScale(40),
+                height: moderateScale(40),
+                borderRadius: moderateScale(40),
+                borderWidth: 1,
+                borderColor: Color.GRAY5,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+      
+              <Ionicons name={'menu'} size={moderateScale(25)} />
+            </TouchableOpacity> */}
           </View>
         </View>
         {/* Back button + Items */}
@@ -224,9 +227,9 @@ const AddCartScreen = ({ navigation }) => {
         </View>
         <View style={styles.bottomBtn}>
           <TouchableOpacity
-          onPress={()=>{
-            navigation.navigate("CustomerDetails")
-          }}
+            onPress={() => {
+              navigation.navigate('CustomerDetails');
+            }}
             style={{
               width: '50%',
               height: moderateScale(48),
@@ -234,7 +237,7 @@ const AddCartScreen = ({ navigation }) => {
               justifyContent: 'center',
               alignItems: 'center',
               alignSelf: 'flex-end',
-              borderRadius:4
+              borderRadius: 4,
             }}
           >
             <Text style={styles.bottomBtnText}>Customer Information</Text>
@@ -269,7 +272,7 @@ const styles = ScaledSheet.create({
     borderWidth: 1,
     borderColor: '#ccc',
   },
-  logo: { width: '90%', height: moderateScale(45) },
+  logo: { width: '80%', height: moderateScale(40) },
   rightIcons: { flexDirection: 'row', alignItems: 'center' },
   icon: { width: moderateScale(40), height: moderateScale(40) },
   header: {
@@ -393,7 +396,11 @@ const styles = ScaledSheet.create({
     borderTopWidth: 1, // 👈 adds a top border
     borderTopColor: Color.GRAY2,
   },
-  bottomBtnText: { color:Color.WHITE, fontSize: 14, fontFamily:FONT.SEMIBOLD  },
+  bottomBtnText: {
+    color: Color.WHITE,
+    fontSize: 14,
+    fontFamily: FONT.SEMIBOLD,
+  },
 });
 
 export default AddCartScreen;

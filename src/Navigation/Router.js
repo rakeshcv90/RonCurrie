@@ -11,15 +11,21 @@ import BarCodeReader from '../Screen/BarCodeReader';
 import SearchScreen from '../Screen/SearchScreen';
 import AddCartScreen from '../Screen/AddCartScreen';
 import CustomerDetails from '../Screen/CustomerDetails';
+import AccountProfile from '../Screen/AccountProfile';
+import OrderHistory from '../Screen/OrderHistory';
+import OrderHistoryDetails from '../Screen/OrderHistoryDetails';
+import ReturnScreen from '../Screen/ReturnScreen';
+import ResetPassword from '../Screen/ResetPassword';
 
 const screenOptions = {
   headerShown: false,
   animation: 'slide_from_right',
   contentStyle: {
-    backgroundColor: 'white',
+    backgroundColor: 'transparent',
   },
 };
 const Stack = createNativeStackNavigator();
+
 const Router = () => {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
@@ -31,8 +37,16 @@ const Router = () => {
       <Stack.Screen name="DisplayItems" component={DisplayItems} />
       <Stack.Screen name="BarCodeReader" component={BarCodeReader} />
       <Stack.Screen name="SearchScreen" component={SearchScreen} />
-         <Stack.Screen name="AddCartScreen" component={AddCartScreen} />
-          <Stack.Screen name="CustomerDetails" component={CustomerDetails} />
+      <Stack.Screen name="AddCartScreen" component={AddCartScreen} />
+      <Stack.Screen name="CustomerDetails" component={CustomerDetails} />
+      <Stack.Screen name="AccountProfile" component={AccountProfile} />
+      <Stack.Screen name="OrderHistory" component={OrderHistory} />
+      <Stack.Screen name="ReturnScreen" component={ReturnScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPassword} />
+      <Stack.Screen
+        name="OrderHistoryDetails"
+        component={OrderHistoryDetails}
+      />
     </Stack.Navigator>
   );
 };

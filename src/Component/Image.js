@@ -1,11 +1,13 @@
 export const ImageData = {
   Main: require('../assets/image/splash.png'),
-
   LoginNew: require('../assets/image/LoginNew.png'),
   Signup: require('../assets/image/signup.png'),
   Next: require('../assets/image/next.png'),
-  Loader: require('../assets/image/loader.gif'),
+  // Loader: require('../assets/image/loader.gif'),
+  Loader: require('../assets/image/loadin.gif'),
   Succ: require('../assets/image/Succ.gif'),
+  NoData: require('../assets/image/Nodata.gif'),
+  Profile: require('../assets/image/profile.png'),
 };
 export const IconData = {
   Eye: require('../assets/icon/eye.png'),
@@ -14,7 +16,9 @@ export const IconData = {
   Logo: require('../assets/icon/logo.png'),
   Search: require('../assets/icon/search.png'),
   Menu: require('../assets/icon/menu.png'),
-    Error: require('../assets/icon/error.png'),
+  Error: require('../assets/icon/error.png'),
+  REORDER: require('../assets/icon/reorder.png'),
+  CART: require('../assets/icon/cart.png'),
 };
 export const FONT = {
   BOLD: 'OpenSans-Bold',
@@ -27,11 +31,14 @@ export const FONT = {
 export const Color = {
   RED: '#940000',
   BLACK: '#000000',
-  BLACK2:'#4F4F4F',
+  BLACK2: '#4F4F4F',
+  BLACK3: '#3D3D3D',
   GRAY: '#888888',
   GRAY2: '#D1D1D1',
-  GRAY3:'#F6F6F6',
-  GRAY4:'#6D6D6D',
+  GRAY3: '#F6F6F6',
+  GRAY4: '#6D6D6D',
+  GRAY5: '#E7E7E7',
+  GRAY6: '#D9D9D9',
   WHITE: '#FFFFFF',
-  GREEN:'#009427'
+  GREEN: '#009427',
 };

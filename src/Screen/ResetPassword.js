@@ -1,77 +1,92 @@
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StatusBar,
-  Image,
-  Alert,
   KeyboardAvoidingView,
   ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
-import { moderateScale, ScaledSheet } from 'react-native-size-matters';
 import React, { useState } from 'react';
-import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from '@react-native-vector-icons/ionicons';
 import FastImage from 'react-native-fast-image';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { Color, FONT, ImageData } from '../Component/Image';
+import { moderateScale, ScaledSheet } from 'react-native-size-matters';
+import { showToast } from '../utility/showToast';
+import Loader from '../Component/Loader';
 import { postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
-import * as Keychain from 'react-native-keychain';
-import { showToast } from '../utility/showToast';
-import { MMKVStorage } from '../utility/MmkvStore';
-import Loader from '../Component/Loader';
+const ResetPassword = ({ navigation }) => {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [repeatPassword, setRepeatPassword] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [showCurrent, setShowCurrent] = useState(true);
+  const [showNew, setShowNew] = useState(true);
+  const [showRepeat, setShowRepeat] = useState(true);
 
-const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [secureText, setSecureText] = useState(true);
   const [loader, setLoader] = useState(false);
-  const loginFunction = async () => {
+
+  const handleConfirmPassword = text => {
+    setRepeatPassword(text);
+    if (newPassword && text !== newPassword) {
+      setConfirmPasswordError('Passwords do not match');
+    } else {
+      setConfirmPasswordError('');
+    }
+  };
+  const changePassword = async () => {
+    if (!currentPassword.trim()) {
+      Alert.alert('Validation Error', 'Please enter your current password');
+      return;
+    }
+    if (!newPassword.trim()) {
+      Alert.alert('Validation Error', 'Please enter your new password');
+      return;
+    }
+    if (!repeatPassword.trim()) {
+      Alert.alert('Validation Error', 'Please repeat your new password');
+      return;
+    }
+    if (newPassword !== repeatPassword) {
+      Alert.alert(
+        'Validation Error',
+        'New password and repeat password do not match',
+      );
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Validation Error', 'Password must be at least 6 characters');
+      return;
+    }
+
     try {
-      if (!email.trim()) {
-        Alert.alert('Validation Error', 'Please enter your email');
-        return;
-      }
-      if (!password.trim()) {
-        Alert.alert('Validation Error', 'Please enter your password');
-        return;
-      }
-      // setLoader(true);
-      const response = await postData(Api.LOGIN, { email, password });
- 
-      if (response?.status == 200) {
+      setLoader(true);
+      const payload = {
+        current_password:currentPassword ,
+        password: newPassword,
+        confirm_password: repeatPassword,
+      };
+      // const response = await postData(Api.CHANGE_PASSWOIRD,payload);
+         const response = await postData(Api.CHANGE_PASSWOIRD, payload);
+      console.log("XCVxcvxcvxcvxcvcxvcx",response)
+
+      if (response?.status === 200) {
         setLoader(false);
-        const token = response?.data?.data?.token;
-        if (token && response?.data?.data?.user?.epos_user == 1) {
-          await Keychain.setGenericPassword('userToken', token);
-          await MMKVStorage.setItem('User_Data', response?.data?.data?.user);
-
-          showToast('success', 'Success!', 'Data saved successfully');
-
-          navigation.replace('Home');
-        } else {
-          setLoader(false);
-          Alert.alert('Unauthorized User', 'You are not an EPOS user.');
-        }
+        showToast('success', 'Success', 'Password changed successfully');
+      
+        setCurrentPassword('');
+        setNewPassword('');
+        setRepeatPassword('');
       } else {
         setLoader(false);
-        // Alert.alert('Login Failed', 'Invalid credentials');
+        // Alert.alert('Error', response?.message || 'Something went wrong');
       }
     } catch (error) {
       setLoader(false);
-
-      if (error.type === 'network') {
-        showToast('danger', 'Network Error', error.message);
-      } else if (error.type === 'response') {
-        showToast('danger', 'Login Failed', error.message);
-      } else {
-        showToast(
-          'danger',
-          'Unexpected Error',
-          error.message || 'Something went wrong',
-        );
-      }
+      showToast('danger', 'Error', error.message || 'Something went wrong');
     }
   };
   return (
@@ -100,7 +115,7 @@ const Login = ({ navigation }) => {
           </View>
 
           <View style={styles.formContainer}>
-            <Text style={styles.title}>Sign in</Text>
+            <Text style={styles.title}>Reset{'\n'}Password</Text>
 
             <View
               style={{
@@ -114,7 +129,7 @@ const Login = ({ navigation }) => {
                   color: Color.GRAY,
                 }}
               >
-                Email{' '}
+                Current Password{' '}
                 <Text
                   style={{
                     fontFamily: FONT.BOLD,
@@ -137,58 +152,15 @@ const Login = ({ navigation }) => {
               <View style={styles.inputRow}>
                 <TextInput
                   style={styles.input}
-                  placeholder="demo@email.com"
+                  placeholder="Current Password *"
+                  secureTextEntry={showCurrent}
+                  value={currentPassword}
                   placeholderTextColor={Color.GRAY2}
-                  value={email}
-                  onChangeText={setEmail}
+                  onChangeText={setCurrentPassword}
                 />
-              </View>
-            </View>
-
-            <View
-              style={{
-                marginBottom: moderateScale(5),
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: FONT.BOLD,
-                  fontSize: moderateScale(16),
-                  color: Color.GRAY,
-                }}
-              >
-                Password{' '}
-                <Text
-                  style={{
-                    fontFamily: FONT.BOLD,
-                    fontSize: moderateScale(16),
-                    color: Color.RED,
-                  }}
-                >
-                  *
-                </Text>
-              </Text>
-            </View>
-            <View
-              style={{
-                borderWidth: 1,
-                borderColor: Color.GRAY2,
-                marginBottom: 10,
-                height: 45,
-              }}
-            >
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor={Color.GRAY2}
-                  secureTextEntry={secureText}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity onPress={() => setSecureText(!secureText)}>
+                <TouchableOpacity onPress={() => setShowCurrent(!showCurrent)}>
                   <Ionicons
-                    name={secureText ? 'eye-off-outline' : 'eye-outline'}
+                    name={showCurrent ? 'eye-off-outline' : 'eye-outline'}
                     size={moderateScale(20)}
                     color="#999"
                   />
@@ -196,29 +168,122 @@ const Login = ({ navigation }) => {
               </View>
             </View>
 
-            <View style={styles.row}>
-              <TouchableOpacity
-                onPress={() => {
-                  navigation.navigate('ForgotPassword');
+            <View
+              style={{
+                marginBottom: moderateScale(5),
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: FONT.BOLD,
+                  fontSize: moderateScale(16),
+                  color: Color.GRAY,
                 }}
               >
-                <Text style={styles.forgotText}>Forgot Password?</Text>
-              </TouchableOpacity>
+                New Password{' '}
+                <Text
+                  style={{
+                    fontFamily: FONT.BOLD,
+                    fontSize: moderateScale(16),
+                    color: Color.RED,
+                  }}
+                >
+                  *
+                </Text>
+              </Text>
             </View>
-
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: Color.GRAY2,
+                marginBottom: 10,
+                height: 45,
+              }}
+            >
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Current Password *"
+                  secureTextEntry={showNew}
+                  value={newPassword}
+                  placeholderTextColor={Color.GRAY2}
+                  onChangeText={setNewPassword}
+                />
+                <TouchableOpacity onPress={() => setShowNew(!showNew)}>
+                  <Ionicons
+                    name={showNew ? 'eye-off-outline' : 'eye-outline'}
+                    size={moderateScale(20)}
+                    color="#999"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View
+              style={{
+                marginBottom: moderateScale(5),
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: FONT.BOLD,
+                  fontSize: moderateScale(16),
+                  color: Color.GRAY,
+                }}
+              >
+                Repeat New Password{' '}
+                <Text
+                  style={{
+                    fontFamily: FONT.BOLD,
+                    fontSize: moderateScale(16),
+                    color: Color.RED,
+                  }}
+                >
+                  *
+                </Text>
+              </Text>
+            </View>
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: Color.GRAY2,
+                marginBottom: 10,
+                height: 45,
+              }}
+            >
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Current Password *"
+                  secureTextEntry={showRepeat}
+                  value={repeatPassword}
+                  placeholderTextColor={Color.GRAY2}
+                  onChangeText={handleConfirmPassword}
+                />
+                <TouchableOpacity onPress={() => setShowRepeat(!showRepeat)}>
+                  <Ionicons
+                    name={showRepeat ? 'eye-off-outline' : 'eye-outline'}
+                    size={moderateScale(20)}
+                    color="#999"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+            {confirmPasswordError ? (
+              <Text style={styles.errorText}>{confirmPasswordError}</Text>
+            ) : null}
             <TouchableOpacity
               style={styles.loginBtn}
               onPress={() => {
-                loginFunction();
+                changePassword();
               }}
             >
-              <Text style={styles.loginText}>Login</Text>
+              <Text style={styles.loginText}>Reset Password</Text>
             </TouchableOpacity>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Don’t have an Account ? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-                <Text style={styles.signupText}>Sign up</Text>
+              <Text style={styles.footerText}>Changed your mind? </Text>
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <Text style={styles.signupText}>Go back</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -228,7 +293,6 @@ const Login = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
 const styles = ScaledSheet.create({
   container: { flex: 1, backgroundColor: Color.WHITE },
 
@@ -291,6 +355,7 @@ const styles = ScaledSheet.create({
     paddingVertical: '14@vs',
     borderRadius: '10@ms',
     alignItems: 'center',
+    marginTop: '10@vs',
   },
 
   loginText: {
@@ -310,7 +375,11 @@ const styles = ScaledSheet.create({
     fontSize: '16@ms',
     fontFamily: FONT.MEDIUM,
   },
+  errorText: {
+    color: Color.RED,
+    fontSize: '12@ms',
+    marginTop: '-6@vs',
+  },
   signupText: { color: Color.RED, fontSize: '16@ms', fontFamily: FONT.BOLD },
 });
-
-export default Login;
+export default ResetPassword;

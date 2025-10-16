@@ -32,12 +32,6 @@ const Home = ({ navigation }) => {
 
   const { hasPermission } = usePermissions();
 
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     dispatch(fetchProducts());
-  //   }, [dispatch]),
-  // );
-
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
@@ -62,50 +56,22 @@ const Home = ({ navigation }) => {
   );
   const [expanded, setExpanded] = useState(0);
 
-  const [searchActive, setSearchActive] = useState(false);
-
-  const logoAnim = useRef(new Animated.Value(1)).current;
-  const searchAnim = useRef(new Animated.Value(-300)).current;
-
-  const toggleSearch = () => {
-    if (!searchActive) {
-      setSearchActive(true);
-      Animated.parallel([
-        Animated.timing(logoAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(searchAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(logoAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(searchAnim, {
-          toValue: -300,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setSearchActive(false));
-    }
-  };
-
   const toggleExpand = id => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(expanded === id ? null : id);
   };
 
   const handleItemPress = item => {
- 
     navigation.navigate('DisplayItems', { itemData: item });
+  };
+  const ITEM_HEIGHT = moderateScale(100); // height of each item including padding/margin
+  const ITEMS_PER_ROW = 3;
+
+  const calculateInnerListHeight = itemCount => {
+    const rows = Math.ceil(itemCount / ITEMS_PER_ROW);
+    const height = rows * ITEM_HEIGHT;
+    const maxHeight = moderateScale(300); // max height before scrolling
+    return height > maxHeight ? maxHeight : height;
   };
 
   return (
@@ -118,37 +84,46 @@ const Home = ({ navigation }) => {
 
       <View style={styles.headerContainer}>
         <View style={styles.leftContainer}>
-          {searchActive ? (
-            <Animated.View
-              style={[
-                styles.searchContainer,
-                { transform: [{ translateX: searchAnim }] },
-              ]}
-            >
-              <TextInput style={styles.searchInput} placeholder="Search..." />
-            </Animated.View>
-          ) : (
-            <Image
-              source={IconData.Logo}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          )}
+          <Image
+            source={IconData.Logo}
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </View>
 
         <View style={styles.rightIcons}>
-          <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={() => {
+              navigation.navigate('SearchScreen');
+            }}
+            style={styles.iconButton}
+          >
             <Image source={IconData.Search} style={styles.icon} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Image source={IconData.Menu} style={styles.icon} />
+          <TouchableOpacity
+            onPress={() => {
+              navigation.navigate('AccountProfile');
+            }}
+            style={{
+              width: moderateScale(40),
+              height: moderateScale(40),
+              borderRadius: moderateScale(40),
+              borderWidth: 1,
+              borderColor: Color.GRAY5,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            {/* <Image source={IconData.Menu} style={styles.icon} /> */}
+            <Ionicons name={'menu'} size={moderateScale(25)} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <FlatList
+      {/* <FlatList
         data={products}
         keyExtractor={(item, index) => (item.id || index).toString()}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
         renderItem={({ item: category, index }) => (
           <View key={category.id || index} style={styles.card}>
@@ -186,7 +161,13 @@ const Home = ({ navigation }) => {
                     data={category.product_data}
                     numColumns={3}
                     keyExtractor={(item, index) => index.toString()}
-                    scrollEnabled={false} // 👈 disables inner scroll
+                    scrollEnabled={true}
+                    nestedScrollEnabled={true} // ✅ This is essential
+                    showsVerticalScrollIndicator={true}
+                    // style={{ maxHeight: moderateScale(300) }} // limit height
+                            style={{ height: calculateInnerListHeight(category.product_data.length) }}
+
+                    contentContainerStyle={{ paddingBottom: 20 }}
                     renderItem={({ item }) => (
                       <TouchableOpacity
                         style={styles.itemBox}
@@ -202,7 +183,67 @@ const Home = ({ navigation }) => {
               )}
           </View>
         )}
-      />
+      /> */}
+      <ScrollView
+        style={{ flex: 1, marginBottom: moderateScale(80) }}
+        showsVerticalScrollIndicator={false}
+      >
+        {products.map((category, index) => (
+          <View key={category.id || index} style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={1}
+              style={[
+                styles.header,
+                expanded === (category.id || index) && styles.headerActive,
+              ]}
+              onPress={() => toggleExpand(category?.id || index)}
+            >
+              <Text
+                style={[
+                  styles.title,
+                  expanded === (category.id || index) && styles.titleActive,
+                ]}
+              >
+                {category?.main_heading}
+              </Text>
+              <Ionicons
+                name={
+                  expanded === (category.id || index)
+                    ? 'chevron-up'
+                    : 'chevron-down'
+                }
+                size={moderateScale(20)}
+                color={expanded === (category.id || index) ? '#fff' : '#000'}
+              />
+            </TouchableOpacity>
+
+            {expanded === (category.id || index) &&
+              category?.product_data?.length > 0 && (
+                <FlatList
+                  data={category.product_data}
+                  numColumns={3}
+                  keyExtractor={(item, idx) => idx.toString()}
+                  scrollEnabled={true}
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={true}
+                  style={{ maxHeight: moderateScale(350) }}
+                  contentContainerStyle={{ paddingBottom: moderateScale(100) }}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.itemBox}
+                      onPress={() => handleItemPress(item)}
+                    >
+                      <Text style={styles.itemText}>
+                        {item.epos_tile_title}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+          </View>
+        ))}
+      </ScrollView>
+
       <View style={styles.bottomCard}>
         <TouchableOpacity
           style={styles.circleLeft}

@@ -34,7 +34,6 @@ import { Api } from '../utility/api';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
 
 const BarCodeReader = ({ navigation }) => {
-  const [searchActive, setSearchActive] = useState(false);
   const [selectedTab, setSelectedTab] = useState('Sales');
   const [barcode, setBarcode] = useState(null);
   const [lastScanned, setLastScanned] = useState(null); // track last scanned code
@@ -42,8 +41,7 @@ const BarCodeReader = ({ navigation }) => {
   const [userData, setUserData] = useState(null);
   const { hasPermission } = usePermissions();
   const [message, setMessage] = useState(null);
-  const logoAnim = useRef(new Animated.Value(1)).current;
-  const searchAnim = useRef(new Animated.Value(-300)).current;
+
   const camera = useRef(null);
   const devices = Camera.getAvailableCameraDevices();
 
@@ -59,36 +57,6 @@ const BarCodeReader = ({ navigation }) => {
     fetchUserData();
   }, []);
 
-  const toggleSearch = () => {
-    if (!searchActive) {
-      setSearchActive(true);
-      Animated.parallel([
-        Animated.timing(logoAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(searchAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(logoAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(searchAnim, {
-          toValue: -300,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setSearchActive(false));
-    }
-  };
   const onCameraReady = () => {
     setCameraReady(true);
   };
@@ -109,7 +77,7 @@ const BarCodeReader = ({ navigation }) => {
       setLastScanned(firstCode);
       setScanningEnabled(false);
 
-      console.log('Scanned:', firstCode);
+    
       handleSubmitBarcode(firstCode);
     },
   });
@@ -167,30 +135,38 @@ const BarCodeReader = ({ navigation }) => {
       >
         <View style={styles.headerContainer}>
           <View style={styles.leftContainer}>
-            {searchActive ? (
-              <Animated.View
-                style={[
-                  styles.searchContainer,
-                  { transform: [{ translateX: searchAnim }] },
-                ]}
-              >
-                <TextInput style={styles.searchInput} placeholder="Search..." />
-              </Animated.View>
-            ) : (
-              <Image
-                source={IconData.Logo}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            )}
+            <Image
+              source={IconData.Logo}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
 
           <View style={styles.rightIcons}>
-            <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}>
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate('SearchScreen');
+              }}
+              style={styles.iconButton}
+            >
               <Image source={IconData.Search} style={styles.icon} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <Image source={IconData.Menu} style={styles.icon} />
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate('AccountProfile');
+              }}
+              style={{
+                width: moderateScale(40),
+                height: moderateScale(40),
+                borderRadius: moderateScale(40),
+                borderWidth: 1,
+                borderColor: Color.GRAY5,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+      
+              <Ionicons name={'menu'} size={moderateScale(25)} />
             </TouchableOpacity>
           </View>
         </View>
@@ -238,7 +214,7 @@ const BarCodeReader = ({ navigation }) => {
           ) : device ? (
             <Camera
               ref={camera}
-              // style={{ width: '98%', height: '98%', borderRadius: 10 }}
+          
               style={{ flex: 1 }}
               device={device}
               isActive={true}
@@ -252,7 +228,7 @@ const BarCodeReader = ({ navigation }) => {
         </View>
 
         <ScrollView
-          scrollEnabled={hasPermission} // disable scroll until permission granted
+          scrollEnabled={hasPermission} 
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
