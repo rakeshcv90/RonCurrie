@@ -71,7 +71,7 @@ const ResetPassword = ({ navigation }) => {
       };
       // const response = await postData(Api.CHANGE_PASSWOIRD,payload);
          const response = await postData(Api.CHANGE_PASSWOIRD, payload);
-      console.log("XCVxcvxcvxcvxcvcxvcx",response)
+  
 
       if (response?.status === 200) {
         setLoader(false);

@@ -8,7 +8,7 @@ export const fetchProductsList = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       // Append payload in URL
-      const response = await getData(`${Api.EPOS_PRODUCTLIST_PAGE}/${payload}`);
+      const response = await getData(`${Api.EPOS_PRODUCTLIST_PAGE}?name=${payload}`);
 
       return response?.data;
     } catch (error) {

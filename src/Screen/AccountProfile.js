@@ -14,24 +14,57 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import LogoutModal from './Component/LogoutModal';
 import { MMKVStorage } from '../utility/MmkvStore';
 import * as Keychain from 'react-native-keychain';
-import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
+import { CommonActions } from '@react-navigation/native';
 
 const links = [
-  'Bespoke Timber Window Options',
-  'Instructions for Accepting Deliveries',
-  'Treatment Guide',
-  'Delivery Services',
-  'Terms & Conditions',
-  'Contact Us',
-  'Site Map',
-  'Christmas Information',
-  'Fire Escape Windows',
-  'Opening Times',
-  'Problems With Website',
-  'About Us',
-  'Privacy Policy',
-  'Vacancies',
-  'Returns',
+  {
+    title: 'Bespoke Timber Window Options',
+    url: 'https://roncurrie.co.uk/bespoke-window-options',
+  },
+  {
+    title: 'Instructions for Accepting Deliveries',
+    url: 'https://roncurrie.co.uk/instructions-for-accepting-deliveries',
+  },
+  {
+    title: 'Treatment Guide',
+    url: 'https://roncurrie.co.uk/treatment-instructions',
+  },
+  {
+    title: 'Delivery Services',
+    url: 'https://roncurrie.co.uk/delivery-options',
+  },
+  {
+    title: 'Terms & Conditions',
+    url: 'https://roncurrie.co.uk/terms-and-conditions',
+  },
+  {
+    title: 'Contact Us',
+    url: 'https://roncurrie.co.uk/index.php?route=information/contact',
+  },
+  {
+    title: 'Site Map',
+    url: 'https://roncurrie.co.uk/index.php?route=information/sitemap',
+  },
+  {
+    title: 'Christmas Information',
+    url: 'https://stagerc.co.uk/christmas-info',
+  },
+  {
+    title: 'Fire Escape Windows',
+    url: 'https://roncurrie.co.uk/index.php?route=information/information&information_id=67',
+  },
+  { title: 'Opening Times', url: 'https://roncurrie.co.uk/opening-times' },
+  {
+    title: 'Problems With Website',
+    url: 'https://roncurrie.co.uk/training%20video%20cache',
+  },
+  { title: 'About Us', url: 'https://roncurrie.co.uk/about-us' },
+  { title: 'Privacy Policy', url: 'https://roncurrie.co.uk/privacy-policy' },
+  { title: 'Vacancies', url: 'https://roncurrie.co.uk/Vacancies' },
+  {
+    title: 'Returns',
+    url: 'https://roncurrie.co.uk/index.php?route=account/return/add',
+  },
 ];
 
 const AccountProfile = ({ navigation }) => {
@@ -55,13 +88,23 @@ const AccountProfile = ({ navigation }) => {
       />
 
       <View style={styles.headerContainer}>
-        <View style={styles.leftContainer}>
+      <TouchableOpacity
+               style={styles.leftContainer}
+               onPress={() => {
+                 navigation.dispatch(
+                   CommonActions.reset({
+                     index: 0,
+                     routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                   }),
+                 );
+               }}
+             >
           <Image
             source={IconData.Logo}
             style={styles.logo}
             resizeMode="contain"
           />
-        </View>
+        </TouchableOpacity>
       </View>
       <View style={styles.header} activeOpacity={0.7}>
         <TouchableOpacity
@@ -91,18 +134,13 @@ const AccountProfile = ({ navigation }) => {
               }}
               resizeMode="contain"
             />
-            <TouchableOpacity activeOpacity={0.7} style={styles.editIcon}>
-              {/* <Ionicons
-                name="pencil"
-                size={moderateScale(14)}
-                color={Color.GRAY}
-              /> */}
+            {/* <TouchableOpacity activeOpacity={0.7} style={styles.editIcon}>
               <MaterialDesignIcons
                 name="pencil"
                 color={Color.BLACK}
                 size={20}
               />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           <View>
@@ -139,14 +177,20 @@ const AccountProfile = ({ navigation }) => {
           <Text style={styles.quickTitle}>Quick Links</Text>
           <Text style={styles.quickDesc}>Lorem Ipsum jafoie.</Text>
 
-          {links?.map((item, index) => (
+          {links.map((item, index) => (
             <TouchableOpacity
-              activeOpacity={0.7}
               key={index}
               style={styles.linkItem}
-              onPress={() => {}}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (item?.url) {
+                  navigation.navigate('WebViewScreen', { urlData: item });
+                } else {
+                  alert('URL not available for this link');
+                }
+              }}
             >
-              <Text style={styles.linkText}>{item}</Text>
+              <Text style={styles.linkText}>{item?.title}</Text>
               <Ionicons
                 name="link-outline"
                 size={moderateScale(18)}

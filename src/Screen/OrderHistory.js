@@ -21,6 +21,7 @@ import { fetchOrderList } from '../Redux/Slice/OrderListSlice';
 import { showToast } from '../utility/showToast';
 import debounce from 'lodash.debounce';
 import FastImage from 'react-native-fast-image';
+import { CommonActions } from '@react-navigation/native';
 
 import { postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
@@ -131,13 +132,23 @@ const OrderHistory = ({ navigation }) => {
       />
 
       <View style={styles.headerContainer}>
-        <View style={styles.leftContainer}>
+        <TouchableOpacity
+          style={styles.leftContainer}
+          onPress={() => {
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Home' }], // 👈 this becomes the new root
+              }),
+            );
+          }}
+        >
           <Image
             source={IconData.Logo}
             style={styles.logo}
             resizeMode="contain"
           />
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.header}>
@@ -249,7 +260,8 @@ const OrderHistory = ({ navigation }) => {
         </View>
       )}
 
-      {orderList?.length <= 0 ||loader&& <Loader visible={loading || loader} />}
+      {orderList?.length <= 0 ||
+        (loader && <Loader visible={loading || loader} />)}
     </SafeAreaView>
   );
 };

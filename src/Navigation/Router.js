@@ -16,6 +16,7 @@ import OrderHistory from '../Screen/OrderHistory';
 import OrderHistoryDetails from '../Screen/OrderHistoryDetails';
 import ReturnScreen from '../Screen/ReturnScreen';
 import ResetPassword from '../Screen/ResetPassword';
+import WebViewScreen from '../Screen/WebViewScreen';
 
 const screenOptions = {
   headerShown: false,
@@ -47,6 +48,7 @@ const Router = () => {
         name="OrderHistoryDetails"
         component={OrderHistoryDetails}
       />
+      <Stack.Screen name="WebViewScreen" component={WebViewScreen} />
     </Stack.Navigator>
   );
 };

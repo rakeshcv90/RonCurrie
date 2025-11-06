@@ -37,7 +37,7 @@ const Login = ({ navigation }) => {
         Alert.alert('Validation Error', 'Please enter your password');
         return;
       }
-      // setLoader(true);
+      setLoader(true);
       const response = await postData(Api.LOGIN, { email, password });
  
       if (response?.status == 200) {
@@ -251,7 +251,7 @@ const styles = ScaledSheet.create({
   },
 
   title: {
-    fontSize: '36@s',
+    fontSize: '30@s',
     fontFamily: FONT.BOLD,
     color: Color.BLACK,
     marginBottom: '20@vs',

@@ -16,7 +16,6 @@ import FastImage from 'react-native-fast-image';
 import { MMKVStorage } from '../utility/MmkvStore';
 
 const WelcomeScreen = ({ navigation }) => {
- 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -55,8 +54,6 @@ const WelcomeScreen = ({ navigation }) => {
           <TouchableOpacity
             onPress={async () => {
               const userData = await MMKVStorage.getItem('User_Data');
-           
-           
 
               if (!userData) {
                 navigation.replace('Login');
@@ -70,7 +67,7 @@ const WelcomeScreen = ({ navigation }) => {
               style={{ width: 70, height: 70 }}
               resizeMode="contain"
             />
-            {/* <Ionicons name="arrow-forward" size={20} color="#fff" /> */}
+            {/* <Ionicons name="arrow-forward" size={20} color="red" /> */}
           </TouchableOpacity>
         </View>
       </View>

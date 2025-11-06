@@ -17,14 +17,15 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { ScaledSheet, moderateScale } from 'react-native-size-matters';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Color, FONT, IconData } from '../Component/Image';
-import { MaterialDesignIcons } from '@react-native-vector-icons/material-design-icons';
+
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../Redux/Slice/ProductMenuSlice';
 import { useFocusEffect } from '@react-navigation/native';
 import Loader from '../Component/Loader';
 import { showToast } from '../utility/showToast';
 import { usePermissions } from '../Component/usePermissions';
+import CartComponent from '../Component/CartComponent';
+import { Color, FONT, IconData } from '../Component/Image';
 
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -67,12 +68,6 @@ const Home = ({ navigation }) => {
   const ITEM_HEIGHT = moderateScale(100); // height of each item including padding/margin
   const ITEMS_PER_ROW = 3;
 
-  const calculateInnerListHeight = itemCount => {
-    const rows = Math.ceil(itemCount / ITEMS_PER_ROW);
-    const height = rows * ITEM_HEIGHT;
-    const maxHeight = moderateScale(300); // max height before scrolling
-    return height > maxHeight ? maxHeight : height;
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -114,76 +109,11 @@ const Home = ({ navigation }) => {
               alignItems: 'center',
             }}
           >
-            {/* <Image source={IconData.Menu} style={styles.icon} /> */}
             <Ionicons name={'menu'} size={moderateScale(25)} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* <FlatList
-        data={products}
-        keyExtractor={(item, index) => (item.id || index).toString()}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        renderItem={({ item: category, index }) => (
-          <View key={category.id || index} style={styles.card}>
-            <TouchableOpacity
-              activeOpacity={1}
-              style={[
-                styles.header,
-                expanded === (category.id || index) && styles.headerActive,
-              ]}
-              onPress={() => toggleExpand(category?.id || index)}
-            >
-              <Text
-                style={[
-                  styles.title,
-                  expanded === (category.id || index) && styles.titleActive,
-                ]}
-              >
-                {category?.main_heading}
-              </Text>
-              <Ionicons
-                name={
-                  expanded === (category.id || index)
-                    ? 'chevron-up'
-                    : 'chevron-down'
-                }
-                size={moderateScale(20)}
-                color={expanded === (category.id || index) ? '#fff' : '#000'}
-              />
-            </TouchableOpacity>
-
-            {expanded === (category.id || index) &&
-              category?.product_data?.length > 0 && (
-                <View style={styles.itemsContainer}>
-                  <FlatList
-                    data={category.product_data}
-                    numColumns={3}
-                    keyExtractor={(item, index) => index.toString()}
-                    scrollEnabled={true}
-                    nestedScrollEnabled={true} // ✅ This is essential
-                    showsVerticalScrollIndicator={true}
-                    // style={{ maxHeight: moderateScale(300) }} // limit height
-                            style={{ height: calculateInnerListHeight(category.product_data.length) }}
-
-                    contentContainerStyle={{ paddingBottom: 20 }}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={styles.itemBox}
-                        onPress={() => handleItemPress(item)}
-                      >
-                        <Text style={styles.itemText}>
-                          {item.epos_tile_title}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                </View>
-              )}
-          </View>
-        )}
-      /> */}
       <ScrollView
         style={{ flex: 1, marginBottom: moderateScale(80) }}
         showsVerticalScrollIndicator={false}
@@ -206,6 +136,16 @@ const Home = ({ navigation }) => {
               >
                 {category?.main_heading}
               </Text>
+              <View>
+                 <Ionicons
+                name={
+                  expanded === (category.id || index)
+                    ? 'chevron-down'
+                    : 'chevron-up'
+                }
+                size={moderateScale(20)}
+                color={expanded === (category.id || index) ? '#fff' : '#000'}
+              />
               <Ionicons
                 name={
                   expanded === (category.id || index)
@@ -214,7 +154,10 @@ const Home = ({ navigation }) => {
                 }
                 size={moderateScale(20)}
                 color={expanded === (category.id || index) ? '#fff' : '#000'}
+                style={{top:-12}}
               />
+              </View>
+             
             </TouchableOpacity>
 
             {expanded === (category.id || index) &&
@@ -227,7 +170,7 @@ const Home = ({ navigation }) => {
                   nestedScrollEnabled={true}
                   showsVerticalScrollIndicator={true}
                   style={{ maxHeight: moderateScale(350) }}
-                  contentContainerStyle={{ paddingBottom: moderateScale(100) }}
+                  contentContainerStyle={{ paddingBottom: moderateScale(10) }}
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       style={styles.itemBox}
@@ -243,63 +186,7 @@ const Home = ({ navigation }) => {
           </View>
         ))}
       </ScrollView>
-
-      <View style={styles.bottomCard}>
-        <TouchableOpacity
-          style={styles.circleLeft}
-          onPress={() => {
-            navigation.navigate('AddCartScreen');
-          }}
-        >
-          <View style={styles.circleLeft1}>
-            <MaterialDesignIcons name="cart" color={Color.WHITE} size={20} />
-          </View>
-          <Text style={{ color: 'white', fontSize: 16 }}>£ 0.00</Text>
-          <View
-            style={{
-              height: 20,
-              width: 2,
-              backgroundColor: Color.GRAY,
-              borderRadius: 2,
-            }}
-          />
-          <View>
-            <Text style={{ color: 'white', fontSize: 1 }}>1 (1)</Text>
-            <Text style={{ color: 'white', fontSize: 10 }}>ITEMS (GROUP)</Text>
-          </View>
-        </TouchableOpacity>
-        <View
-          style={{
-            height: 30,
-            width: 3,
-            backgroundColor: '#D1D1D1',
-            borderRadius: 2,
-          }}
-        />
-        <TouchableOpacity
-          style={styles.circleRight}
-          onPress={() => {
-            navigation.navigate('BarCodeReader');
-          }}
-        >
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: '#B71C1C', // red
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <MaterialDesignIcons
-              name="barcode-scan"
-              color={Color.WHITE}
-              size={25}
-            />
-          </View>
-        </TouchableOpacity>
-      </View>
+      <CartComponent />
 
       {products?.length <= 0 && <Loader visible={loading} />}
     </SafeAreaView>
