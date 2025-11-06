@@ -18,6 +18,8 @@ import { Api, ImageBaseUrl } from '../utility/api';
 import debounce from 'lodash.debounce';
 import { getData } from '../utility/ApiCall';
 import FastImage from 'react-native-fast-image';
+import CartComponent from '../Component/CartComponent';
+import { CommonActions } from '@react-navigation/native';
 
 const SearchScreen = ({ navigation }) => {
   const [loader, setLoader] = useState(false);
@@ -65,7 +67,7 @@ const SearchScreen = ({ navigation }) => {
   };
 
   const debouncedSearch = useCallback(
-    debounce(text => fetchData(text, 1), 500),
+    debounce(text => fetchData(text, 1), 1000),
     [],
   );
   const handleSearch = text => {
@@ -183,14 +185,24 @@ const SearchScreen = ({ navigation }) => {
         barStyle="dark-content"
       />
 
-      <View style={styles.headerContainer}>
-        <View style={styles.leftContainer}>
+      <TouchableOpacity style={styles.headerContainer}>
+       <TouchableOpacity
+                 style={styles.leftContainer}
+                 onPress={() => {
+                   navigation.dispatch(
+                     CommonActions.reset({
+                       index: 0,
+                       routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                     }),
+                   );
+                 }}
+               >
           <Image
             source={IconData.Logo}
             style={styles.logo}
             resizeMode="contain"
           />
-        </View>
+        </TouchableOpacity>
         <Loader visible={loader} />
         <View style={styles.rightIcons}>
           <TouchableOpacity
@@ -200,7 +212,7 @@ const SearchScreen = ({ navigation }) => {
             <Ionicons name={'menu'} size={moderateScale(25)} />
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.header}>
         <TouchableOpacity
@@ -244,30 +256,7 @@ const SearchScreen = ({ navigation }) => {
         }
       />
 
-      <View style={styles.bottomCard}>
-        <TouchableOpacity
-          style={styles.circleLeft}
-          onPress={() => navigation.navigate('AddCartScreen')}
-        >
-          <View style={styles.circleLeft1}>
-            <MaterialDesignIcons name="cart" color={Color.WHITE} size={20} />
-          </View>
-          <Text style={{ color: 'white', fontSize: 16 }}>£ 0.00</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.circleRight}
-          onPress={() => navigation.navigate('BarCodeReader')}
-        >
-          <View style={styles.barcodeIcon}>
-            <MaterialDesignIcons
-              name="barcode-scan"
-              color={Color.WHITE}
-              size={25}
-            />
-          </View>
-        </TouchableOpacity>
-      </View>
+       <CartComponent />
     </SafeAreaView>
   );
 };

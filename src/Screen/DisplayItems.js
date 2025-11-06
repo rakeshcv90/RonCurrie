@@ -11,7 +11,7 @@ import {
   FlatList,
 } from 'react-native';
 import React, { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -22,7 +22,10 @@ import {
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { fetchProductsList } from '../Redux/Slice/ProductListSlice';
+import {
+  clearProducts,
+  fetchProductsList,
+} from '../Redux/Slice/ProductListSlice';
 import { Api, ImageBaseUrl } from '../utility/api';
 import ProductModal from './Component/ProductModal';
 import Loader from '../Component/Loader';
@@ -31,6 +34,8 @@ import { postData } from '../utility/ApiCall';
 import { MMKVStorage } from '../utility/MmkvStore';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
 import FastImage from 'react-native-fast-image';
+import CartComponent from '../Component/CartComponent';
+import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
 
 const DisplayItems = ({ navigation, route }) => {
   const ItemData = route.params.itemData;
@@ -42,11 +47,16 @@ const DisplayItems = ({ navigation, route }) => {
 
   const [selectedTab, setSelectedTab] = useState('Sales');
   const [customLength, setCustomLength] = useState('');
-
   const [visibleModal, setVisibleModaL] = useState(false);
   const [rowQuantities, setRowQuantities] = useState({});
-
   const [userData, setUserData] = useState(null);
+
+  // For Mattix
+  const [width, setWidth] = useState(null);
+  const [length, setLength] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+  const [price, setPrice] = useState(null);
+
   const bespokeFactor =
     Number(productsList?.options?.[0]?.bespoke_factor_val) || 0;
 
@@ -60,9 +70,33 @@ const DisplayItems = ({ navigation, route }) => {
   }, []);
   useFocusEffect(
     useCallback(() => {
+      dispatch(clearProducts());
       dispatch(fetchProductsList(ItemData?.slug));
-    }, [dispatch]),
+      // dispatch(
+      //   fetchProductsList('made-to-measure-solid-boarded-garage-doors-pair'),
+      // );
+      return () => {
+        dispatch(clearProducts());
+      };
+    }, [dispatch, ItemData]),
   );
+
+  useEffect(() => {
+    if (Array.isArray(productsList?.matrix) && productsList.matrix.length > 0) {
+      const minW = Math.min(
+        ...productsList.matrix.map(item => item?.width || Infinity),
+      );
+      const minH = Math.min(
+        ...productsList.matrix.map(item => item?.height || Infinity),
+      );
+      const lowestItem = productsList?.matrix.find(
+        item => item.width === minW && item.height === minH,
+      );
+      setWidth(String(minW));
+      setLength(String(minH));
+      setPrice(String(lowestItem?.price || '0.00'));
+    }
+  }, [productsList]);
   const handleIncrease = (index, stock = 0) => {
     setRowQuantities(prev => {
       if (index === 'custom') {
@@ -102,8 +136,8 @@ const DisplayItems = ({ navigation, route }) => {
     setCustomLength(val);
 
     setRowQuantities(prev => {
-      const qty = prev.custom?.qty || 1; // default 1
-      const price = (lengthNum * bespokeFactor * qty).toFixed(2); // price = length * factor * quantity
+      const qty = prev.custom?.qty || 1;
+      const price = (lengthNum * bespokeFactor * qty).toFixed(2);
       return {
         ...prev,
         custom: { qty, length: lengthNum, price },
@@ -114,7 +148,6 @@ const DisplayItems = ({ navigation, route }) => {
   const addToBasket = async () => {
     let items = [];
 
-  
     if (productsList?.options?.[0]?.option_values?.length > 0) {
       items = productsList?.options?.[0]?.option_values
         .map((item, index) => {
@@ -154,13 +187,12 @@ const DisplayItems = ({ navigation, route }) => {
         option: `{'${productsList?.options?.[0]?.product_option_id}':'bespoke_option#${custom.length}#${custom.price}'}`,
         quantity: custom.qty,
       };
-      
+
       if (selectedTab === 'Refund') customItem.mode = 1;
       else if (selectedTab === 'Refund - No Stock') customItem.mode = 2;
 
       items.push(customItem);
     }
-
 
     if (
       productsList?.options?.length === 0 &&
@@ -186,24 +218,22 @@ const DisplayItems = ({ navigation, route }) => {
       );
       return;
     }
-    console.log('Payload to send:', items);
-    setLoader(true);
+
+    // setLoader(true);
+
     try {
       const response = await postData(Api.ADD_CART, { items });
-      console.log('Response Data', response?.data);
 
       const resData = response?.data;
-
       if (resData?.success && resData?.responseCode === 200) {
         showToast(
           'success',
           'Success',
           resData.message || 'Items added to cart successfully.',
         );
-
-        // clear selections if needed
-        // setRowQuantities({});
-        // setCustomLength('');
+        setRowQuantities({});
+        setCustomLength('');
+        dispatch(triggerCartRefresh());
       } else {
         showToast(
           'danger',
@@ -211,6 +241,7 @@ const DisplayItems = ({ navigation, route }) => {
           resData?.message || 'Something went wrong.',
         );
       }
+      dispatch(triggerCartRefresh());
     } catch (error) {
       console.error('Error adding to basket:', error);
       showToast('danger', 'Error', error.message || 'Something went wrong.');
@@ -219,6 +250,100 @@ const DisplayItems = ({ navigation, route }) => {
     }
   };
 
+  const calculatePrice = () => {
+    const matched =
+      productsList?.matrix?.find(
+        item => item.width === width && item.height === length,
+      ) ||
+      productsList?.matrix
+        ?.filter(
+          item => item.width >= width && item.height >= length, // only larger or equal
+        )
+        ?.reduce((nearest, current) => {
+          const distCurrent = Math.sqrt(
+            Math.pow(current.width - width, 2) +
+              Math.pow(current.height - length, 2),
+          );
+          const distNearest = nearest
+            ? Math.sqrt(
+                Math.pow(nearest.width - width, 2) +
+                  Math.pow(nearest.height - length, 2),
+              )
+            : Infinity;
+
+          return distCurrent < distNearest ? current : nearest;
+        }, null);
+
+    const total = (matched?.price * quantity).toFixed(2);
+    setPrice(total);
+  };
+  const matrixAddToBasket = async () => {
+    let items = [];
+    if (!width || !length) {
+      showToast('danger', 'Error', 'Please enter both width and length.');
+      return;
+    }
+    const optionData = {};
+    productsList?.options?.forEach(opt => {
+      const name = opt?.option_descriptions?.name?.toLowerCase();
+
+      if (name?.includes('height')) {
+        optionData[opt.product_option_id] = length;
+      } else if (name?.includes('width')) {
+        optionData[opt.product_option_id] = width;
+      }
+    });
+
+    const optionString = `{${Object.entries(optionData)
+      .map(([key, value]) => `'${key}':'${value}'`)
+      .join(',')}}`;
+    const singleItem = {
+      customer_id: userData?.customer_id,
+      product_id: productsList?.product_id,
+      option: optionString,
+      quantity: quantity,
+    };
+
+    if (selectedTab === 'Refund') {
+      singleItem.mode = 1;
+    } else if (selectedTab === 'Refund - No Stock') {
+      singleItem.mode = 2;
+    }
+
+    items.push(singleItem);
+
+    setLoader(true);
+    try {
+      const response = await postData(Api.ADD_CART, { items });
+
+      const resData = response?.data;
+      if (resData?.success && resData?.responseCode === 200) {
+        showToast(
+          'success',
+          'Success',
+          resData.message || 'Items added to cart successfully.',
+        );
+        setRowQuantities({});
+        setCustomLength('');
+        setLoader(false);
+        dispatch(triggerCartRefresh());
+      } else {
+        setLoader(false);
+        dispatch(triggerCartRefresh());
+        showToast(
+          'danger',
+          'Failed',
+          resData?.message || 'Something went wrong.',
+        );
+      }
+    } catch (error) {
+      console.error('Error adding to basket:', error);
+      setLoader(false);
+      showToast('danger', 'Error', error.message || 'Something went wrong.');
+    } finally {
+      setLoader(false);
+    }
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -233,18 +358,31 @@ const DisplayItems = ({ navigation, route }) => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={styles.headerContainer}>
-          <View style={styles.leftContainer}>
+          <TouchableOpacity
+            style={styles.leftContainer}
+            onPress={() => {
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                }),
+              );
+            }}
+          >
             <Image
               source={IconData.Logo}
               style={styles.logo}
               resizeMode="contain"
             />
-          </View>
+          </TouchableOpacity>
           <Loader visible={loader} />
           <View style={styles.rightIcons}>
-            <TouchableOpacity style={styles.iconButton}  onPress={() => {
-              navigation.navigate('SearchScreen');
-            }}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => {
+                navigation.navigate('SearchScreen');
+              }}
+            >
               <Image source={IconData.Search} style={styles.icon} />
             </TouchableOpacity>
             <TouchableOpacity
@@ -270,7 +408,9 @@ const DisplayItems = ({ navigation, route }) => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.back}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              navigation.goBack(), dispatch(clearProducts());
+            }}
           >
             <Ionicons
               name={'arrow-back'}
@@ -310,107 +450,186 @@ const DisplayItems = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
         </View>
-
-        <View style={styles.productContainer}>
-          {productsList?.image && productsList?.image.trim() !== '' ? (
-            <FastImage
-              style={styles.productImage}
-              source={{
-                uri: ImageBaseUrl + productsList.image,
-                priority: FastImage.priority.normal,
-                cache: FastImage.cacheControl.immutable,
-              }}
-              resizeMode={FastImage.resizeMode.cover}
-              // onError={handleError}
-            />
-          ) : (
-            <Ionicons
-              name="images"
-              size={moderateScale(80)}
-              style={styles.productImage}
-              color={Color.GRAY}
-            />
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={styles.productTitle}>{productsList?.isbn}</Text>
-            <Text style={styles.productModel}>
-              Model: {productsList?.model}
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => {
-                setVisibleModaL(true);
-              }}
-            >
-              <Text style={styles.viewDesc}>View Description</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.editBtn}>
-            <Text style={styles.editText}>Edit Stock & Price</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => {
-              addToBasket();
-            }}
-          >
-            <Text style={styles.addText}>Add To Basket</Text>
-          </TouchableOpacity>
-        </View>
-
         <ScrollView
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
-          {productsList?.options?.length > 0 &&
-            productsList?.has_option != 0 && (
-              <View style={styles.headerRow}>
-                <Text style={styles.headerText}>LENGTH</Text>
-                <Text style={[styles.headerText]}>PRICE</Text>
-              </View>
+          <View style={styles.productContainer}>
+            {productsList?.image && productsList?.image.trim() !== '' ? (
+              <FastImage
+                style={styles.productImage}
+                source={{
+                  uri: `${ImageBaseUrl}${productsList.image}?w=150&h=150`,
+                  priority: FastImage.priority.high,
+                  cache: FastImage.cacheControl.immutable,
+                }}
+                resizeMode={FastImage.resizeMode.cover}
+                // onError={handleError}
+              />
+            ) : (
+              <Ionicons
+                name="images"
+                size={moderateScale(80)}
+                style={styles.productImage}
+                color={Color.GRAY}
+              />
             )}
-       
-          {productsList?.has_option != 0 &&
-          productsList?.options?.length > 0 ? (
-            <FlatList
-              data={productsList?.options?.[0]?.option_values}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item, index }) => {
-                const qty = rowQuantities[index] ?? 0;
+            <View style={{ flex: 1 }}>
+              <Text style={styles.productTitle}>{productsList?.isbn}</Text>
+              <Text style={styles.productModel}>
+                Model: {productsList?.model}
+              </Text>
 
-                return (
-                  <View key={index}>
+              <TouchableOpacity
+                onPress={() => {
+                  setVisibleModaL(true);
+                }}
+              >
+                <Text style={styles.viewDesc}>View Description</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.buttonRow}>
+           
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => {
+                if (productsList?.matrix?.length <= 0) {
+                  addToBasket();
+                } else {
+                  matrixAddToBasket();
+                }
+              }}
+            >
+              <Text style={styles.addText}>
+                {selectedTab === 'Sales' ? 'Add To Basket' : 'Add To Refund'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {productsList?.matrix?.length <= 0 ? (
+            <>
+              {productsList?.options?.length > 0 &&
+                productsList?.has_option != 0 && (
+                  <View style={styles.headerRow}>
+                    <Text style={styles.headerText}>LENGTH</Text>
+                    <Text style={[styles.headerText]}>PRICE</Text>
+                  </View>
+                )}
+
+              {productsList?.has_option != 0 &&
+              productsList?.options?.length > 0 ? (
+                <FlatList
+                  data={productsList?.options?.[0]?.option_values}
+                  keyExtractor={(item, index) => index.toString()}
+                  renderItem={({ item, index }) => {
+                    const qty = rowQuantities[index] ?? 0;
+
+                    return (
+                      <View key={index}>
+                        <View style={styles.row}>
+                          <View style={styles.box}>
+                            <Text style={styles.boxText}>
+                              {item?.option_values_name[0]?.name}
+                            </Text>
+                          </View>
+
+                          <View style={styles.box}>
+                            <Text style={styles.boxText}>
+                              £ {parseFloat(item?.price).toFixed(2)}
+                            </Text>
+                          </View>
+
+                          <View style={styles.counterBox}>
+                            <TouchableOpacity
+                              style={styles.circleBtn}
+                              onPress={() => handleDecrease(index)}
+                            >
+                              <View style={styles.circleBtn2}>
+                                <Text style={styles.counterBtnText}>−</Text>
+                              </View>
+                            </TouchableOpacity>
+
+                            <Text style={styles.counterValue}>{qty}</Text>
+
+                            <TouchableOpacity
+                              style={styles.circleBtn}
+                              onPress={() =>
+                                handleIncrease(index, item.quantity)
+                              }
+                            >
+                              <View style={styles.circleBtn2}>
+                                <Text style={styles.counterBtnText}>+</Text>
+                              </View>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+
+                        <View style={{ paddingRight: moderateScale(10) }}>
+                          <Text style={styles.inStock}>
+                            In-Stock: {item?.quantity}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  }}
+                  showsVerticalScrollIndicator={false}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={5}
+                  windowSize={5}
+                  ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                      {Platform.OS == 'android' ? (
+                        <FastImage
+                          source={ImageData.NoData}
+                          style={styles.gif}
+                          // tintColor={'red'}
+                          resizeMode={FastImage.resizeMode.contain}
+                        />
+                      ) : (
+                        <Text style={styles.emptyText}>No items available</Text>
+                      )}
+                    </View>
+                  }
+                  contentContainerStyle={
+                    productsList?.options?.[0]?.option_values?.length === 0
+                      ? styles.emptyContentContainer
+                      : {}
+                  }
+                />
+              ) : (
+                <>
+                  <View>
                     <View style={styles.row}>
                       <View style={styles.box}>
-                        <Text style={styles.boxText}>
-                          {item?.option_values_name[0]?.name}
-                        </Text>
+                        <Text style={styles.boxText}>{productsList?.sku}</Text>
                       </View>
 
                       <View style={styles.box}>
                         <Text style={styles.boxText}>
-                          £ {parseFloat(item?.price).toFixed(2)}
+                          £ {parseFloat(productsList?.price).toFixed(2)}
                         </Text>
                       </View>
 
                       <View style={styles.counterBox}>
                         <TouchableOpacity
                           style={styles.circleBtn}
-                          onPress={() => handleDecrease(index)}
+                          onPress={() => handleDecrease('single')}
                         >
                           <View style={styles.circleBtn2}>
                             <Text style={styles.counterBtnText}>−</Text>
                           </View>
                         </TouchableOpacity>
 
-                        <Text style={styles.counterValue}>{qty}</Text>
+                        <Text style={styles.counterValue}>
+                          {rowQuantities.single?.qty ?? 0}
+                        </Text>
 
                         <TouchableOpacity
                           style={styles.circleBtn}
-                          onPress={() => handleIncrease(index, item.quantity)}
+                          onPress={() =>
+                            handleIncrease('single', productsList?.quantity)
+                          }
                         >
                           <View style={styles.circleBtn2}>
                             <Text style={styles.counterBtnText}>+</Text>
@@ -421,201 +640,136 @@ const DisplayItems = ({ navigation, route }) => {
 
                     <View style={{ paddingRight: moderateScale(10) }}>
                       <Text style={styles.inStock}>
-                        In-Stock: {item?.quantity}
+                        In-Stock:
+                        {productsList?.quantity}
                       </Text>
                     </View>
                   </View>
-                );
-              }}
-              showsVerticalScrollIndicator={false}
-              initialNumToRender={10}
-              maxToRenderPerBatch={5}
-              windowSize={5}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  {Platform.OS == 'android' ? (
-                    <FastImage
-                      source={ImageData.NoData}
-                      style={styles.gif}
-                      // tintColor={'red'}
-                      resizeMode={FastImage.resizeMode.contain}
-                    />
-                  ) : (
-                    <Text style={styles.emptyText}>No items available</Text>
-                  )}
-                </View>
-              }
-              contentContainerStyle={
-                productsList?.options?.[0]?.option_values?.length === 0
-                  ? styles.emptyContentContainer
-                  : {}
-              }
-            />
+                </>
+              )}
+
+              {productsList?.options?.[0]?.display == 1 &&
+                productsList?.options?.[0]?.bespoke_value_req_epos == 1 && (
+                  <>
+                    <View style={styles.row}>
+                      <View style={styles.box}>
+                        <TextInput
+                          style={[styles.input, { color: '#333' }]}
+                          placeholder="Enter Length"
+                          value={customLength}
+                          onChangeText={handleCustomLengthChange}
+                          keyboardType="numeric"
+                          placeholderTextColor="#ccc"
+                        />
+                      </View>
+                      <View style={styles.box}>
+                        <Text style={styles.boxText}>
+                          £{' '}
+                          {rowQuantities?.custom?.price ??
+                            bespokeFactor.toFixed(2)}
+                        </Text>
+                      </View>
+                      <View style={styles.counterBox}>
+                        <TouchableOpacity
+                          style={styles.circleBtn}
+                          onPress={() => handleDecrease('custom')}
+                        >
+                          <View style={styles.circleBtn2}>
+                            <Text style={styles.counterBtnText}>−</Text>
+                          </View>
+                        </TouchableOpacity>
+
+                        <Text style={styles.counterValue}>
+                          {rowQuantities.custom?.qty ?? 0}
+                        </Text>
+
+                        <TouchableOpacity
+                          style={styles.circleBtn}
+                          onPress={() => handleIncrease('custom')}
+                        >
+                          <View style={styles.circleBtn2}>
+                            <Text style={styles.counterBtnText}>+</Text>
+                          </View>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <View style={{ paddingLeft: moderateScale(10) }}>
+                      <Text style={styles.pricePerM}>
+                        Bespoke Value:
+                        <Text style={{ color: 'red' }}>
+                          {productsList?.options?.[0]?.bespoke_factor_val}
+                        </Text>
+                      </Text>
+                    </View>
+                  </>
+                )}
+            </>
           ) : (
-            <>
-              <View>
-                <View style={styles.row}>
-                  <View style={styles.box}>
-                    <Text style={styles.boxText}>{productsList?.sku}</Text>
-                  </View>
-
-                  <View style={styles.box}>
-                    <Text style={styles.boxText}>
-                      £ {parseFloat(productsList?.price).toFixed(2)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.counterBox}>
-                    <TouchableOpacity
-                      style={styles.circleBtn}
-                      onPress={() => handleDecrease('single')}
-                    >
-                      <View style={styles.circleBtn2}>
-                        <Text style={styles.counterBtnText}>−</Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    <Text style={styles.counterValue}>
-                      {rowQuantities.single?.qty ?? 0}
-                    </Text>
-
-                    <TouchableOpacity
-                      style={styles.circleBtn}
-                      onPress={() =>
-                        handleIncrease('single', productsList?.quantity)
-                      }
-                    >
-                      <View style={styles.circleBtn2}>
-                        <Text style={styles.counterBtnText}>+</Text>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
+            <View style={styles.container1}>
+              <View style={styles.topRow1}>
+                <View style={styles.inputGroup1}>
+                  <Text style={styles.label1}>WIDTH (MM)</Text>
+                  <TextInput
+                    style={styles.input1}
+                    keyboardType="numeric"
+                    value={width}
+                    onChangeText={setWidth}
+                  />
                 </View>
 
-                <View style={{ paddingRight: moderateScale(10) }}>
-                  <Text style={styles.inStock}>
-                    In-Stock:
-                    {productsList?.quantity}
-                  </Text>
+                <View style={styles.inputGroup1}>
+                  <Text style={styles.label1}>LENGTH (MM)</Text>
+                  <TextInput
+                    style={styles.input1}
+                    keyboardType="numeric"
+                    value={length}
+                    onChangeText={setLength}
+                  />
+                </View>
+
+                <View style={styles.qtyWrapper1}>
+                  <TouchableOpacity
+                    style={styles.qtyButton1}
+                    onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                  >
+                    <Text style={styles.qtySymbol1}>−</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.qtyBox1}>
+                    <Text style={styles.qtyNumber1}>{quantity}</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.qtyButton1}
+                    onPress={() => setQuantity(quantity + 1)}
+                  >
+                    <Text style={styles.qtySymbol1}>+</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-            </>
-          )}
 
-          {productsList?.options?.[0]?.display == 1 &&
-            productsList?.options?.[0]?.bespoke_value_req_epos == 1 && (
-              <>
-                <View style={styles.row}>
-                  <View style={styles.box}>
-                    <TextInput
-                      style={[styles.input, { color: '#333' }]}
-                      placeholder="Enter Length"
-                      value={customLength}
-                      onChangeText={handleCustomLengthChange}
-                      keyboardType="numeric"
-                      placeholderTextColor="#ccc"
-                    />
-                  </View>
-                  <View style={styles.box}>
-                    <Text style={styles.boxText}>
-                      £{' '}
-                      {rowQuantities?.custom?.price ?? bespokeFactor.toFixed(2)}
-                    </Text>
-                  </View>
-                  <View style={styles.counterBox}>
-                    <TouchableOpacity
-                      style={styles.circleBtn}
-                      onPress={() => handleDecrease('custom')}
-                    >
-                      <View style={styles.circleBtn2}>
-                        <Text style={styles.counterBtnText}>−</Text>
-                      </View>
-                    </TouchableOpacity>
+              {/* Bottom Row: Button + Price */}
+              <View style={styles.bottomRow1}>
+                <TouchableOpacity
+                  style={styles.calcButton1}
+                  onPress={calculatePrice}
+                >
+                  <Text style={styles.calcText1}>Calculate Price</Text>
+                </TouchableOpacity>
 
-                    <Text style={styles.counterValue}>
-                      {rowQuantities.custom?.qty ?? 0}
-                    </Text>
-
-                    <TouchableOpacity
-                      style={styles.circleBtn}
-                      onPress={() => handleIncrease('custom')}
-                    >
-                      <View style={styles.circleBtn2}>
-                        <Text style={styles.counterBtnText}>+</Text>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <View style={{ paddingLeft: moderateScale(10) }}>
-                  <Text style={styles.pricePerM}>
-                    Bespoke Value:
-                    <Text style={{ color: 'red' }}>
-                      {productsList?.options?.[0]?.bespoke_factor_val}
-                    </Text>
+                <View style={styles.priceContainer1}>
+                  <Text style={styles.priceLine1}>
+                    Price: <Text style={styles.priceValue1}>£{price}</Text>
                   </Text>
+                  <Text style={styles.vatText1}>inc VAT</Text>
                 </View>
-              </>
-            )}
+              </View>
+            </View>
+          )}
         </ScrollView>
-        <View style={styles.bottomCard}>
-          <TouchableOpacity
-            style={styles.circleLeft}
-            onPress={() => {
-              navigation.navigate('AddCartScreen');
-            }}
-          >
-            <View style={styles.circleLeft1}>
-              <MaterialDesignIcons name="cart" color={Color.WHITE} size={20} />
-            </View>
-            <Text style={{ color: 'white', fontSize: 16 }}>£ 0.00</Text>
-            <View
-              style={{
-                height: 20,
-                width: 2,
-                backgroundColor: Color.GRAY,
-                borderRadius: 2,
-              }}
-            />
-            <View>
-              <Text style={{ color: 'white', fontSize: 1 }}>1 (1)</Text>
-              <Text style={{ color: 'white', fontSize: 10 }}>
-                ITEMS (GROUP)
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <View
-            style={{
-              height: 30,
-              width: 3,
-              backgroundColor: '#D1D1D1',
-              borderRadius: 2,
-            }}
-          />
-          <TouchableOpacity
-            style={styles.circleRight}
-            onPress={() => {
-              navigation.navigate('BarCodeReader');
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: '#B71C1C',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <MaterialDesignIcons
-                name="barcode-scan"
-                color={Color.WHITE}
-                size={25}
-              />
-            </View>
-          </TouchableOpacity>
-        </View>
+
         {productsList?.length <= 0 && <Loader visible={loading} />}
+        <CartComponent />
       </KeyboardAvoidingView>
       <ProductModal
         visible={visibleModal}
@@ -858,7 +1012,7 @@ const styles = ScaledSheet.create({
   },
   bottomCard: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 10,
     width: '75%',
     height: 50,
     flexDirection: 'row',
@@ -920,5 +1074,96 @@ const styles = ScaledSheet.create({
     width: 200,
     height: 200,
   },
+
+  container1: {
+    padding: moderateScale(10),
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(6),
+  },
+  topRow1: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  inputGroup1: {
+    flex: 1,
+    marginRight: moderateScale(6),
+  },
+  label1: {
+    fontSize: moderateScale(11),
+    fontWeight: '600',
+    color: '#444',
+    marginBottom: moderateScale(3),
+  },
+  input1: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: moderateScale(4),
+    height: moderateScale(40),
+    paddingHorizontal: moderateScale(10),
+    fontSize: moderateScale(14),
+  },
+  qtyWrapper1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: moderateScale(4),
+    height: moderateScale(40),
+  },
+  qtyButton1: {
+    paddingHorizontal: moderateScale(10),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qtySymbol1: {
+    fontSize: moderateScale(18),
+    fontWeight: '600',
+  },
+  qtyBox1: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#ccc',
+    paddingHorizontal: moderateScale(16),
+    alignItems: 'center',
+  },
+  qtyNumber1: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  bottomRow1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: moderateScale(15),
+  },
+  calcButton1: {
+    backgroundColor: '#333',
+    paddingVertical: moderateScale(12),
+    paddingHorizontal: moderateScale(25),
+    borderRadius: moderateScale(4),
+  },
+  calcText1: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: moderateScale(13),
+  },
+  priceContainer1: {
+    alignItems: 'flex-end',
+  },
+  priceLine1: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  priceValue1: {
+    color: '#8B0000',
+    fontSize: moderateScale(16),
+    fontWeight: '700',
+  },
+  vatText1: {
+    fontSize: moderateScale(12),
+    color: '#777',
+  },
 });
-export default DisplayItems;
+// export default DisplayItems;
+export default React.memo(DisplayItems);

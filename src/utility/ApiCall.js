@@ -5,7 +5,7 @@ import { createNavigationContainerRef } from '@react-navigation/native';
 import { MMKVStorage } from './MmkvStore';
 import { showToast } from './showToast';
 import { resetRoot } from '../Navigation/NavigationService';
-
+import NetInfo from '@react-native-community/netinfo';
 export const navigationRef = createNavigationContainerRef();
 
 const apiClient = axios.create({
@@ -19,6 +19,19 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async config => {
     try {
+      const state = await NetInfo.fetch();
+      if (!state.isConnected) {
+        showToast(
+          'danger',
+          'No Internet',
+          'Please check your network connection.',
+        );
+        // Prevent request if offline
+        return Promise.reject({
+          type: 'network',
+          message: 'No internet connection',
+        });
+      }
       const credentials = await Keychain.getGenericPassword();
 
       if (credentials) {
@@ -108,5 +121,26 @@ export const postData = async (endpoint, body = {}) => {
     console.log('rrrrrrr', error);
     handleApiError(error);
     // throw error
+  }
+};
+// ✅ UPDATE wrapper
+export const putData = async (endpoint, body = {}) => {
+  try {
+    const response = await apiClient.put(endpoint, body);
+    return response;
+  } catch (error) {
+    console.log('PUT Error:', error);
+    handleApiError(error);
+  }
+};
+export const deleteData = async (endpoint, body = {}) => {
+  console.log('dddddddddd', endpoint, body);
+
+  try {
+    const response = await apiClient.delete(endpoint, { data: body });
+    return response;
+  } catch (error) {
+    console.log('Delete Error:', error);
+    handleApiError(error);
   }
 };

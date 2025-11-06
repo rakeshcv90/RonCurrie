@@ -9,84 +9,147 @@ import {
   TextInput,
   FlatList,
   Platform,
+  ScrollView,
+  Keyboard,
 } from 'react-native';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { moderateScale, ScaledSheet } from 'react-native-size-matters';
 import { Color, FONT, IconData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useDispatch, useSelector } from 'react-redux';
+import { MMKVStorage } from '../utility/MmkvStore';
+// import { fetchCartData } from '../Redux/Slice/CartDataShowSlice';
+import { Api } from '../utility/api';
+import { deleteData, putData } from '../utility/ApiCall';
+import { showToast } from '../utility/showToast';
+import CartComponent from '../Component/CartComponent';
+import RenderItem from '../Component/RenderItem';
+import { CommonActions } from '@react-navigation/native';
 
 const AddCartScreen = ({ navigation }) => {
   const [searchActive, setSearchActive] = useState(false);
   const logoAnim = useRef(new Animated.Value(1)).current;
   const searchAnim = useRef(new Animated.Value(-300)).current;
+  const [title, setTitle] = useState('');
+  const [misAmount, SetMisAMount] = useState(0);
+  const dispatch = useDispatch();
 
-  const [cartItems, setCartItems] = useState([
-    { id: '1', name: '63x38mm (3x2) CLS Studding', price: 101.33, qty: 1 },
-    { id: '2', name: 'Test new product', price: 101.33, qty: 1 },
-    { id: '3', name: 'Test new product', price: 101.33, qty: 1 },
-    { id: '4', name: 'Test new product', price: 101.33, qty: 1 },
-    { id: '5', name: 'Test new product', price: 101.33, qty: 1 },
-    { id: '6', name: 'Test new product', price: 101.33, qty: 1 },
-    { id: '7', name: 'Test new product', price: 101.33, qty: 1 },
-    { id: '8', name: 'Test new product', price: 101.33, qty: 1 },
-    { id: '9', name: 'Test new product', price: 101.33, qty: 1 },
-  ]);
+  const { cartList, loading, error, refreshKey } = useSelector(
+    state => state.cartListData,
+  );
+  const [cashTendered, setCashTendered] = useState(null);
+  const [miscList, setMiscList] = useState([{ title: '', amount: '' }]);
+  const handleAddMisc = () => {
+    setMiscList([...miscList, { title: '', amount: '' }]);
+  };
 
-  const toggleSearch = () => {
-    if (!searchActive) {
-      setSearchActive(true);
-      Animated.parallel([
-        Animated.timing(logoAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(searchAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(logoAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(searchAnim, {
-          toValue: -300,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setSearchActive(false));
+  const handleChange = (index, field, value) => {
+    const updatedList = [...miscList];
+    updatedList[index][field] = value;
+    setMiscList(updatedList);
+  };
+  const calculateMatrixPrice = item => {
+    const { matrix, additional_option, cart_quantity, cart_id } = item;
+    const additionalOptionArray = JSON.parse(additional_option || '[]');
+
+    if (!matrix || matrix?.length === 0) {
+      let customOptionPrice = 0;
+      let parsedOption;
+
+      try {
+        parsedOption = JSON.parse(additional_option || '[]');
+      } catch {
+        parsedOption = [];
+      }
+
+      // Case 1: parsedOption is object(custome length)
+      if (
+        parsedOption &&
+        !Array.isArray(parsedOption) &&
+        Object.keys(parsedOption).length > 0
+      ) {
+        const firstValue = Object.values(parsedOption)[0];
+        if (firstValue && firstValue.includes('#')) {
+          const parts = firstValue.split('#');
+
+          customOptionPrice = Number(parts[2]) || 0;
+        } else {
+          const price = item?.options?.[0]?.values?.[0]?.price;
+
+          customOptionPrice = Number(price) * cart_quantity || 0;
+        }
+      }
+      // Case 2: parsedOption is array (like [])
+      else if (Array.isArray(parsedOption) && parsedOption.length === 0) {
+        customOptionPrice = Number(item?.price) * cart_quantity || 0;
+      }
+
+      return customOptionPrice;
     }
+
+    let optionData = {};
+    try {
+      optionData = JSON.parse(additional_option);
+    } catch (e) {
+      parsedOption = [];
+      // return Number(item.price) * (cart_quantity || 1);
+    }
+
+    const values = Object.values(optionData)
+      .map(Number)
+      .filter(v => !isNaN(v));
+
+    const [width, height] = values;
+
+    let matched = matrix.find(m => m.width === width && m.height === height);
+
+    if (!matched) {
+      const largerMatches = matrix.filter(
+        m => m.width >= width && m.height >= height,
+      );
+
+      if (largerMatches.length > 0) {
+        matched = largerMatches.sort(
+          (a, b) =>
+            a.width -
+            width +
+            (a.height - height) -
+            (b.width - width + (b.height - height)),
+        )[0];
+      } else {
+        matched = matrix.sort(
+          (a, b) => b.width - a.width || b.height - a.height,
+        )[0];
+      }
+    }
+
+    const matrixPrice = Number(matched?.price || 0);
+
+    return matrixPrice * (cart_quantity || 1);
   };
+  const getTotalPrice = () => {
+    if (!cartList || cartList.length === 0) return '0.00';
+    const subTotal = cartList?.reduce((sum, item) => {
+      const price = calculateMatrixPrice(item);
 
-  const increment = id => {
-    setCartItems(prev =>
-      prev.map(item =>
-        item.id === id ? { ...item, qty: item.qty + 1 } : item,
-      ),
-    );
+      return sum + (price || 0);
+    }, 0);
+    const miscTotal = miscList.reduce((sum, misc) => {
+      const amt = parseFloat(misc.amount) || 0;
+      return sum + amt;
+    }, 0);
+    const total = subTotal + miscTotal;
+    return total.toFixed(2);
   };
+  const handleDeleteMisc = index => {
+    if (miscList.length === 1) {
+      return;
+    }
 
-  const decrement = id => {
-    setCartItems(prev =>
-      prev.map(item =>
-        item.id === id && item.qty > 1 ? { ...item, qty: item.qty - 1 } : item,
-      ),
-    );
+    const updatedList = miscList.filter((_, i) => i !== index);
+    setMiscList(updatedList);
   };
-
-  const removeItem = id => {
-    setCartItems(prev => prev.filter(item => item.id !== id));
-  };
-
-  const total = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const cashTendered = 500;
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -99,42 +162,26 @@ const AddCartScreen = ({ navigation }) => {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Header */}
         <View style={styles.headerContainer}>
-          <View style={styles.leftContainer}>
-            
-              <Image
-                source={IconData.Logo}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-       
-          </View>
-
-          <View style={styles.rightIcons}>
-            {/* <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}>
-              <Image source={IconData.Search} style={styles.icon} />
-            </TouchableOpacity> */}
-            {/* <TouchableOpacity
-              onPress={() => {
-                navigation.navigate('AccountProfile');
-              }}
-              style={{
-                width: moderateScale(40),
-                height: moderateScale(40),
-                borderRadius: moderateScale(40),
-                borderWidth: 1,
-                borderColor: Color.GRAY5,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-      
-              <Ionicons name={'menu'} size={moderateScale(25)} />
-            </TouchableOpacity> */}
-          </View>
+          <TouchableOpacity
+            style={styles.leftContainer}
+            onPress={() => {
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                }),
+              );
+            }}
+          >
+            <Image
+              source={IconData.Logo}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
         </View>
-        {/* Back button + Items */}
+
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.back}
@@ -148,91 +195,113 @@ const AddCartScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           <View style={styles.tab}>
-            <Text>{cartItems.length} Items</Text>
-            <Text>{cartItems.length} Groups</Text>
+            <Text style={styles.groupText}>{cartList?.length} Items,</Text>
+            <Text>{cartList?.length} Groups</Text>
           </View>
         </View>
+        <ScrollView
+          style={{ flex: 1, marginBottom: moderateScale(20) }}
+          showsVerticalScrollIndicator={false}
+        >
+          <FlatList
+            data={cartList}
+            keyExtractor={(item, index) => String(item.cart_id ?? index)}
+            renderItem={({ item }) => <RenderItem item={item} />}
+          />
 
-        <FlatList
-          data={cartItems}
-          keyExtractor={item => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.cartRowWrapper}>
-              <View style={styles.topRow}>
-                <Text style={styles.productName}>{item.name}</Text>
-                <TouchableOpacity onPress={() => removeItem(item.id)}>
-                  <Ionicons name="trash-outline" size={20} color="gray" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.cartRow}>
-                <View style={styles.qtyContainer}>
-                  <TouchableOpacity
-                    style={styles.qtyButton}
-                    onPress={() => decrement(item.id)}
-                  >
-                    <Text style={styles.qtyButtonText}>-</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.qtyCount}>{item.qty}</Text>
-                  <TouchableOpacity
-                    style={styles.qtyButton}
-                    onPress={() => increment(item.id)}
-                  >
-                    <Text style={styles.qtyButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Price and Total */}
-                <View style={styles.priceContainer}>
-                  <View style={styles.priceBox}>
-                    <Text style={styles.priceText}>
-                      x £{item.price.toFixed(2)}
-                    </Text>
-                  </View>
-                  <View style={styles.priceBox}>
-                    <Text style={styles.priceText}>
-                      - £{(item.price * item.qty).toFixed(2)}
-                    </Text>
+          {miscList.map((item, index) => (
+            <View
+              key={index}
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 10,
+                paddingHorizontal: moderateScale(10),
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.totalLabel}>TITLE</Text>
+                <View style={styles.cashBox}>
+                  <View style={styles.cashInputRow}>
+                    <TextInput
+                      style={styles.cashInput1}
+                      placeholder="Enter title"
+                      value={item.title}
+                      onChangeText={text => handleChange(index, 'title', text)}
+                    />
                   </View>
                 </View>
               </View>
+              <View>
+                <Text style={styles.cashLabel}>AMOUNT</Text>
+                <View style={styles.cashBox}>
+                  <View style={styles.cashInputRow}>
+                    <Text style={styles.cashSymbol}>£</Text>
+                    <TextInput
+                      style={styles.cashInput1}
+                      placeholder="0.00"
+                      keyboardType="numeric"
+                      value={item.amount}
+                      onChangeText={text => handleChange(index, 'amount', text)}
+                    />
+                  </View>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={{ marginTop: moderateScale(20), zIndex: 10 }}
+                onPress={() => handleDeleteMisc(index)}
+              >
+                <Ionicons name="trash-outline" size={20} color="gray" />
+              </TouchableOpacity>
             </View>
-          )}
-        />
-        <TouchableOpacity style={styles.miscBtn}>
-          <Text style={styles.miscText}>Add Miscellaneous Charges</Text>
-        </TouchableOpacity>
-        <View style={styles.totalContainer}>
-          <View>
-            <Text style={styles.totalLabel}>TOTAL</Text>
-            <Text style={styles.totalValue}>- £{total.toFixed(2)}</Text>
-          </View>
-          <View style={styles.cashBox}>
-            <Text style={styles.cashLabel}>CASH TENDERED</Text>
-            <View style={styles.cashInputRow}>
-              <Text style={styles.cashSymbol}>£</Text>
-              <TextInput
-                style={styles.cashInput}
-                keyboardType="numeric"
-                defaultValue={String(cashTendered)}
-              />
+          ))}
+          <TouchableOpacity style={styles.miscBtn} onPress={handleAddMisc}>
+            <Text style={styles.miscText}>Add Miscellaneous Charges</Text>
+          </TouchableOpacity>
+          <View style={styles.totalContainer}>
+            <View>
+              <Text style={styles.totalLabel}>TOTAL</Text>
+              <Text style={styles.totalValue}>£ {getTotalPrice()}</Text>
             </View>
-            <Text style={styles.changeText}>
-              Change To Give:{' '}
-              <Text style={styles.changeValue}>
-                £{(cashTendered - total).toFixed(2)}
-              </Text>
-            </Text>
+            <View style={styles.cashBox}>
+              <Text style={styles.cashLabel}>CASH TENDERED</Text>
+              <View style={styles.cashInputRow}>
+                <Text style={styles.cashSymbol}>£</Text>
+                <TextInput
+                  style={styles.cashInput}
+                  keyboardType="numeric"
+                  value={cashTendered}
+                  placeholder="0.00"
+                  onChangeText={setCashTendered}
+                />
+              </View>
+              {cashTendered && (
+                <Text style={styles.changeText}>
+                  Change To Give:{' '}
+                  <Text style={styles.changeValue}>
+                    £
+                    {(
+                      parseFloat(cashTendered || 0) -
+                      parseFloat(getTotalPrice() || 0)
+                    ).toFixed(2)}
+                  </Text>
+                </Text>
+              )}
+            </View>
           </View>
-        </View>
+        </ScrollView>
         <View style={styles.bottomBtn}>
           <TouchableOpacity
             onPress={() => {
-              navigation.navigate('CustomerDetails');
+              Keyboard.dismiss();
+              setTimeout(() => {
+                navigation.navigate('CustomerDetails');
+              }, 100);
             }}
             style={{
               width: '50%',
-              height: moderateScale(48),
+              height: moderateScale(40),
               backgroundColor: Color.RED,
               justifyContent: 'center',
               alignItems: 'center',
@@ -263,18 +332,7 @@ const styles = ScaledSheet.create({
     flex: 1,
     overflow: 'hidden',
   },
-  searchContainer: { marginLeft: moderateScale(5), flex: 1 },
-  searchInput: {
-    height: moderateScale(45),
-    backgroundColor: '#fff',
-    borderRadius: moderateScale(8),
-    paddingHorizontal: moderateScale(10),
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
   logo: { width: '80%', height: moderateScale(40) },
-  rightIcons: { flexDirection: 'row', alignItems: 'center' },
-  icon: { width: moderateScale(40), height: moderateScale(40) },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -291,7 +349,7 @@ const styles = ScaledSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  tab: { flexDirection: 'row', alignItems: 'center', gap: moderateScale(10) },
+  tab: { flexDirection: 'row', alignItems: 'center', gap: moderateScale(5) },
 
   cartRowWrapper: {
     // marginBottom: 10,
@@ -306,8 +364,8 @@ const styles = ScaledSheet.create({
   },
   productName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.BLACK,
   },
   cartRow: {
     flexDirection: 'row',
@@ -323,7 +381,7 @@ const styles = ScaledSheet.create({
   },
   qtyButton: {
     backgroundColor: '#e0e0e0',
-    paddingHorizontal: moderateScale(12),
+    paddingHorizontal: moderateScale(15),
     paddingVertical: 6,
     justifyContent: 'center',
     alignItems: 'center',
@@ -334,27 +392,30 @@ const styles = ScaledSheet.create({
     color: '#333',
   },
   qtyCount: {
-    paddingHorizontal: moderateScale(16),
-    fontSize: 16,
-    color: '#333',
+    paddingHorizontal: moderateScale(20),
+
+    fontSize: 14,
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY4,
   },
   priceContainer: {
     flexDirection: 'row',
-    marginLeft: moderateScale(10),
+    // flex:1,
+    marginLeft: moderateScale(5),
   },
   priceBox: {
     backgroundColor: '#fff',
     paddingVertical: moderateScale(10),
-    paddingHorizontal: moderateScale(16),
+    paddingHorizontal: moderateScale(25),
     borderWidth: 1,
     borderColor: '#ddd',
-    marginLeft: moderateScale(6),
+    marginLeft: moderateScale(1),
     borderRadius: 4,
   },
   priceText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY4,
   },
 
   miscBtn: {
@@ -371,21 +432,22 @@ const styles = ScaledSheet.create({
     justifyContent: 'space-between',
     padding: moderateScale(15),
   },
-  totalLabel: { fontSize: 14, fontWeight: '600' },
+  totalLabel: { fontSize: 14, fontFamily: FONT.SEMIBOLD, color: Color.GRAY4 },
   totalValue: { fontSize: 18, fontWeight: 'bold' },
   cashBox: { alignItems: 'flex-end' },
-  cashLabel: { fontSize: 14, fontWeight: '600' },
+  cashLabel: { fontSize: 14, fontFamily: FONT.SEMIBOLD, color: Color.GRAY4 },
   cashInputRow: {
     flexDirection: 'row',
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: moderateScale(5),
-    paddingHorizontal: moderateScale(10),
+    paddingHorizontal: moderateScale(5),
     marginVertical: moderateScale(5),
     alignItems: 'center',
   },
   cashSymbol: { fontSize: 16, marginRight: 5 },
-  cashInput: { fontSize: 16, minWidth: moderateScale(60) },
+  cashInput: { fontSize: 16, width: moderateScale(60) },
+  cashInput1: { fontSize: 16, width: moderateScale(130) },
   changeText: { fontSize: 14 },
   changeValue: { color: 'red', fontWeight: '600' },
 
@@ -393,13 +455,37 @@ const styles = ScaledSheet.create({
     backgroundColor: Color.GRAY3,
     padding: moderateScale(10),
     alignItems: 'center',
-    borderTopWidth: 1, // 👈 adds a top border
+    borderTopWidth: 1,
     borderTopColor: Color.GRAY2,
   },
   bottomBtnText: {
     color: Color.WHITE,
     fontSize: 14,
     fontFamily: FONT.SEMIBOLD,
+  },
+  groupText: {
+    fontSize: moderateScale(14),
+    fontFamily: FONT.REGULAR,
+    color: Color.BLACK2,
+    lineHeight: moderateScale(24),
+  },
+
+  headerRow: {
+    flexDirection: 'row',
+    gap: 0,
+    paddingHorizontal: '20@s',
+  },
+  inStock: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'red',
+    textAlign: 'left',
+  },
+  inStock1: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'red',
+    textAlign: 'right',
   },
 });
 

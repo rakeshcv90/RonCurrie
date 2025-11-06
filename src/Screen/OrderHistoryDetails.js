@@ -12,7 +12,7 @@ import { Color, FONT, IconData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useDispatch, useSelector } from 'react-redux';
-import { useFocusEffect } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import { showToast } from '../utility/showToast';
 import {
   clearProducts,
@@ -37,7 +37,7 @@ const OrderHistoryDetails = ({ navigation, route }) => {
       const fetchData = async () => {
         dispatch(clearProducts());
         try {
-          await dispatch(fetchOrderDisplay(order_id?.order_id)).unwrap(); // unwrap gives real error
+          await dispatch(fetchOrderDisplay(order_id?.order_id)).unwrap();
         } catch (error) {
           if (error.type === 'network') {
             showToast('danger', 'Network Error', error.message);
@@ -53,7 +53,7 @@ const OrderHistoryDetails = ({ navigation, route }) => {
         }
       };
       fetchData();
-    }, [dispatch, order_id]),
+    }, [dispatch, order_id, navigation]),
   );
   const reOrderItem = async itemData => {
     setLoader(true);
@@ -100,13 +100,23 @@ const OrderHistoryDetails = ({ navigation, route }) => {
       />
 
       <View style={styles.headerContainer}>
-        <View style={styles.leftContainer}>
+         <TouchableOpacity
+                  style={styles.leftContainer}
+                  onPress={() => {
+                    navigation.dispatch(
+                      CommonActions.reset({
+                        index: 0,
+                        routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                      }),
+                    );
+                  }}
+                >
           <Image
             source={IconData.Logo}
             style={styles.logo}
             resizeMode="contain"
           />
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.header}>
@@ -165,6 +175,7 @@ const OrderHistoryDetails = ({ navigation, route }) => {
                     <Text style={styles.itemModel}>
                       Model: <Text style={styles.modelRed}>{item?.model}</Text>
                     </Text>
+
                     {item?.option && Object.keys(item.option).length > 0 && (
                       <>
                         <Text style={styles.itemModel}>
@@ -245,35 +256,39 @@ const OrderHistoryDetails = ({ navigation, route }) => {
             </View>
           );
         })}
+
         {orderDisplay?.totals?.length > 0 && (
           <View style={styles.summaryBox}>
-            <Text style={styles.summaryText}>
-              {orderDisplay?.totals[0]?.title}:{' '}
-              <Text style={styles.summaryValue}>
-                £{orderDisplay?.totals[0]?.value}
+            {orderDisplay?.totals?.map((item, index) => (
+              <Text
+                key={index}
+                style={
+                  item.title.toLowerCase().includes('total')
+                    ? styles.summaryText
+                    : styles.summaryText
+                }
+              >
+                {item.title}:{' '}
+                <Text
+                  style={
+                    item.title.toLowerCase().includes('total')
+                      ? styles.summaryValue
+                      : styles.summaryValue
+                  }
+                >
+                  £{item.value}
+                </Text>
               </Text>
-            </Text>
-            <Text style={styles.summaryText}>
-              {orderDisplay?.totals[1]?.title}:
-              <Text style={styles.summaryValue}>
-                £{orderDisplay?.totals[1]?.value}
-              </Text>
-            </Text>
-            <Text style={styles.totalText}>
-              {orderDisplay?.totals[3]?.title}:{' '}
-              <Text style={styles.totalAmount}>
-                £ {orderDisplay?.totals[3]?.value}
-              </Text>
-            </Text>
+            ))}
           </View>
         )}
       </ScrollView>
+   
       <PrintModel
         visible={printVisible}
         onClose={() => setPrintVisible(false)}
+        printData={order_id?.order_id}
         onConfirm={async data => {
-          
-
           setLogoutVisible(false);
         }}
       />

@@ -1030,7 +1030,7 @@ const styles = ScaledSheet.create({
   },
 
   title: {
-    fontSize: '36@s',
+    fontSize: '30@s',
     fontFamily: FONT.BOLD,
     color: Color.BLACK,
     marginBottom: '20@vs',

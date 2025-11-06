@@ -32,6 +32,7 @@ import { useDispatch } from 'react-redux';
 import { postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
+import { CommonActions } from '@react-navigation/native';
 
 const BarCodeReader = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState('Sales');
@@ -133,14 +134,24 @@ const BarCodeReader = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        <View style={styles.headerContainer}>
-          <View style={styles.leftContainer}>
+        <TouchableOpacity style={styles.headerContainer}>
+          <TouchableOpacity
+                    style={styles.leftContainer}
+                    onPress={() => {
+                      navigation.dispatch(
+                        CommonActions.reset({
+                          index: 0,
+                          routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                        }),
+                      );
+                    }}
+                  >
             <Image
               source={IconData.Logo}
               style={styles.logo}
               resizeMode="contain"
             />
-          </View>
+          </TouchableOpacity>
 
           <View style={styles.rightIcons}>
             <TouchableOpacity
@@ -169,7 +180,7 @@ const BarCodeReader = ({ navigation }) => {
               <Ionicons name={'menu'} size={moderateScale(25)} />
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.header}>
           <TouchableOpacity

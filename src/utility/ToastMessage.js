@@ -7,6 +7,7 @@ import React, {
 import { View, Text, Animated, Easing, Image } from 'react-native';
 import { ImageData } from '../Component/Image';
 
+
 const ToastMessage = forwardRef(({ timeout = 3000 }, ref) => {
   const [toast, setToast] = useState({
     isVisible: false,

@@ -14,16 +14,16 @@ const Loader = ({ visible }) => {
   return (
     <Modal transparent animationType="fade" visible={visible}>
       <View style={styles.container}>
-        {Platform.OS == 'android' ? (
+        {/* {Platform.OS == 'android' ? (
           <FastImage
             source={ImageData.Loader}
             style={styles.gif}
             // tintColor={'red'}
             resizeMode={FastImage.resizeMode.contain}
           />
-        ) : (
-     <ActivityIndicator size="large" color={Color.RED} />
-        )}
+        ) : ( */}
+        <ActivityIndicator size="large" color={Color.RED} />
+        {/* )} */}
       </View>
     </Modal>
   );

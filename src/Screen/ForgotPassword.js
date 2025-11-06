@@ -15,24 +15,40 @@ import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import FastImage from 'react-native-fast-image';
+import { postData } from '../utility/ApiCall';
+import { Api } from '../utility/api';
+import Loader from '../Component/Loader';
+import { showToast } from '../utility/showToast';
 
 const ForgotPassword = ({ navigation }) => {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [secureText, setSecureText] = useState(true);
-  const loginFunction = () => {
-    navigation.navigate('Home');
-    // if (!email.trim()) {
-    //   Alert.alert('Validation Error', 'Please enter your email');
-    //   return;
-    // }
-    // if (!password.trim()) {
-    //   Alert.alert('Validation Error', 'Please enter your password');
-    //   return;
-    // }
+  const [loader, setLoader] = useState(false);
+  const forgetPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Validation Error', 'Please enter your email');
+      return;
+    }
 
-    // console.log('Logging in with:', email, password);
-    // Alert.alert('Success', 'Login successful (demo)');
+    try {
+      setLoader(true);
+      const payload = {
+        email: email,
+      };
+
+      const response = await postData(Api.FORGOT_PASSWORD, payload);
+   
+
+      if (response?.status === 200) {
+        setLoader(false);
+        setEmail('');
+        showToast('success', 'Success', response?.data?.message);
+      } else {
+        setLoader(false);
+      }
+    } catch (error) {
+      setLoader(false);
+      showToast('danger', 'Error', error.message || 'Something went wrong');
+    }
   };
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -60,7 +76,7 @@ const ForgotPassword = ({ navigation }) => {
           </View>
 
           <View style={styles.formContainer}>
-            <Text style={styles.title}>Forgotten Password?</Text>
+            <Text style={styles.title}>ForgottenPassword?</Text>
             <View
               style={{
                 width: moderateScale(100),
@@ -108,7 +124,6 @@ const ForgotPassword = ({ navigation }) => {
               }}
             >
               <View style={styles.inputRow}>
-            
                 <TextInput
                   style={styles.input}
                   placeholder="demo@email.com"
@@ -118,12 +133,11 @@ const ForgotPassword = ({ navigation }) => {
                 />
               </View>
             </View>
-           
 
             <TouchableOpacity
               style={styles.loginBtn}
               onPress={() => {
-                loginFunction();
+                forgetPassword();
               }}
             >
               <Text style={styles.loginText}>Continue</Text>
@@ -140,6 +154,7 @@ const ForgotPassword = ({ navigation }) => {
             </View>
           </View>
         </ScrollView>
+        <Loader visible={loader} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -162,12 +177,12 @@ const styles = ScaledSheet.create({
 
   formContainer: {
     flex: 1,
-    marginTop: '250@vs',
+    marginTop: '300@vs',
     padding: '20@s',
   },
 
   title: {
-    fontSize: '36@s',
+    fontSize: '30@s',
     fontFamily: FONT.BOLD,
     color: Color.BLACK,
     borderBottomColor: Color.RED,

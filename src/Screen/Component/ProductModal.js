@@ -11,7 +11,7 @@ import {
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
-import { scale } from 'react-native-size-matters'; // Import scale from size-matters
+import { scale } from 'react-native-size-matters';
 import { ImageBaseUrl } from '../../utility/api';
 import RenderHTML from 'react-native-render-html';
 import { decode } from 'html-entities';
@@ -22,7 +22,7 @@ const { width } = Dimensions.get('window');
 
 const ProductModal = ({ visible, onClose, product }) => {
   const { width } = useWindowDimensions();
- 
+
   const decodedHtml = decode(product?.descriptions?.description);
 
   const tagsStyles = {
@@ -50,22 +50,17 @@ const ProductModal = ({ visible, onClose, product }) => {
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({ item }) => (
-              // <Image
-              //   source={{ uri: ImageBaseUrl + item?.image }}
-              //   style={styles.productImage}
-              //   resizeMode="cover"
-              // />
-
               <FastImage
-              style={styles.productImage}
-              source={{
-                uri: ImageBaseUrl + item.image,
-                priority: FastImage.priority.normal,
-                cache: FastImage.cacheControl.immutable,
-              }}
-              resizeMode={FastImage.resizeMode.cover}
-              // onError={handleError}
-            />
+                style={styles.productImage}
+                source={{
+                  // uri: ImageBaseUrl + item.image,
+                  uri: `${ImageBaseUrl}${item?.image}?w=150&h=150`,
+                priority: FastImage.priority.high,
+
+                  cache: FastImage.cacheControl.immutable,
+                }}
+                resizeMode={FastImage.resizeMode.cover}
+              />
             )}
           />
 

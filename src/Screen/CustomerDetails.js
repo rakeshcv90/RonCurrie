@@ -26,6 +26,7 @@ import Loader from '../Component/Loader';
 import { getData, postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
 import { showToast } from '../utility/showToast';
+import { CommonActions } from '@react-navigation/native';
 
 const CustomerDetails = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState('Get Delivery');
@@ -36,7 +37,7 @@ const CustomerDetails = ({ navigation }) => {
   const [loader, setLoader] = useState(false);
   const [addressData, setAddressData] = useState([]);
   const [resData, setResData] = useState([]);
-  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [selectedAddress, setSelectedAddress] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [carDetails, setCarDetails] = useState('');
@@ -88,16 +89,12 @@ const CustomerDetails = ({ navigation }) => {
       }
     }
   };
-
+  const handleChange = text => {
+    // Allow only digits
+    const numericText = text.replace(/[^0-9]/g, '');
+    setContactNumber(numericText);
+  };
   const onCreateOrder = async () => {
-    const formData = {
-      postcode: postcode.trim(),
-      customerName: customerName.trim(),
-      address: selectedAddress.trim(),
-      phone: contactNumber.trim(),
-      carDetails: carDetails.trim(),
-    };
-
     let validations = [];
     if (selectedTab === 'Get Delivery') {
       validations = [
@@ -113,14 +110,38 @@ const CustomerDetails = ({ navigation }) => {
       ];
     }
 
-    // Check validations
+    const formData = {
+      postcode: postcode.trim(),
+      customerName: customerName.trim(),
+      address: selectedAddress.trim(),
+      phone: contactNumber.trim(),
+      carDetails: carDetails.trim(),
+    };
+
     for (let i = 0; i < validations.length; i++) {
       const { field, message } = validations[i];
+
       if (!formData[field]) {
         Alert.alert('Validation Error', message);
         return;
       }
+      if (field === 'phone') {
+        if (formData.phone.length < 10) {
+          Alert.alert(
+            'Validation Error',
+            'Phone number must be at least 10 digits.',
+          );
+          return;
+        } else if (formData.phone.length > 15) {
+          Alert.alert(
+            'Validation Error',
+            'Phone number cannot be more than 15 digits.',
+          );
+          return;
+        }
+      }
     }
+    Alert.alert('Success', 'The order has been created successfully.');
   };
   return (
     <SafeAreaView style={styles.container}>
@@ -136,13 +157,23 @@ const CustomerDetails = ({ navigation }) => {
         keyboardVerticalOffset={0}
       >
         <View style={styles.headerContainer}>
-          <View style={styles.leftContainer}>
+          <TouchableOpacity
+            style={styles.leftContainer}
+            onPress={() => {
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                }),
+              );
+            }}
+          >
             <Image
               source={IconData.Logo}
               style={styles.logo}
               resizeMode="contain"
             />
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.header}>
@@ -229,7 +260,6 @@ const CustomerDetails = ({ navigation }) => {
                     onFocus={() => setIsFocus(true)}
                     onBlur={() => setIsFocus(false)}
                     onChange={item => {
-                      console.log('Selected Item:', item);
                       setValue(item.value);
                       setSelectedAddress(prev =>
                         prev && prev !== '' ? prev : item.originalAddress,
@@ -263,7 +293,7 @@ const CustomerDetails = ({ navigation }) => {
                   style={styles.input2}
                   placeholder="Enter Contact Number"
                   value={contactNumber}
-                  onChangeText={setContactNumber}
+                  onChangeText={handleChange}
                   keyboardType="phone-pad"
                 />
               </View>
@@ -275,7 +305,7 @@ const CustomerDetails = ({ navigation }) => {
                   style={styles.input2}
                   placeholder="Enter Contact Number"
                   value={contactNumber}
-                  onChangeText={setContactNumber}
+                  onChangeText={handleChange}
                   keyboardType="phone-pad"
                 />
                 <Text style={styles.label}>CAR DETAILS</Text>
@@ -353,7 +383,7 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: scale(10),
-    gap: 5,
+    gap: 2,
   },
   back: {
     width: scale(40),
@@ -374,7 +404,7 @@ const styles = ScaledSheet.create({
     padding: scale(2),
   },
   tabButton: {
-    paddingHorizontal: scale(15),
+    paddingHorizontal: scale(10),
     height: verticalScale(35),
     borderRadius: scale(40),
     justifyContent: 'center',
@@ -384,7 +414,7 @@ const styles = ScaledSheet.create({
     backgroundColor: Color.RED,
   },
   textStyle: {
-    fontSize: moderateScale(14),
+    fontSize: moderateScale(13),
     fontFamily: FONT.SEMIBOLD,
     color: Color.WHITE,
   },
