@@ -21,6 +21,7 @@ const CartDataShowSlice = createSlice({
     loading: false,
     error: null,
     refreshKey: 0,
+    skipAutoBack: false,
   },
   reducers: {
     clearcartProducts: state => {
@@ -29,6 +30,10 @@ const CartDataShowSlice = createSlice({
     },
     triggerCartRefresh: state => {
       state.refreshKey += 1; // 🔁 increments value each time you add item
+    },
+    setSkipAutoBack: (state, action) => {
+      // ✅ ADDED
+      state.skipAutoBack = action.payload;
     },
   },
   extraReducers: builder => {
@@ -48,5 +53,6 @@ const CartDataShowSlice = createSlice({
   },
 });
 
-export const { clearcartProducts,triggerCartRefresh } = CartDataShowSlice.actions;
+export const { clearcartProducts, triggerCartRefresh,setSkipAutoBack } =
+  CartDataShowSlice.actions;
 export default CartDataShowSlice.reducer;

@@ -17,6 +17,10 @@ import OrderHistoryDetails from '../Screen/OrderHistoryDetails';
 import ReturnScreen from '../Screen/ReturnScreen';
 import ResetPassword from '../Screen/ResetPassword';
 import WebViewScreen from '../Screen/WebViewScreen';
+import EditInfotmation from '../Screen/EditInfotmation';
+import ProductReturns from '../Screen/ProductReturns';
+import ReturnRequestDetails from '../Screen/ReturnRequestDetails';
+import OrderSuccessFull from '../Screen/OrderSuccessFull';
 
 const screenOptions = {
   headerShown: false,
@@ -44,6 +48,13 @@ const Router = () => {
       <Stack.Screen name="OrderHistory" component={OrderHistory} />
       <Stack.Screen name="ReturnScreen" component={ReturnScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPassword} />
+      <Stack.Screen name="EditInfotmation" component={EditInfotmation} />
+      <Stack.Screen name="ProductReturns" component={ProductReturns} />
+      <Stack.Screen
+        name="ReturnRequestDetails"
+        component={ReturnRequestDetails}
+      />
+      <Stack.Screen name="OrderSuccessFull" component={OrderSuccessFull} />
       <Stack.Screen
         name="OrderHistoryDetails"
         component={OrderHistoryDetails}

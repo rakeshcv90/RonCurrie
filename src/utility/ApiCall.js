@@ -3,9 +3,10 @@ import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { MMKVStorage } from './MmkvStore';
-import { showToast } from './showToast';
+
 import { resetRoot } from '../Navigation/NavigationService';
 import NetInfo from '@react-native-community/netinfo';
+import { showToast } from './showToast';
 export const navigationRef = createNavigationContainerRef();
 
 const apiClient = axios.create({
@@ -52,6 +53,7 @@ const handleApiError = async error => {
   if (error.response) {
     const { status, data } = error.response;
 
+
     try {
       if (status === 403) {
         await MMKVStorage.clearAllData();
@@ -66,6 +68,7 @@ const handleApiError = async error => {
         showToast('danger', 'Validation Error', messagesArray);
       } else if (status === 400) {
         showToast('danger', 'Validation Error', data?.message);
+        return;
       } else if (status === 401) {
         showToast('danger', 'Validation Error', data?.message);
       }
@@ -134,8 +137,6 @@ export const putData = async (endpoint, body = {}) => {
   }
 };
 export const deleteData = async (endpoint, body = {}) => {
-  console.log('dddddddddd', endpoint, body);
-
   try {
     const response = await apiClient.delete(endpoint, { data: body });
     return response;

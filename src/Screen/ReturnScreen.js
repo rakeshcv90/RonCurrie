@@ -42,7 +42,7 @@ const ReturnScreen = ({ route, navigation }) => {
           if (res?.responseCode === 200) {
             setReason(res?.data || []);
           } else {
-            showToast('danger', 'Error', res?.message || 'Reason not found');
+            // showToast('danger', 'Error', res?.message || 'Reason not found');
           }
         } catch (error) {
           if (error.type === 'network') {
@@ -74,7 +74,7 @@ const ReturnScreen = ({ route, navigation }) => {
             // setName(res?.data?.firstname);
             setOrderId(res?.data?.order_id?.toString());
           } else {
-            showToast('danger', 'Error', res?.message || 'Reason not found');
+            // showToast('danger', 'Error', res?.message || 'Reason not found');
           }
         } catch (error) {
           if (error.type === 'network') {
@@ -116,14 +116,14 @@ const ReturnScreen = ({ route, navigation }) => {
       showToast('danger', 'Error', 'Order date not found.');
       return;
     }
-    if (!selectedReason?.return_reason_id) {
-      showToast('danger', 'Error', 'Please select a reason for return.');
-      return;
-    }
-    if (!reasonDetail || reasonDetail.trim() === '') {
-      showToast('danger', 'Error', 'Please provide details for the return.');
-      return;
-    }
+    // if (!selectedReason?.return_reason_id) {
+    //   showToast('danger', 'Error', 'Please select a reason for return.');
+    //   return;
+    // }
+    // if (!reasonDetail || reasonDetail.trim() === '') {
+    //   showToast('danger', 'Error', 'Please provide details for the return.');
+    //   return;
+    // }
     if (!isChecked) {
       showToast('danger', 'Error', 'Please agree to the Terms & Conditions.');
       return;
@@ -155,11 +155,11 @@ const ReturnScreen = ({ route, navigation }) => {
 
         navigation.goBack();
       } else {
-        showToast(
-          'danger',
-          'Error',
-          result?.message || 'Failed to submit return.',
-        );
+        // showToast(
+        //   'danger',
+        //   'Error',
+        //   result?.message || 'Failed to submit return.',
+        // );
       }
     } catch (error) {
       setLoader(false);

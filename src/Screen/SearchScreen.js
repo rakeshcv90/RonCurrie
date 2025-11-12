@@ -67,7 +67,7 @@ const SearchScreen = ({ navigation }) => {
   };
 
   const debouncedSearch = useCallback(
-    debounce(text => fetchData(text, 1), 1000),
+    debounce(text => fetchData(text, 1), 5000),
     [],
   );
   const handleSearch = text => {
@@ -186,17 +186,17 @@ const SearchScreen = ({ navigation }) => {
       />
 
       <TouchableOpacity style={styles.headerContainer}>
-       <TouchableOpacity
-                 style={styles.leftContainer}
-                 onPress={() => {
-                   navigation.dispatch(
-                     CommonActions.reset({
-                       index: 0,
-                       routes: [{ name: 'Home' }], // 👈 this becomes the new root
-                     }),
-                   );
-                 }}
-               >
+        <TouchableOpacity
+          style={styles.leftContainer}
+          onPress={() => {
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Home' }], // 👈 this becomes the new root
+              }),
+            );
+          }}
+        >
           <Image
             source={IconData.Logo}
             style={styles.logo}
@@ -256,7 +256,7 @@ const SearchScreen = ({ navigation }) => {
         }
       />
 
-       <CartComponent />
+      <CartComponent />
     </SafeAreaView>
   );
 };

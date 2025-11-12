@@ -46,7 +46,8 @@ const WelcomeScreen = ({ navigation }) => {
           }}
         />
         <Text style={styles.subtitle}>
-          Lorem ipsum dolor sit amet consectetur. Lorem id sit
+          Access your RonCurrie EPOS account to manage sales and inventory with
+          ease
         </Text>
 
         <View style={styles.button}>

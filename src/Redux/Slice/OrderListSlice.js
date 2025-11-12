@@ -11,6 +11,7 @@ export const fetchOrderList = createAsyncThunk(
       }?page=${page}&limit=${limit}&name=${encodeURIComponent(name)}`;
 
       const response = await getData(url);
+      console.log("Ccccccc",response)
       return { data: response?.data?.data || [], page };
     } catch (error) {
       return rejectWithValue(error);

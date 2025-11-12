@@ -26,6 +26,7 @@ import { showToast } from '../utility/showToast';
 import { usePermissions } from '../Component/usePermissions';
 import CartComponent from '../Component/CartComponent';
 import { Color, FONT, IconData } from '../Component/Image';
+import { clearProducts } from '../Redux/Slice/ProductListSlice';
 
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -63,11 +64,11 @@ const Home = ({ navigation }) => {
   };
 
   const handleItemPress = item => {
+    dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
   };
   const ITEM_HEIGHT = moderateScale(100); // height of each item including padding/margin
   const ITEMS_PER_ROW = 3;
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -115,7 +116,8 @@ const Home = ({ navigation }) => {
       </View>
 
       <ScrollView
-        style={{ flex: 1, marginBottom: moderateScale(80) }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: moderateScale(90) }}
         showsVerticalScrollIndicator={false}
       >
         {products.map((category, index) => (
@@ -137,27 +139,26 @@ const Home = ({ navigation }) => {
                 {category?.main_heading}
               </Text>
               <View>
-                 <Ionicons
-                name={
-                  expanded === (category.id || index)
-                    ? 'chevron-down'
-                    : 'chevron-up'
-                }
-                size={moderateScale(20)}
-                color={expanded === (category.id || index) ? '#fff' : '#000'}
-              />
-              <Ionicons
-                name={
-                  expanded === (category.id || index)
-                    ? 'chevron-up'
-                    : 'chevron-down'
-                }
-                size={moderateScale(20)}
-                color={expanded === (category.id || index) ? '#fff' : '#000'}
-                style={{top:-12}}
-              />
+                <Ionicons
+                  name={
+                    expanded === (category.id || index)
+                      ? 'chevron-down'
+                      : 'chevron-up'
+                  }
+                  size={moderateScale(20)}
+                  color={expanded === (category.id || index) ? '#fff' : '#000'}
+                />
+                <Ionicons
+                  name={
+                    expanded === (category.id || index)
+                      ? 'chevron-up'
+                      : 'chevron-down'
+                  }
+                  size={moderateScale(20)}
+                  color={expanded === (category.id || index) ? '#fff' : '#000'}
+                  style={{ top: -12 }}
+                />
               </View>
-             
             </TouchableOpacity>
 
             {expanded === (category.id || index) &&

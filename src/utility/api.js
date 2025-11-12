@@ -25,5 +25,9 @@ export const Api = {
   RETURN_REASON: 'epos/account/returns/reasons',
   RETURN_ORDER_DETAILS: 'epos/account/order',
   A4_SIZE_PRINT_DATA: 'checkoutInvoce',
-  // MM80_SIZE_PRINT_DATA: 'eposPrintInvoice80mm',
+  ACCOUNT_UPDATE: 'epos/account/edit',
+  EPOSE_RETURN_ORDER:'epos/account/returns',
+  EPOSE_RETURN_DETAILS:'epos/account/returns',
+  ORDER_PLACE:'epos/checkout/save-order'
+  
 };

@@ -6,6 +6,8 @@ import orderDIsplayReducer from '../Redux/Slice/OrderDisplaySlice'
 import a4printsizeReducer from '../Redux/Slice/A4PrintSlice'
 import print80MMReducer from '../Redux/Slice/Print80mmSlice'
 import CartDataShowReducer from '../Redux/Slice/CartDataShowSlice';
+import returnIrderListReducer from '../Redux/Slice/ReturnOrderListSlice'
+import returnOrderDetailsReducer from '../Redux/Slice/OrderReturnDisplaySlice'
 
 const store = configureStore({
   reducer: {
@@ -15,7 +17,9 @@ const store = configureStore({
     displorder:orderDIsplayReducer,
     a4PrintData:a4printsizeReducer,
     print800mmData:print80MMReducer,
-    cartListData:CartDataShowReducer
+    cartListData:CartDataShowReducer,
+    returnlisorder:returnIrderListReducer,
+    returnDetails:returnOrderDetailsReducer
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({

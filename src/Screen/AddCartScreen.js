@@ -35,13 +35,25 @@ const AddCartScreen = ({ navigation }) => {
   const [misAmount, SetMisAMount] = useState(0);
   const dispatch = useDispatch();
 
-  const { cartList, loading, error, refreshKey } = useSelector(
+  const { cartList, loading, error, refreshKey, skipAutoBack } = useSelector(
     state => state.cartListData,
   );
   const [cashTendered, setCashTendered] = useState(null);
-  const [miscList, setMiscList] = useState([{ title: '', amount: '' }]);
+  const [miscList, setMiscList] = useState([{ description: '', price: '' }]);
+
+  const [hasNavigatedBack, setHasNavigatedBack] = useState(false);
+
+  useEffect(() => {
+    if (skipAutoBack) return;
+    if (cartList?.length === 0 && !hasNavigatedBack) {
+      setHasNavigatedBack(true);
+      navigation.goBack();
+    } else if (cartList?.length > 0 && hasNavigatedBack) {
+      setHasNavigatedBack(false);
+    }
+  }, [cartList, navigation]);
   const handleAddMisc = () => {
-    setMiscList([...miscList, { title: '', amount: '' }]);
+    setMiscList([...miscList, { description: '', price: '' }]);
   };
 
   const handleChange = (index, field, value) => {
@@ -70,8 +82,8 @@ const AddCartScreen = ({ navigation }) => {
         Object.keys(parsedOption).length > 0
       ) {
         const firstValue = Object.values(parsedOption)[0];
-        if (firstValue && firstValue.includes('#')) {
-          const parts = firstValue.split('#');
+        if (typeof firstValue === 'string' && firstValue?.includes('#')) {
+          const parts = firstValue?.split('#');
 
           customOptionPrice = Number(parts[2]) || 0;
         } else {
@@ -81,7 +93,7 @@ const AddCartScreen = ({ navigation }) => {
         }
       }
       // Case 2: parsedOption is array (like [])
-      else if (Array.isArray(parsedOption) && parsedOption.length === 0) {
+      else if (Array.isArray(parsedOption) && parsedOption?.length === 0) {
         customOptionPrice = Number(item?.price) * cart_quantity || 0;
       }
 
@@ -133,10 +145,15 @@ const AddCartScreen = ({ navigation }) => {
     const subTotal = cartList?.reduce((sum, item) => {
       const price = calculateMatrixPrice(item);
 
-      return sum + (price || 0);
+      // If mode is 1 or 2, subtract price; otherwise, add
+      if (item.mode === 1 || item.mode === 2) {
+        return sum - price;
+      } else {
+        return sum + price;
+      }
     }, 0);
     const miscTotal = miscList.reduce((sum, misc) => {
-      const amt = parseFloat(misc.amount) || 0;
+      const amt = parseFloat(misc?.price) || 0;
       return sum + amt;
     }, 0);
     const total = subTotal + miscTotal;
@@ -150,6 +167,11 @@ const AddCartScreen = ({ navigation }) => {
     const updatedList = miscList.filter((_, i) => i !== index);
     setMiscList(updatedList);
   };
+  useEffect(() => {
+    if (cartList?.length === 0) {
+      navigation.goBack();
+    }
+  }, [cartList, navigation]);
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -169,7 +191,7 @@ const AddCartScreen = ({ navigation }) => {
               navigation.dispatch(
                 CommonActions.reset({
                   index: 0,
-                  routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                  routes: [{ name: 'Home' }],
                 }),
               );
             }}
@@ -206,10 +228,12 @@ const AddCartScreen = ({ navigation }) => {
           <FlatList
             data={cartList}
             keyExtractor={(item, index) => String(item.cart_id ?? index)}
-            renderItem={({ item }) => <RenderItem item={item} />}
+            renderItem={({ item }) => (
+              <RenderItem item={item} navigation={navigation} />
+            )}
           />
 
-          {miscList.map((item, index) => (
+          {miscList?.map((item, index) => (
             <View
               key={index}
               style={{
@@ -227,8 +251,10 @@ const AddCartScreen = ({ navigation }) => {
                     <TextInput
                       style={styles.cashInput1}
                       placeholder="Enter title"
-                      value={item.title}
-                      onChangeText={text => handleChange(index, 'title', text)}
+                      value={item.description}
+                      onChangeText={text =>
+                        handleChange(index, 'description', text)
+                      }
                     />
                   </View>
                 </View>
@@ -242,8 +268,8 @@ const AddCartScreen = ({ navigation }) => {
                       style={styles.cashInput1}
                       placeholder="0.00"
                       keyboardType="numeric"
-                      value={item.amount}
-                      onChangeText={text => handleChange(index, 'amount', text)}
+                      value={item.price}
+                      onChangeText={text => handleChange(index, 'price', text)}
                     />
                   </View>
                 </View>
@@ -262,7 +288,11 @@ const AddCartScreen = ({ navigation }) => {
           <View style={styles.totalContainer}>
             <View>
               <Text style={styles.totalLabel}>TOTAL</Text>
-              <Text style={styles.totalValue}>£ {getTotalPrice()}</Text>
+              <Text style={styles.totalValue}>
+                {Number(getTotalPrice()) < 0
+                  ? `- £ ${Math.abs(Number(getTotalPrice())).toFixed(2)}`
+                  : `£ ${Number(getTotalPrice()).toFixed(2)}`}
+              </Text>
             </View>
             <View style={styles.cashBox}>
               <Text style={styles.cashLabel}>CASH TENDERED</Text>
@@ -295,8 +325,9 @@ const AddCartScreen = ({ navigation }) => {
           <TouchableOpacity
             onPress={() => {
               Keyboard.dismiss();
+
               setTimeout(() => {
-                navigation.navigate('CustomerDetails');
+                navigation.navigate('CustomerDetails', { addCost: miscList });
               }, 100);
             }}
             style={{

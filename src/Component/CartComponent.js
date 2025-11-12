@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Keyboard } from 'react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { ScaledSheet, moderateScale } from 'react-native-size-matters';
@@ -9,8 +9,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { MMKVStorage } from '../utility/MmkvStore';
 import {
-  clearcartProducts,
   fetchCartData,
+  setSkipAutoBack,
 } from '../Redux/Slice/CartDataShowSlice';
 import { showToast } from '../utility/showToast';
 
@@ -35,9 +35,14 @@ const CartComponent = () => {
       dispatch(fetchCartData(userData.customer_id));
     }
   }, [dispatch, userData, refreshKey]);
+  useFocusEffect(
+    React.useCallback(() => {
+      dispatch(setSkipAutoBack(false));
+    }, []),
+  );
 
   const calculateMatrixPrice = item => {
-    const { matrix, additional_option, cart_quantity, cart_id } = item;
+    const { matrix, additional_option, cart_quantity, cart_id, mode } = item;
     const additionalOptionArray = JSON.parse(additional_option || '[]');
 
     if (!matrix || matrix?.length === 0) {
@@ -50,16 +55,20 @@ const CartComponent = () => {
         parsedOption = [];
       }
 
-      // Case 1: parsedOption is object(custome length)
       if (
         parsedOption &&
         !Array.isArray(parsedOption) &&
         Object.keys(parsedOption).length > 0
       ) {
         const firstValue = Object.values(parsedOption)[0];
-        if (firstValue && firstValue.includes('#')) {
-          const parts = firstValue.split('#');
+        // if (firstValue && firstValue?.includes('#')) {
+        //   const parts = firstValue?.split('#');
 
+        //   customOptionPrice = Number(parts[2]) || 0;
+        // }
+
+        if (typeof firstValue === 'string' && firstValue.includes('#')) {
+          const parts = firstValue.split('#');
           customOptionPrice = Number(parts[2]) || 0;
         } else {
           const price = item?.options?.[0]?.values?.[0]?.price;
@@ -68,7 +77,7 @@ const CartComponent = () => {
         }
       }
       // Case 2: parsedOption is array (like [])
-      else if (Array.isArray(parsedOption) && parsedOption.length === 0) {
+      else if (Array.isArray(parsedOption) && parsedOption?.length === 0) {
         customOptionPrice = Number(item?.price) * cart_quantity || 0;
       }
 
@@ -115,12 +124,18 @@ const CartComponent = () => {
 
     return matrixPrice * (cart_quantity || 1);
   };
+
   const getPrice = () => {
     if (!cartList || cartList?.length === 0) return '0.00';
+
     const subTotal = cartList?.reduce((sum, item) => {
       const price = calculateMatrixPrice(item);
 
-      return sum + price;
+      if (item.mode === 1 || item.mode === 2) {
+        return sum - price;
+      } else {
+        return sum + price;
+      }
     }, 0);
 
     return subTotal?.toFixed(2);
@@ -134,13 +149,18 @@ const CartComponent = () => {
     return subTotal.toFixed(2);
   };
   return (
-    <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+    <View style={styles.bottomWrapper}>
       <View style={styles.bottomCard}>
         <TouchableOpacity
           style={styles.circleLeft}
           onPress={() => {
+            Keyboard.dismiss();
             if (cartList?.length > 0) {
-              navigation.navigate('AddCartScreen');
+              // navigation.navigate('AddCartScreen');
+
+              setTimeout(() => {
+                navigation.navigate('AddCartScreen'); // or whatever your route is
+              }, 80);
             } else {
               showToast(
                 'warning',
@@ -153,7 +173,11 @@ const CartComponent = () => {
           <View style={styles.circleLeft1}>
             <MaterialDesignIcons name="cart" color={Color.WHITE} size={20} />
           </View>
-          <Text style={{ color: 'white', fontSize: 16 }}>£ {getPrice()}</Text>
+          <Text style={{ color: 'white', fontSize: 16 }}>
+            {Number(getPrice()) < 0
+              ? `- £ ${Math.abs(Number(getPrice())).toFixed(2)}`
+              : `£ ${Number(getPrice()).toFixed(2)}`}
+          </Text>
           <View
             style={{
               height: 20,
@@ -181,8 +205,14 @@ const CartComponent = () => {
         />
         <TouchableOpacity
           style={styles.circleRight}
+          // onPress={() => {
+          //   navigation.navigate('BarCodeReader');
+          // }}
           onPress={() => {
-            navigation.navigate('BarCodeReader');
+            Keyboard.dismiss();
+            setTimeout(() => {
+              navigation.navigate('BarCodeReader'); // or whatever your route is
+            }, 80);
           }}
         >
           <View
@@ -251,6 +281,16 @@ const styles = ScaledSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  bottomWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom:
+      Platform.OS === 'ios' ? moderateScale(20) : moderateScale(10),
   },
 });
 

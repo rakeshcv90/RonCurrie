@@ -7,6 +7,7 @@ export const ImageData = {
   Loader: require('../assets/image/loadin.gif'),
   Succ: require('../assets/image/Succ.gif'),
   NoData: require('../assets/image/Nodata.gif'),
+    Success: require('../assets/image/Success.gif'),
   Profile: require('../assets/image/profile.png'),
 };
 export const IconData = {

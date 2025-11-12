@@ -1,6 +1,14 @@
 import Ionicons from '@react-native-vector-icons/ionicons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  StyleSheet,
+  Linking,
+  Alert,
+} from 'react-native';
 import { moderateScale } from 'react-native-size-matters';
 import { Color, FONT } from '../../Component/Image';
 import RNPrint from 'react-native-print';
@@ -9,16 +17,13 @@ import {
   clearA4Products,
   fetchA4PrintDetails,
 } from '../../Redux/Slice/A4PrintSlice';
-import { useFocusEffect } from '@react-navigation/native';
-import { showToast } from '../../utility/showToast';
-import { fetch80MMPrintDetails } from '../../Redux/Slice/Print80mmSlice';
 
 const PrintModel = ({ visible, onClose, printData }) => {
   const dispatch = useDispatch();
   const { a4PrintDetails, loading, error } = useSelector(
     state => state.a4PrintData,
   );
-
+  const STAR_PASSPRNT_SCHEME = 'starpassprnt://';
   const [selectedOption, setSelectedOption] = useState('A4');
   useEffect(() => {
     if (printData) {
@@ -448,13 +453,13 @@ const PrintModel = ({ visible, onClose, printData }) => {
       </tr>
           ${a4PrintDetails?.products
             ?.map(
-              (product,index) => `
+              (product, index) => `
              <tr>
              <td class="product-desc">${product?.name}  ${
-             product?.options
-               ? `<span class="product-sub">- ${product.options.name}: ${product.options.value}</span>`
-               : ''
-           }</td>
+                product?.options
+                  ? `<span class="product-sub">- ${product.options.name}: ${product.options.value}</span>`
+                  : ''
+              }</td>
              <td class="qty"> ${product?.quantity}</td>
              <td class="price">£${product?.price}</</td>
              <td class="total">£${product?.total}</</td>
@@ -464,7 +469,9 @@ const PrintModel = ({ visible, onClose, printData }) => {
 
       <tr class="summary-row"">
         <td colspan="3">Groups =</td>
-        <td colspan="2" style="text-align: left;">${a4PrintDetails?.products.length}</td>
+        <td colspan="2" style="text-align: left;">${
+          a4PrintDetails?.products.length
+        }</td>
       </tr>
       <tr class="summary-row">
         <td colspan="3" class="bold-summary">Inc VAT Sub-Total</td>
@@ -481,158 +488,154 @@ const PrintModel = ({ visible, onClose, printData }) => {
   </html>
     `;
   };
-  
-  
-//   const generate80mmInvoice = async () => {
-//   const totalsMap = {};
-//   a4PrintDetails?.totals?.forEach(item => {
-//     totalsMap[item.code] = parseFloat(item.value).toFixed(2);
-//   });
 
-//   return `
-//   <!DOCTYPE html>
-//   <html>
-//   <head>
-//     <meta charset="UTF-8" />
-//     <style>
-//       body {
-//         font-family: 'Arial', sans-serif;
-//         width: 80mm;
-//         font-size: 13px;
-//         color: #000;
-//         margin: 0;
-//         padding: 0 5px;
-//       }
+  // const printWithStarPassPRNT = async (html) => {
+  //   try {
+  //     const encodedHTML = encodeURIComponent(html);
 
-//       .order-id {
-//         font-size: 14px;
-//         font-weight: bold;
-//         margin-bottom: 4px;
-//         text-align: left;
-//       }
+  //     // Use dummy link or deep link - MUST be valid url
+  //     // const returnURL = encodeURIComponent("https://google.com/");
+  //     const returnURL = encodeURIComponent("roncurrieapp://print-complete");
 
-//       .company-title {
-//         font-size: 16px;
-//         font-weight: bold;
-//         text-align: left;
-//         margin-bottom: 2px;
-//       }
+  //     const passprnt_uri =
+  //       `starpassprnt://v1/print/nopreview?` +
+  //       `size=3` + // 80mm
+  //       `&popup=disabled` +
+  //       `&callback=${returnURL}` +  // ✅ NEW — fixes E002
+  //       `&back=${returnURL}` +      // ✅ legacy devices need this
+  //       `&html=${encodedHTML}`;
 
-//       .company-details {
-//         font-size: 13px;
-//         text-align: left;
-//         margin-bottom: 8px;
-//       }
+  //     console.log("PRINTER URI:", passprnt_uri);
 
-//       .bold-label {
-//         font-weight: bold;
-//         margin: 5px 0;
-//         font-size: 13px;
-//       }
+  //     await Linking.openURL(passprnt_uri);
+  //   } catch (error) {
+  //     console.log("StarPassPRNT ERROR:", error);
+  //   }
+  // };
 
-//       table {
-//         width: 100%;
-//         border-collapse: collapse;
-//         font-size: 13px;
-//       }
+  // const handlePrint = async format => {
+  //   if (format == '80mm') {
+  //     try {
+  //       const html = await generate80mmInvoice();
+  //       // await RNPrint.print({ html });
+  //         await printWithStarPassPRNT(html);
+  //     } catch (error) {
+  //       console.log('Print error:', error);
+  //     }
+  //   } else {
+  //     try {
+  //       const html = await generatePDF(); // await here
+  //       await RNPrint.print({ html });
+  //     } catch (error) {
+  //       console.log('Print error:', error);
+  //     }
+  //   }
+  // };
 
-//       th, td {
-//         padding: 4px 2px;
-//         text-align: left;
-//       }
+  // const printWithStarPassPRNT = async html => {
+  //   try {
+  //     const encodedHTML = encodeURIComponent(html);
+  //     const returnURL = encodeURIComponent('roncurrieapp://print-complete');
 
-//       th {
-//         border-bottom: 1px solid #000;
-//         font-weight: bold;
-//       }
+  //     const passprnt_uri =
+  //       `starpassprnt://v1/print/nopreview?` +
+  //       `size=3` +
+  //       `&popup=disabled` +
+  //       `&callback=${returnURL}` +
+  //       `&back=${returnURL}` +
+  //       `&html=${encodedHTML}`;
 
-//       .qty, .price, .total {
-//         text-align: right;
-//       }
+  //     const canOpen = await Linking.canOpenURL(STAR_PASSPRNT_SCHEME);
+  //     // console.log('CAN OPEN STARPASSPRNT:', canOpen);
 
-//       .summary-row td {
-//         font-weight: bold;
-//         border-top: 1px solid #000;
-//         padding-top: 6px;
-//         font-size: 13px;
-//       }
+  //     const test = await Linking.canOpenURL('starpassprnt://v1/print');
+  //     console.log('TEST PRINT HANDLER:', test);
 
-//       .footer-text {
-//         margin-top: 8px;
-//         text-align: left;
-//         font-size: 12px;
-//       }
-//     </style>
-//   </head>
+  //     if (!canOpen) {
+  //       Alert.alert(
+  //         'Star PassPRNT Not Installed',
+  //         'This device does not have the Star PassPRNT application installed. Please install it to proceed with printing.',
+  //         [
+  //           { text: 'Cancel', style: 'cancel' },
+  //           {
+  //             text: 'Install',
+  //             onPress: () => {
+  //               // Redirect to Play Store / App Store
+  //               const storeUrl =
+  //                 Platform.OS === 'android'
+  //                   ? 'https://play.google.com/store/apps/details?id=jp.star_m.passprnt&pcampaignid=web_share'
+  //                   : 'https://apps.apple.com/us/app/star-passprnt/id1348333945';
 
-//   <body>
-//     <div class="order-id">Order Id: ${a4PrintDetails?.order_id}</div>
-//     <div class="company-title">Ron Currie & Sons Ltd</div>
-//     <div class="company-details">
-//       Tel: ${a4PrintDetails?.settings?.config_telephone}<br/>
-//       VAT: 1183885755
-//     </div>
-//     <div class="bold-label">Date Added: ${a4PrintDetails?.order_date}</div>
+  //               Linking.openURL(storeUrl);
+  //             },
+  //           },
+  //         ],
+  //       );
+  //       return;
+  //     }
 
-//     <table>
-//       <tr>
-//         <th>Product</th>
-//         <th>Qty</th>
-//         <th>Price</th>
-//         <th>Total</th>
-//       </tr>
+  //     // -------------------------------------------------
+  //     // ✅ 2. App is installed → proceed with printing
+  //     // -------------------------------------------------
+  //     await Linking.openURL(passprnt_uri);
+  //   } catch (error) {
+  //     console.log('StarPassPRNT ERROR:', error);
+  //   }
+  // };
 
-//       ${a4PrintDetails?.products
-//         ?.map(
-//           (product, index) => `
-//             <tr>
-//               <td>${product?.name}${product?.options ? `<br><small>${product.options.name}: ${product.options.value}</small>` : ''}</td>
-//               <td class="qty">${product?.quantity}</td>
-//               <td class="price">£${product?.price}</td>
-//               <td class="total">£${product?.total}</td>
-//             </tr>
-//           `
-//         )
-//         .join('')}
 
-//       <tr class="summary-row">
-//         <td colspan="3">Groups =</td>
-//         <td>${a4PrintDetails?.products.length}</td>
-//       </tr>
-//       <tr class="summary-row">
-//         <td colspan="3">Inc VAT Sub-Total</td>
-//         <td>£${totalsMap['sub_total'] || '0.00'}</td>
-//       </tr>
-//       <tr class="summary-row">
-//         <td colspan="3">Total (VAT = £${totalsMap['tax'] || '0.00'})</td>
-//         <td>£${totalsMap['total'] || '0.00'}</td>
-//       </tr>
-//     </table>
+  const printWithStarPassPRNT = async (html) => {
+  try {
+    const encodedHTML = encodeURIComponent(html);
+    const returnURL = encodeURIComponent("roncurrieapp://print-complete");
 
-//     <div class="footer-text">
-//       Thank you for your purchase!
-//     </div>
-//   </body>
-//   </html>
-//   `;
-// };
+    const passprnt_uri =
+      `starpassprnt://v1/print/nopreview?` +
+      `size=3` +
+      `&popup=disabled` +
+      `&callback=${returnURL}` +
+      `&back=${returnURL}` +
+      `&html=${encodedHTML}`;
 
-  
+    // ✅ Try to open directly — Android canOpenURL ALWAYS fails
+    await Linking.openURL(passprnt_uri);
+
+  } catch (error) {
+    // ✅ If fails → app is not installed
+    Alert.alert(
+      "Star PassPRNT Not Installed",
+      "This device does not have the Star PassPRNT application installed. Please install it to proceed with printing.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Install",
+          onPress: () => {
+            const storeUrl = 
+              Platform.OS === "android"
+                ? "https://play.google.com/store/apps/details?id=jp.star_m.passprnt"
+                : "https://apps.apple.com/us/app/star-passprnt/id1348333945";
+
+            Linking.openURL(storeUrl);
+          },
+        },
+      ]
+    );
+  }
+};
   const handlePrint = async format => {
-    if (format == '80mm') {
-      try {
-        const html = await generate80mmInvoice();
-        await RNPrint.print({ html });
-      } catch (error) {
-        console.log('Print error:', error);
+    try {
+      let html =
+        format === '80mm' ? await generate80mmInvoice() : await generatePDF();
+
+      if (format === '80mm') {
+        await printWithStarPassPRNT(html); // ✅ Star PassPRNT
+      } else {
+        await RNPrint.print({ html }); // ✅ A4 print
       }
-    } else {
-      try {
-        const html = await generatePDF(); // await here
-        await RNPrint.print({ html });
-      } catch (error) {
-        console.log('Print error:', error);
-      }
+
+      onClose();
+    } catch (error) {
+      console.log('Print error:', error);
     }
   };
 

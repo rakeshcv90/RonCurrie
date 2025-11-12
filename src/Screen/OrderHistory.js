@@ -25,6 +25,7 @@ import { CommonActions } from '@react-navigation/native';
 
 import { postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
+import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
 const OrderHistory = ({ navigation }) => {
   const dispatch = useDispatch();
   const [search, setSearch] = useState('');
@@ -32,7 +33,7 @@ const OrderHistory = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const limit = 10;
   const { orderList, loading, hasMore } = useSelector(state => state.orderList);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+
   const [lastFetched, setLastFetched] = useState(null);
   const [loader, setLoader] = useState(false);
   const loadData = async (pageNumber = 1, searchTerm = '') => {
@@ -104,6 +105,7 @@ const OrderHistory = ({ navigation }) => {
         setLoader(false);
         if (responseData?.status == 200) {
           showToast('success', 'Success!', responseData?.data?.message);
+            dispatch(triggerCartRefresh());
         } else {
           showToast('danger', 'Network Error', 'Something went wrong');
         }
@@ -175,7 +177,7 @@ const OrderHistory = ({ navigation }) => {
       {orderList?.length > 0 ? (
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Order History</Text>
-          <Text style={styles.subTitle}>Lorem Ipsum jafoie.</Text>
+          <Text style={styles.subTitle}>View and track all your past orders here.</Text>
           <View style={styles.table}>
             <View style={styles.tableHeader}>
               <View style={[styles.cell, styles.borderRight]}>
@@ -196,9 +198,13 @@ const OrderHistory = ({ navigation }) => {
             <FlatList
               data={orderList}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingBottom: moderateScale(10),
-              }}
+              // contentContainerStyle={{
+              //   paddingBottom: moderateScale(10),
+              // }}
+
+                contentContainerStyle={{
+                              paddingBottom: moderateScale(orderList?.length >15?100:0),
+                            }}
               keyExtractor={(item, index) => `${item.id}_${index}`}
               renderItem={({ item, index }) => (
                 <View
@@ -337,7 +343,7 @@ const styles = ScaledSheet.create({
     marginBottom: moderateScale(15),
   },
   table: {
-    flex: 1,
+    // flex: 1,
     marginHorizontal: moderateScale(10),
     borderWidth: 1,
     borderColor: '#D1D1D1',

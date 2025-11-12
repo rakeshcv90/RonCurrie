@@ -4,6 +4,15 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleURLTypes</key>
+    <array>
+     <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>roncurrieapp</string> 
+    </array>
+     </dict>
+     </array>
 	<key>CFBundleDisplayName</key>
 	<string>RonCurrie</string>
 	<key>CFBundleExecutable</key>

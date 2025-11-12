@@ -126,6 +126,7 @@ const DisplayItems = ({ navigation, route }) => {
         return { ...prev, single: { qty } };
       } else {
         const qty = Math.max((prev[index] || 0) - 1, 0);
+
         return { ...prev, [index]: qty };
       }
     });
@@ -235,13 +236,13 @@ const DisplayItems = ({ navigation, route }) => {
         setCustomLength('');
         dispatch(triggerCartRefresh());
       } else {
-        showToast(
-          'danger',
-          'Failed',
-          resData?.message || 'Something went wrong.',
-        );
+        // showToast(
+        //   'danger',
+        //   'Failed',
+        //   resData?.message || 'Something went wrong.',
+        // );
       }
-      dispatch(triggerCartRefresh());
+      // dispatch(triggerCartRefresh());
     } catch (error) {
       console.error('Error adding to basket:', error);
       showToast('danger', 'Error', error.message || 'Something went wrong.');
@@ -330,11 +331,11 @@ const DisplayItems = ({ navigation, route }) => {
       } else {
         setLoader(false);
         dispatch(triggerCartRefresh());
-        showToast(
-          'danger',
-          'Failed',
-          resData?.message || 'Something went wrong.',
-        );
+        // showToast(
+        //   'danger',
+        //   'Failed',
+        //   resData?.message || 'Something went wrong.',
+        // );
       }
     } catch (error) {
       console.error('Error adding to basket:', error);
@@ -450,327 +451,358 @@ const DisplayItems = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
         </View>
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 100 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.productContainer}>
-            {productsList?.image && productsList?.image.trim() !== '' ? (
-              <FastImage
-                style={styles.productImage}
-                source={{
-                  uri: `${ImageBaseUrl}${productsList.image}?w=150&h=150`,
-                  priority: FastImage.priority.high,
-                  cache: FastImage.cacheControl.immutable,
-                }}
-                resizeMode={FastImage.resizeMode.cover}
-                // onError={handleError}
-              />
-            ) : (
-              <Ionicons
-                name="images"
-                size={moderateScale(80)}
-                style={styles.productImage}
-                color={Color.GRAY}
-              />
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.productTitle}>{productsList?.isbn}</Text>
-              <Text style={styles.productModel}>
-                Model: {productsList?.model}
-              </Text>
 
-              <TouchableOpacity
-                onPress={() => {
-                  setVisibleModaL(true);
-                }}
-              >
-                <Text style={styles.viewDesc}>View Description</Text>
-              </TouchableOpacity>
-            </View>
+        {loading ? (
+          <Loader visible={true} />
+        ) : !productsList || Object.keys(productsList).length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No product found</Text>
           </View>
-
-          <View style={styles.buttonRow}>
-           
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => {
-                if (productsList?.matrix?.length <= 0) {
-                  addToBasket();
-                } else {
-                  matrixAddToBasket();
-                }
-              }}
-            >
-              <Text style={styles.addText}>
-                {selectedTab === 'Sales' ? 'Add To Basket' : 'Add To Refund'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {productsList?.matrix?.length <= 0 ? (
-            <>
-              {productsList?.options?.length > 0 &&
-                productsList?.has_option != 0 && (
-                  <View style={styles.headerRow}>
-                    <Text style={styles.headerText}>LENGTH</Text>
-                    <Text style={[styles.headerText]}>PRICE</Text>
-                  </View>
-                )}
-
-              {productsList?.has_option != 0 &&
-              productsList?.options?.length > 0 ? (
-                <FlatList
-                  data={productsList?.options?.[0]?.option_values}
-                  keyExtractor={(item, index) => index.toString()}
-                  renderItem={({ item, index }) => {
-                    const qty = rowQuantities[index] ?? 0;
-
-                    return (
-                      <View key={index}>
-                        <View style={styles.row}>
-                          <View style={styles.box}>
-                            <Text style={styles.boxText}>
-                              {item?.option_values_name[0]?.name}
-                            </Text>
-                          </View>
-
-                          <View style={styles.box}>
-                            <Text style={styles.boxText}>
-                              £ {parseFloat(item?.price).toFixed(2)}
-                            </Text>
-                          </View>
-
-                          <View style={styles.counterBox}>
-                            <TouchableOpacity
-                              style={styles.circleBtn}
-                              onPress={() => handleDecrease(index)}
-                            >
-                              <View style={styles.circleBtn2}>
-                                <Text style={styles.counterBtnText}>−</Text>
-                              </View>
-                            </TouchableOpacity>
-
-                            <Text style={styles.counterValue}>{qty}</Text>
-
-                            <TouchableOpacity
-                              style={styles.circleBtn}
-                              onPress={() =>
-                                handleIncrease(index, item.quantity)
-                              }
-                            >
-                              <View style={styles.circleBtn2}>
-                                <Text style={styles.counterBtnText}>+</Text>
-                              </View>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-
-                        <View style={{ paddingRight: moderateScale(10) }}>
-                          <Text style={styles.inStock}>
-                            In-Stock: {item?.quantity}
-                          </Text>
-                        </View>
-                      </View>
-                    );
+        ) : (
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.productContainer}>
+              {productsList?.image && productsList?.image.trim() !== '' ? (
+                <FastImage
+                  style={styles.productImage}
+                  source={{
+                    uri: `${ImageBaseUrl}${productsList.image}?w=150&h=150`,
+                    priority: FastImage.priority.high,
+                    cache: FastImage.cacheControl.immutable,
                   }}
-                  showsVerticalScrollIndicator={false}
-                  initialNumToRender={10}
-                  maxToRenderPerBatch={5}
-                  windowSize={5}
-                  ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                      {Platform.OS == 'android' ? (
-                        <FastImage
-                          source={ImageData.NoData}
-                          style={styles.gif}
-                          // tintColor={'red'}
-                          resizeMode={FastImage.resizeMode.contain}
-                        />
-                      ) : (
-                        <Text style={styles.emptyText}>No items available</Text>
-                      )}
-                    </View>
-                  }
-                  contentContainerStyle={
-                    productsList?.options?.[0]?.option_values?.length === 0
-                      ? styles.emptyContentContainer
-                      : {}
-                  }
+                  resizeMode={FastImage.resizeMode.cover}
+                  // onError={handleError}
                 />
               ) : (
-                <>
-                  <View>
-                    <View style={styles.row}>
-                      <View style={styles.box}>
-                        <Text style={styles.boxText}>{productsList?.sku}</Text>
-                      </View>
-
-                      <View style={styles.box}>
-                        <Text style={styles.boxText}>
-                          £ {parseFloat(productsList?.price).toFixed(2)}
-                        </Text>
-                      </View>
-
-                      <View style={styles.counterBox}>
-                        <TouchableOpacity
-                          style={styles.circleBtn}
-                          onPress={() => handleDecrease('single')}
-                        >
-                          <View style={styles.circleBtn2}>
-                            <Text style={styles.counterBtnText}>−</Text>
-                          </View>
-                        </TouchableOpacity>
-
-                        <Text style={styles.counterValue}>
-                          {rowQuantities.single?.qty ?? 0}
-                        </Text>
-
-                        <TouchableOpacity
-                          style={styles.circleBtn}
-                          onPress={() =>
-                            handleIncrease('single', productsList?.quantity)
-                          }
-                        >
-                          <View style={styles.circleBtn2}>
-                            <Text style={styles.counterBtnText}>+</Text>
-                          </View>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    <View style={{ paddingRight: moderateScale(10) }}>
-                      <Text style={styles.inStock}>
-                        In-Stock:
-                        {productsList?.quantity}
-                      </Text>
-                    </View>
-                  </View>
-                </>
+                <Ionicons
+                  name="images"
+                  size={moderateScale(80)}
+                  style={styles.productImage}
+                  color={Color.GRAY}
+                />
               )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.productTitle}>{productsList?.isbn}</Text>
+                <Text style={styles.productModel}>
+                  Model: {productsList?.model}
+                </Text>
 
-              {productsList?.options?.[0]?.display == 1 &&
-                productsList?.options?.[0]?.bespoke_value_req_epos == 1 && (
-                  <>
-                    <View style={styles.row}>
-                      <View style={styles.box}>
-                        <TextInput
-                          style={[styles.input, { color: '#333' }]}
-                          placeholder="Enter Length"
-                          value={customLength}
-                          onChangeText={handleCustomLengthChange}
-                          keyboardType="numeric"
-                          placeholderTextColor="#ccc"
-                        />
-                      </View>
-                      <View style={styles.box}>
-                        <Text style={styles.boxText}>
-                          £{' '}
-                          {rowQuantities?.custom?.price ??
-                            bespokeFactor.toFixed(2)}
-                        </Text>
-                      </View>
-                      <View style={styles.counterBox}>
-                        <TouchableOpacity
-                          style={styles.circleBtn}
-                          onPress={() => handleDecrease('custom')}
-                        >
-                          <View style={styles.circleBtn2}>
-                            <Text style={styles.counterBtnText}>−</Text>
-                          </View>
-                        </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setVisibleModaL(true);
+                  }}
+                >
+                  <Text style={styles.viewDesc}>View Description</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-                        <Text style={styles.counterValue}>
-                          {rowQuantities.custom?.qty ?? 0}
-                        </Text>
-
-                        <TouchableOpacity
-                          style={styles.circleBtn}
-                          onPress={() => handleIncrease('custom')}
-                        >
-                          <View style={styles.circleBtn2}>
-                            <Text style={styles.counterBtnText}>+</Text>
-                          </View>
-                        </TouchableOpacity>
-                      </View>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={() => {
+                  if (productsList?.matrix?.length <= 0) {
+                    addToBasket();
+                  } else {
+                    matrixAddToBasket();
+                  }
+                }}
+              >
+                <Text style={styles.addText}>
+                  {selectedTab === 'Sales' ? 'Add To Basket' : 'Add To Refund'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {productsList?.matrix?.length <= 0 ? (
+              <>
+                {productsList?.options?.length > 0 &&
+                  productsList?.has_option != 0 && (
+                    <View style={styles.headerRow}>
+                      <Text style={styles.headerText}>LENGTH</Text>
+                      <Text style={[styles.headerText]}>PRICE</Text>
                     </View>
-                    <View style={{ paddingLeft: moderateScale(10) }}>
-                      <Text style={styles.pricePerM}>
-                        Bespoke Value:
-                        <Text style={{ color: 'red' }}>
-                          {productsList?.options?.[0]?.bespoke_factor_val}
+                  )}
+
+                {productsList?.has_option != 0 &&
+                productsList?.options?.length > 0 ? (
+                  <FlatList
+                    data={productsList?.options?.[0]?.option_values}
+                    keyExtractor={(item, index) => index.toString()}
+                    renderItem={({ item, index }) => {
+                      const qty = rowQuantities[index] ?? 0;
+
+                      return (
+                        <View key={index}>
+                          <View style={styles.row}>
+                            <View style={styles.box}>
+                              <Text style={styles.boxText}>
+                                {item?.option_values_name[0]?.name}
+                              </Text>
+                            </View>
+
+                            <View style={styles.box}>
+                              <Text style={styles.boxText}>
+                                £ {parseFloat(item?.price).toFixed(2)}
+                              </Text>
+                            </View>
+
+                            <View style={styles.counterBox}>
+                              <TouchableOpacity
+                                style={styles.circleBtn}
+                                onPress={() => {
+                                  if (item?.quantity > 0) {
+                                    handleDecrease(index);
+                                  } else {
+                                    showToast(
+                                      'danger',
+                                      'Item Not in Stock',
+                                      'Please select another item or check back later.',
+                                    );
+                                  }
+                                }}
+                              >
+                                <View style={styles.circleBtn2}>
+                                  <Text style={styles.counterBtnText}>−</Text>
+                                </View>
+                              </TouchableOpacity>
+
+                              <Text style={styles.counterValue}>{qty}</Text>
+
+                              <TouchableOpacity
+                                style={styles.circleBtn}
+                                onPress={() => {
+                                  if (item?.quantity > 0) {
+                                    handleIncrease(index, item.quantity);
+                                  } else {
+                                    showToast(
+                                      'danger',
+                                      'Item Not in Stock',
+                                      'Please select another item or check back later.',
+                                    );
+                                  }
+                                }}
+                              >
+                                <View style={styles.circleBtn2}>
+                                  <Text style={styles.counterBtnText}>+</Text>
+                                </View>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+
+                          <View style={{ paddingRight: moderateScale(10) }}>
+                            <Text style={styles.inStock}>
+                              In-Stock: {item?.quantity}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    }}
+                    showsVerticalScrollIndicator={false}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={5}
+                    windowSize={5}
+                    ListEmptyComponent={
+                      <View style={styles.emptyContainer}>
+                        {Platform.OS == 'android' ? (
+                          <FastImage
+                            source={ImageData.NoData}
+                            style={styles.gif}
+                            // tintColor={'red'}
+                            resizeMode={FastImage.resizeMode.contain}
+                          />
+                        ) : (
+                          <Text style={styles.emptyText}>
+                            No items available
+                          </Text>
+                        )}
+                      </View>
+                    }
+                    contentContainerStyle={
+                      productsList?.options?.[0]?.option_values?.length === 0
+                        ? styles.emptyContentContainer
+                        : {}
+                    }
+                  />
+                ) : (
+                  <>
+                    <View>
+                      <View style={styles.row}>
+                        <View style={styles.box}>
+                          <Text style={styles.boxText}>
+                            {productsList?.sku}
+                          </Text>
+                        </View>
+
+                        <View style={styles.box}>
+                          <Text style={styles.boxText}>
+                            £ {parseFloat(productsList?.price).toFixed(2)}
+                          </Text>
+                        </View>
+
+                        <View style={styles.counterBox}>
+                          <TouchableOpacity
+                            style={styles.circleBtn}
+                            onPress={() => handleDecrease('single')}
+                          >
+                            <View style={styles.circleBtn2}>
+                              <Text style={styles.counterBtnText}>−</Text>
+                            </View>
+                          </TouchableOpacity>
+
+                          <Text style={styles.counterValue}>
+                            {rowQuantities.single?.qty ?? 0}
+                          </Text>
+
+                          <TouchableOpacity
+                            style={styles.circleBtn}
+                            onPress={() =>
+                              handleIncrease('single', productsList?.quantity)
+                            }
+                          >
+                            <View style={styles.circleBtn2}>
+                              <Text style={styles.counterBtnText}>+</Text>
+                            </View>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      <View style={{ paddingRight: moderateScale(10) }}>
+                        <Text style={styles.inStock}>
+                          In-Stock:
+                          {productsList?.quantity}
                         </Text>
-                      </Text>
+                      </View>
                     </View>
                   </>
                 )}
-            </>
-          ) : (
-            <View style={styles.container1}>
-              <View style={styles.topRow1}>
-                <View style={styles.inputGroup1}>
-                  <Text style={styles.label1}>WIDTH (MM)</Text>
-                  <TextInput
-                    style={styles.input1}
-                    keyboardType="numeric"
-                    value={width}
-                    onChangeText={setWidth}
-                  />
-                </View>
 
-                <View style={styles.inputGroup1}>
-                  <Text style={styles.label1}>LENGTH (MM)</Text>
-                  <TextInput
-                    style={styles.input1}
-                    keyboardType="numeric"
-                    value={length}
-                    onChangeText={setLength}
-                  />
-                </View>
+                {productsList?.options?.[0]?.display == 1 &&
+                  productsList?.options?.[0]?.bespoke_value_req_epos == 1 && (
+                    <>
+                      <View style={styles.row}>
+                        <View style={styles.box}>
+                          <TextInput
+                            style={[styles.input, { color: '#333' }]}
+                            placeholder="Enter Length"
+                            value={customLength}
+                            onChangeText={handleCustomLengthChange}
+                            keyboardType="numeric"
+                            placeholderTextColor="#ccc"
+                          />
+                        </View>
+                        <View style={styles.box}>
+                          <Text style={styles.boxText}>
+                            £{' '}
+                            {rowQuantities?.custom?.price ??
+                              bespokeFactor.toFixed(2)}
+                          </Text>
+                        </View>
+                        <View style={styles.counterBox}>
+                          <TouchableOpacity
+                            style={styles.circleBtn}
+                            onPress={() => handleDecrease('custom')}
+                          >
+                            <View style={styles.circleBtn2}>
+                              <Text style={styles.counterBtnText}>−</Text>
+                            </View>
+                          </TouchableOpacity>
 
-                <View style={styles.qtyWrapper1}>
-                  <TouchableOpacity
-                    style={styles.qtyButton1}
-                    onPress={() => setQuantity(Math.max(1, quantity - 1))}
-                  >
-                    <Text style={styles.qtySymbol1}>−</Text>
-                  </TouchableOpacity>
+                          <Text style={styles.counterValue}>
+                            {rowQuantities.custom?.qty ?? 0}
+                          </Text>
 
-                  <View style={styles.qtyBox1}>
-                    <Text style={styles.qtyNumber1}>{quantity}</Text>
+                          <TouchableOpacity
+                            style={styles.circleBtn}
+                            onPress={() => handleIncrease('custom')}
+                          >
+                            <View style={styles.circleBtn2}>
+                              <Text style={styles.counterBtnText}>+</Text>
+                            </View>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                      <View style={{ paddingLeft: moderateScale(10) }}>
+                        <Text style={styles.pricePerM}>
+                          Bespoke Value:
+                          <Text style={{ color: 'red' }}>
+                            {productsList?.options?.[0]?.bespoke_factor_val}
+                          </Text>
+                        </Text>
+                      </View>
+                    </>
+                  )}
+              </>
+            ) : (
+              <View style={styles.container1}>
+                <View style={styles.topRow1}>
+                  <View style={styles.inputGroup1}>
+                    <Text style={styles.label1}>WIDTH (MM)</Text>
+                    <TextInput
+                      style={styles.input1}
+                      keyboardType="numeric"
+                      value={width}
+                      onChangeText={setWidth}
+                    />
                   </View>
 
+                  <View style={styles.inputGroup1}>
+                    <Text style={styles.label1}>LENGTH (MM)</Text>
+                    <TextInput
+                      style={styles.input1}
+                      keyboardType="numeric"
+                      value={length}
+                      onChangeText={setLength}
+                    />
+                  </View>
+
+                  <View style={styles.qtyWrapper1}>
+                    <TouchableOpacity
+                      style={styles.qtyButton1}
+                      onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                    >
+                      <Text style={styles.qtySymbol1}>−</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.qtyBox1}>
+                      <Text style={styles.qtyNumber1}>{quantity}</Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.qtyButton1}
+                      onPress={() => setQuantity(quantity + 1)}
+                    >
+                      <Text style={styles.qtySymbol1}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Bottom Row: Button + Price */}
+                <View style={styles.bottomRow1}>
                   <TouchableOpacity
-                    style={styles.qtyButton1}
-                    onPress={() => setQuantity(quantity + 1)}
+                    style={styles.calcButton1}
+                    onPress={calculatePrice}
                   >
-                    <Text style={styles.qtySymbol1}>+</Text>
+                    <Text style={styles.calcText1}>Calculate Price</Text>
                   </TouchableOpacity>
+
+                  <View style={styles.priceContainer1}>
+                    <Text style={styles.priceLine1}>
+                      Price: <Text style={styles.priceValue1}>£{price}</Text>
+                    </Text>
+                    <Text style={styles.vatText1}>inc VAT</Text>
+                  </View>
                 </View>
               </View>
+            )}
+          </ScrollView>
+        )}
 
-              {/* Bottom Row: Button + Price */}
-              <View style={styles.bottomRow1}>
-                <TouchableOpacity
-                  style={styles.calcButton1}
-                  onPress={calculatePrice}
-                >
-                  <Text style={styles.calcText1}>Calculate Price</Text>
-                </TouchableOpacity>
-
-                <View style={styles.priceContainer1}>
-                  <Text style={styles.priceLine1}>
-                    Price: <Text style={styles.priceValue1}>£{price}</Text>
-                  </Text>
-                  <Text style={styles.vatText1}>inc VAT</Text>
-                </View>
-              </View>
-            </View>
-          )}
-        </ScrollView>
-
-        {productsList?.length <= 0 && <Loader visible={loading} />}
+        {/* {productsList?.length <= 0 && <Loader visible={loading} />} */}
         <CartComponent />
       </KeyboardAvoidingView>
+
       <ProductModal
         visible={visibleModal}
         onClose={() => setVisibleModaL(false)}
@@ -1163,6 +1195,17 @@ const styles = ScaledSheet.create({
   vatText1: {
     fontSize: moderateScale(12),
     color: '#777',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#888',
+    textAlign: 'center',
   },
 });
 // export default DisplayItems;

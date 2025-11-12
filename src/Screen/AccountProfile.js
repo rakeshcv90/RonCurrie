@@ -6,79 +6,56 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { moderateScale, ScaledSheet } from 'react-native-size-matters';
 import Ionicons from '@react-native-vector-icons/ionicons';
+
 import LogoutModal from './Component/LogoutModal';
 import { MMKVStorage } from '../utility/MmkvStore';
 import * as Keychain from 'react-native-keychain';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 
 const links = [
   {
-    title: 'Bespoke Timber Window Options',
-    url: 'https://roncurrie.co.uk/bespoke-window-options',
+    id: 1,
+    title: 'Edit Account Information',
   },
   {
-    title: 'Instructions for Accepting Deliveries',
-    url: 'https://roncurrie.co.uk/instructions-for-accepting-deliveries',
+    id: 2,
+    title: 'Change Password',
   },
   {
-    title: 'Treatment Guide',
-    url: 'https://roncurrie.co.uk/treatment-instructions',
+    id: 3,
+    title: 'Order History',
   },
   {
-    title: 'Delivery Services',
-    url: 'https://roncurrie.co.uk/delivery-options',
+    id: 4,
+    title: 'Return Requests',
   },
-  {
-    title: 'Terms & Conditions',
-    url: 'https://roncurrie.co.uk/terms-and-conditions',
-  },
-  {
-    title: 'Contact Us',
-    url: 'https://roncurrie.co.uk/index.php?route=information/contact',
-  },
-  {
-    title: 'Site Map',
-    url: 'https://roncurrie.co.uk/index.php?route=information/sitemap',
-  },
-  {
-    title: 'Christmas Information',
-    url: 'https://stagerc.co.uk/christmas-info',
-  },
-  {
-    title: 'Fire Escape Windows',
-    url: 'https://roncurrie.co.uk/index.php?route=information/information&information_id=67',
-  },
-  { title: 'Opening Times', url: 'https://roncurrie.co.uk/opening-times' },
-  {
-    title: 'Problems With Website',
-    url: 'https://roncurrie.co.uk/training%20video%20cache',
-  },
-  { title: 'About Us', url: 'https://roncurrie.co.uk/about-us' },
-  { title: 'Privacy Policy', url: 'https://roncurrie.co.uk/privacy-policy' },
-  { title: 'Vacancies', url: 'https://roncurrie.co.uk/Vacancies' },
-  {
-    title: 'Returns',
-    url: 'https://roncurrie.co.uk/index.php?route=account/return/add',
-  },
+  // {
+  //   id: 5,
+  //   title: 'Transactions',
+  // },
 ];
 
-const AccountProfile = ({ navigation }) => {
+const AccountProfile = ({ navigation, route }) => {
   const [logoutVisible, setLogoutVisible] = useState(false);
 
   const [userData, setUserData] = useState(null);
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const data = await MMKVStorage.getItem('User_Data');
-      setUserData(data);
-    };
 
-    fetchUserData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchUserData = async () => {
+        const data = await MMKVStorage.getItem('User_Data');
+        setUserData(data);
+      };
+
+      fetchUserData();
+      return () => {};
+    }, []),
+  );
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -87,38 +64,39 @@ const AccountProfile = ({ navigation }) => {
         barStyle="dark-content"
       />
 
-      <View style={styles.headerContainer}>
-      <TouchableOpacity
-               style={styles.leftContainer}
-               onPress={() => {
-                 navigation.dispatch(
-                   CommonActions.reset({
-                     index: 0,
-                     routes: [{ name: 'Home' }], // 👈 this becomes the new root
-                   }),
-                 );
-               }}
-             >
-          <Image
-            source={IconData.Logo}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.header} activeOpacity={0.7}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.back}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons
-            name={'arrow-back'}
-            size={moderateScale(20)}
-            color={Color.GRAY}
-          />
-        </TouchableOpacity>
-      </View>
+    
+          <View style={styles.headerContainer}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.back}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons
+                name={'arrow-back'}
+                size={moderateScale(20)}
+                color={Color.GRAY}
+              />
+            </TouchableOpacity>
+    
+            <TouchableOpacity
+              style={styles.leftContainer}
+              onPress={() => {
+                navigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                  }),
+                );
+              }}
+            >
+              <Image
+                source={IconData.Logo}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          </View>
+   
       <ScrollView
         contentContainerStyle={{ paddingBottom: moderateScale(30) }}
         showsVerticalScrollIndicator={false}
@@ -135,11 +113,7 @@ const AccountProfile = ({ navigation }) => {
               resizeMode="contain"
             />
             {/* <TouchableOpacity activeOpacity={0.7} style={styles.editIcon}>
-              <MaterialDesignIcons
-                name="pencil"
-                color={Color.BLACK}
-                size={20}
-              />
+              <Ionicons name="pencil" color={Color.BLACK} size={20} />
             </TouchableOpacity> */}
           </View>
 
@@ -151,31 +125,12 @@ const AccountProfile = ({ navigation }) => {
             <Text style={styles.userPhone}>{userData?.telephone}</Text>
           </View>
         </View>
-
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.resetBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              navigation.navigate('ResetPassword');
-            }}
-          >
-            <Text style={styles.btnText}>Reset Password</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.orderBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              navigation.navigate('OrderHistory');
-            }}
-          >
-            <Text style={styles.btnText}>Order History</Text>
-          </TouchableOpacity>
-        </View>
+   
+   
 
         <View style={styles.quickLinks}>
           <Text style={styles.quickTitle}>Quick Links</Text>
-          <Text style={styles.quickDesc}>Lorem Ipsum jafoie.</Text>
+          <Text style={styles.quickDesc}>Use these quick options to manage your account easily.</Text>
 
           {links.map((item, index) => (
             <TouchableOpacity
@@ -183,11 +138,18 @@ const AccountProfile = ({ navigation }) => {
               style={styles.linkItem}
               activeOpacity={0.7}
               onPress={() => {
-                if (item?.url) {
-                  navigation.navigate('WebViewScreen', { urlData: item });
-                } else {
-                  alert('URL not available for this link');
+                if (item?.id == 1) {
+                  navigation.navigate('EditInfotmation');
+                } else if (item?.id == 2) {
+                  navigation.navigate('ResetPassword');
+                } else if (item?.id == 3) {
+                  navigation.navigate('OrderHistory');
+                } else if (item?.id == 4) {
+                 navigation.navigate('ProductReturns');
                 }
+                //  else if (item?.id == 5) {
+                //   alert('URL not available for this link');
+                // }
               }}
             >
               <Text style={styles.linkText}>{item?.title}</Text>
@@ -228,10 +190,11 @@ const styles = ScaledSheet.create({
     backgroundColor: '#fff',
   },
   headerContainer: {
-    flexDirection: 'row',
+   flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: moderateScale(10),
+    padding: moderateScale(12),
+    gap: 10,
     backgroundColor: '#f8f8f8',
   },
   leftContainer: {

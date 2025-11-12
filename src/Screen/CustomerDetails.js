@@ -27,8 +27,15 @@ import { getData, postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
 import { showToast } from '../utility/showToast';
 import { CommonActions } from '@react-navigation/native';
+import {
+  clearcartProducts,
+  setSkipAutoBack,
+} from '../Redux/Slice/CartDataShowSlice';
+import { useDispatch } from 'react-redux';
 
-const CustomerDetails = ({ navigation }) => {
+const CustomerDetails = ({ navigation, route }) => {
+  const dispatch = useDispatch();
+  const miscellaneous = route?.params?.addCost;
   const [selectedTab, setSelectedTab] = useState('Get Delivery');
   const [pushEnabled, setPushEnabled] = useState(true);
   const [value, setValue] = useState(null);
@@ -69,7 +76,7 @@ const CustomerDetails = ({ navigation }) => {
           })) || [];
         setAddressData(transformedData);
       } else {
-        showToast('danger', 'Error', res?.message || 'Address not found');
+
         setAddressData([]);
       }
     } catch (error) {
@@ -90,7 +97,6 @@ const CustomerDetails = ({ navigation }) => {
     }
   };
   const handleChange = text => {
-    // Allow only digits
     const numericText = text.replace(/[^0-9]/g, '');
     setContactNumber(numericText);
   };
@@ -141,7 +147,58 @@ const CustomerDetails = ({ navigation }) => {
         }
       }
     }
-    Alert.alert('Success', 'The order has been created successfully.');
+
+    const hasMisc = miscellaneous?.some(
+      item =>
+        item.description?.trim() !== '' || item.price?.toString().trim() !== '',
+    );
+
+    const payload = {
+      shipping_method:
+        selectedTab == 'Get Delivery' ? 'Delivery' : 'Collection',
+      shipping_type: selectedTab == 'Get Delivery' ? 'delivery' : 'collection',
+      shipping_date: new Date().toISOString().split('T')[0],
+      epos_customer_name: customerName,
+      epos_customer_number: contactNumber,
+      epos_customer_address: selectedAddress,
+      payment_method: 'epos_system',
+    };
+    if (selectedTab !== 'Get Delivery') {
+      payload.epos_car_detail = carDetails;
+    }
+
+    if (hasMisc) {
+      payload.miscellaneous = miscellaneous;
+    }
+    setLoader(true);
+    try {
+      const response = await postData(Api.ORDER_PLACE, payload);
+
+      const resData = response;
+
+      if (resData?.data?.success && resData?.data?.responseCode === 200) {
+        showToast(
+          'success',
+          'Success',
+          resData?.data?.message || 'Items added successfully.',
+        );
+
+        dispatch(setSkipAutoBack(true)); 
+
+        navigation.navigate('OrderSuccessFull', {
+          resData: resData?.data,
+        });
+    
+      } else {
+        
+      
+      }
+    } catch (error) {
+      console.error('Error adding to basket:', error);
+      showToast('danger', 'Error', error.message || 'Something went wrong.');
+    } finally {
+      setLoader(false);
+    }
   };
   return (
     <SafeAreaView style={styles.container}>

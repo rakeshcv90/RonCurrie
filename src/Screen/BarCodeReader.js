@@ -78,7 +78,6 @@ const BarCodeReader = ({ navigation }) => {
       setLastScanned(firstCode);
       setScanningEnabled(false);
 
-    
       handleSubmitBarcode(firstCode);
     },
   });
@@ -86,7 +85,7 @@ const BarCodeReader = ({ navigation }) => {
     if (!barcodeValue) return;
     const payloadData = {
       customer_id: userData?.customer_id,
-      bar_code: barcode,
+      bar_code: barcodeValue,
       order_mode: selectedTab == 'Sales' ? 'add' : 'refund',
     };
 
@@ -98,22 +97,25 @@ const BarCodeReader = ({ navigation }) => {
         response?.data?.data?.data?.length > 0
       ) {
         setMessage({ type: 'success' });
-        setBarcode(null);
-        setLastScanned(null);
-        setScanningEnabled(true);
+        // setBarcode(null);
+        // setLastScanned(null);
+        // setScanningEnabled(true);
         setTimeout(() => {
+          setMessage(null);
+          setBarcode(null);
+          setLastScanned(null);
+          setScanningEnabled(true);
           navigation.navigate('AddCartScreen');
-        }, 2000);
+        }, 3000);
       } else {
         setMessage({ type: 'error' });
-        setBarcode(null);
-        setLastScanned(null);
-        setScanningEnabled(true);
       }
       setTimeout(() => {
         setMessage(null);
-        navigation.navigate('AddCartScreen');
-      }, 3000);
+        setBarcode(null);
+        setLastScanned(null);
+        setScanningEnabled(true);
+      }, 2000);
     } catch (error) {
       setBarcode(null);
       setLastScanned(null);
@@ -136,16 +138,16 @@ const BarCodeReader = ({ navigation }) => {
       >
         <TouchableOpacity style={styles.headerContainer}>
           <TouchableOpacity
-                    style={styles.leftContainer}
-                    onPress={() => {
-                      navigation.dispatch(
-                        CommonActions.reset({
-                          index: 0,
-                          routes: [{ name: 'Home' }], // 👈 this becomes the new root
-                        }),
-                      );
-                    }}
-                  >
+            style={styles.leftContainer}
+            onPress={() => {
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                }),
+              );
+            }}
+          >
             <Image
               source={IconData.Logo}
               style={styles.logo}
@@ -176,7 +178,6 @@ const BarCodeReader = ({ navigation }) => {
                 alignItems: 'center',
               }}
             >
-      
               <Ionicons name={'menu'} size={moderateScale(25)} />
             </TouchableOpacity>
           </View>
@@ -225,7 +226,6 @@ const BarCodeReader = ({ navigation }) => {
           ) : device ? (
             <Camera
               ref={camera}
-          
               style={{ flex: 1 }}
               device={device}
               isActive={true}
@@ -239,7 +239,7 @@ const BarCodeReader = ({ navigation }) => {
         </View>
 
         <ScrollView
-          scrollEnabled={hasPermission} 
+          scrollEnabled={hasPermission}
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

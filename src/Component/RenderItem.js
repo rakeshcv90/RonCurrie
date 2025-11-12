@@ -9,7 +9,7 @@ import { deleteData, putData } from '../utility/ApiCall';
 import { useDispatch } from 'react-redux';
 import { fetchCartData } from '../Redux/Slice/CartDataShowSlice';
 import { showToast } from '../utility/showToast';
-const RenderItem = ({ item }) => {
+const RenderItem = ({ item,navigation }) => {
   const [userData, setUserData] = useState(null);
   const dispatch = useDispatch();
   useEffect(() => {
@@ -40,7 +40,7 @@ const RenderItem = ({ item }) => {
         Object.keys(parsedOption).length > 0
       ) {
         const firstValue = Object.values(parsedOption)[0];
-        if (firstValue && firstValue.includes('#')) {
+        if (typeof firstValue === 'string' && firstValue.includes('#')) {
           const parts = firstValue.split('#');
 
           customOptionPrice = 'custom';
@@ -152,6 +152,8 @@ const RenderItem = ({ item }) => {
 
       if (response?.status == 200) {
         showToast('success', 'Success!', response?.data?.message);
+
+
       } else {
       }
     } catch (error) {
@@ -303,7 +305,7 @@ const RenderItem = ({ item }) => {
             <View style={styles.priceContainer}>
               <View style={styles.priceBox}>
                 <Text style={styles.priceText}>
-                  x £
+                  £
                   {parseFloat(
                     item?.options?.[0]?.values?.[0]?.price || 0,
                   ).toFixed(2)}
@@ -311,7 +313,7 @@ const RenderItem = ({ item }) => {
               </View>
               <View style={styles.priceBox}>
                 <Text style={styles.priceText}>
-                  - x £
+                   £
                   {(
                     parseFloat(item?.options?.[0]?.values?.[0]?.price || 0) *
                     item?.cart_quantity
@@ -355,12 +357,12 @@ const RenderItem = ({ item }) => {
             <View style={styles.priceContainer}>
               <View style={styles.priceBox}>
                 <Text style={styles.priceText}>
-                  x £{parseFloat(item?.price || 0).toFixed(2)}
+                  £{parseFloat(item?.price || 0).toFixed(2)}
                 </Text>
               </View>
               <View style={styles.priceBox}>
                 <Text style={styles.priceText}>
-                  - x £
+                  £
                   {(parseFloat(item?.price || 0) * item?.cart_quantity).toFixed(
                     2,
                   )}
@@ -401,7 +403,7 @@ const RenderItem = ({ item }) => {
             <View style={styles.priceContainer}>
               <View style={styles.priceBox}>
                 <Text style={styles.priceText}>
-                  x £
+                   £
                   {parseFloat(
                     item?.options[0]?.bespoke_factor_val || 0,
                   ).toFixed(2)}
@@ -409,7 +411,7 @@ const RenderItem = ({ item }) => {
               </View>
               <View style={styles.priceBox}>
                 <Text style={styles.priceText}>
-                  - x £
+                  £
                   {(
                     parseFloat(
                       secondValue * item?.options?.[0]?.bespoke_factor_val || 0,
@@ -479,7 +481,7 @@ const RenderItem = ({ item }) => {
                   ]}
                 >
                   <Text style={styles.priceText}>
-                    - x £{parseFloat(price).toFixed(2)}
+                   £{parseFloat(price).toFixed(2)}
                   </Text>
                 </View>
               </View>

@@ -72,7 +72,7 @@ const ToastMessage = forwardRef(({ timeout = 3000 }, ref) => {
 
   if (!toast.isVisible) return null;
 
-  const { backgroundColor, icon } = TOAST_TYPE[toast.type];
+  const { backgroundColor, icon } = TOAST_TYPE[toast?.type];
 
   return (
     <Animated.View

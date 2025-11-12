@@ -22,6 +22,7 @@ import Loader from '../Component/Loader';
 import { postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
 import PrintModel from './Component/PrintModel';
+import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
 
 const OrderHistoryDetails = ({ navigation, route }) => {
   const order_id = route?.params?.orderItem;
@@ -70,6 +71,7 @@ const OrderHistoryDetails = ({ navigation, route }) => {
         setLoader(false);
         if (responseData?.status == 200) {
           showToast('success', 'Success!', responseData?.data?.message);
+            dispatch (triggerCartRefresh());
         } else {
           showToast('danger', 'Network Error', 'Something went wrong');
         }
@@ -100,17 +102,17 @@ const OrderHistoryDetails = ({ navigation, route }) => {
       />
 
       <View style={styles.headerContainer}>
-         <TouchableOpacity
-                  style={styles.leftContainer}
-                  onPress={() => {
-                    navigation.dispatch(
-                      CommonActions.reset({
-                        index: 0,
-                        routes: [{ name: 'Home' }], // 👈 this becomes the new root
-                      }),
-                    );
-                  }}
-                >
+        <TouchableOpacity
+          style={styles.leftContainer}
+          onPress={() => {
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Home' }], // 👈 this becomes the new root
+              }),
+            );
+          }}
+        >
           <Image
             source={IconData.Logo}
             style={styles.logo}
@@ -139,6 +141,7 @@ const OrderHistoryDetails = ({ navigation, route }) => {
             style={styles.orderBtn}
             activeOpacity={0.7}
             onPress={() => {
+            
               setPrintVisible(true);
             }}
           >
@@ -283,7 +286,7 @@ const OrderHistoryDetails = ({ navigation, route }) => {
           </View>
         )}
       </ScrollView>
-   
+
       <PrintModel
         visible={printVisible}
         onClose={() => setPrintVisible(false)}
@@ -441,4 +444,4 @@ const styles = ScaledSheet.create({
   totalAmount: { color: Color.RED, fontFamily: FONT.SEMIBOLD },
 });
 
-export default OrderHistoryDetails;
+export default React.memo(OrderHistoryDetails);

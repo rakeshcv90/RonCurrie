@@ -229,9 +229,11 @@ const SignUp = ({ navigation }) => {
             originalAddress: address,
           })) || [];
         setAddressData(transformedData);
-        console.log('Address Data ', res.data);
+       
+      
+     
       } else {
-        showToast('danger', 'Error', res?.message || 'Address not found');
+
         setAddressData([]);
       }
     } catch (error) {
@@ -535,7 +537,7 @@ const SignUp = ({ navigation }) => {
                 <Text style={styles.findBtnText}>Find Address</Text>
               </TouchableOpacity>
             </View>
-            {/* //Addres Select */}
+          {console.log("XCcccccccccccc",addressData)}
             <View style={styles.container}>
               <Dropdown
                 style={styles.input2}

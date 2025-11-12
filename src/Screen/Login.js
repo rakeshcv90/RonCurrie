@@ -27,24 +27,38 @@ const Login = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [loader, setLoader] = useState(false);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const loginFunction = async () => {
     try {
       if (!email.trim()) {
         Alert.alert('Validation Error', 'Please enter your email');
         return;
       }
+      if (!emailRegex.test(email)) {
+        Alert.alert('Validation Error', 'Please enter a valid email address');
+        return;
+      }
       if (!password.trim()) {
         Alert.alert('Validation Error', 'Please enter your password');
         return;
       }
+      if (password.length < 8) {
+        Alert.alert(
+          'Validation Error',
+          'Password must be at least 8 characters long',
+        );
+        return;
+      }
+
       setLoader(true);
       const response = await postData(Api.LOGIN, { email, password });
- 
+
       if (response?.status == 200) {
         setLoader(false);
         const token = response?.data?.data?.token;
         if (token && response?.data?.data?.user?.epos_user == 1) {
           await Keychain.setGenericPassword('userToken', token);
+
           await MMKVStorage.setItem('User_Data', response?.data?.data?.user);
 
           showToast('success', 'Success!', 'Data saved successfully');
@@ -56,7 +70,8 @@ const Login = ({ navigation }) => {
         }
       } else {
         setLoader(false);
-        // Alert.alert('Login Failed', 'Invalid credentials');
+
+        Alert.alert('Login Failed', 'Invalid credentials');
       }
     } catch (error) {
       setLoader(false);
@@ -313,4 +328,4 @@ const styles = ScaledSheet.create({
   signupText: { color: Color.RED, fontSize: '16@ms', fontFamily: FONT.BOLD },
 });
 
-export default Login;
+export default React.memo(Login);
