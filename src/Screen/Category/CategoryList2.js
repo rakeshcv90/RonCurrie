@@ -1,0 +1,310 @@
+import {
+  View,
+  Text,
+  StatusBar,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { getData } from '../../utility/ApiCall';
+import { Api, ImageBaseUrl } from '../../utility/api';
+import { showToast } from '../../utility/showToast';
+import Loader from '../../Component/Loader';
+import { useDispatch } from 'react-redux';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import CartComponent from '../../Component/CartComponent';
+import { clearProducts } from '../../Redux/Slice/ProductListSlice';
+import FastImage from 'react-native-fast-image';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import {
+  moderateScale,
+  ScaledSheet,
+  verticalScale,
+} from 'react-native-size-matters';
+import { Color, FONT } from '../../Component/Image';
+import SearchComponent from '../Component/SearchComponent';
+
+import RenderHTML from 'react-native-render-html';
+import { useWindowDimensions, Linking } from 'react-native';
+import { decode } from 'html-entities';
+
+const CategoryList2 = ({ route, navigation }) => {
+  const { width } = useWindowDimensions();
+  const dispatch = useDispatch();
+  const catData = route?.params.itemData;
+
+  const [loader, setLoader] = useState(false);
+  const [listproduct, setListProduct] = useState([]);
+  const [results, setResults] = useState([]);
+  const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [imageErrorMap, setImageErrorMap] = useState({});
+
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .replace(/<[^>]*>/g, '') // remove HTML tags
+      .replace(/\s+/g, ' ') // clean extra spaces
+
+      .trim();
+  };
+  const handleItemPress = item => {
+    dispatch(clearProducts());
+    navigation.navigate('DisplayItems', { itemData: item });
+  };
+  const renderItem1 = ({ item }) => {
+    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+    const handleError = () => {
+      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+    };
+
+    const hasError = imageErrorMap[item.id] || false;
+
+    return (
+      <TouchableOpacity
+        style={styles.itemRow}
+        onPress={() => handleItemPress(item)}
+      >
+        {imageUrl && !hasError ? (
+          <FastImage
+            style={styles.itemImage}
+            source={{
+              uri: imageUrl,
+           priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        ) : (
+          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+        )}
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName}>
+            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+           {item?.has_option === 1 && "From"} £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+  const htmlContent = decode(catData?.data?.description?.description || '');
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content"
+      />
+      <SearchComponent
+        onResults={setResults}
+        onLoadMoreRef={setLoadMoreFunc}
+        navigation={navigation}
+        autoFocus={true}
+      />
+
+      {results?.length > 0 ? (
+        <>
+          <FlatList
+            data={results}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item, index) =>
+              `${item.id || item.product_id || index}`
+            }
+            renderItem={renderItem1}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: moderateScale(120),
+            }}
+            //  keyExtractor={(item, index) => index.toString()}
+            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore && (
+                <Text style={{ textAlign: 'center' }}>Loading...</Text>
+              )
+            }
+          />
+        </>
+      ) : (
+        <ScrollView
+          style={{ flex: 1, padding: verticalScale(10) }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: verticalScale(100) }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+
+              alignItems: 'center',
+              gap: moderateScale(10),
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                navigation.goBack();
+              }}
+            >
+              <Ionicons
+                name="home"
+                size={moderateScale(20)}
+                color={Color.GRAY}
+              />
+            </TouchableOpacity>
+
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={Color.GRAY}
+            />
+            <Text
+              style={{
+                fontSize: verticalScale(16),
+                color: Color.GRAY,
+                fontFamily: FONT.SEMIBOLD,
+              }}
+            >
+              {decodeHtml(catData?.data?.description?.name)}
+            </Text>
+          </View>
+          <RenderHTML
+            contentWidth={width}
+            source={{ html: htmlContent }}
+            baseStyle={{
+              fontFamily: FONT.REGULAR,
+              fontSize: verticalScale(12),
+              lineHeight: verticalScale(18),
+              color: '#333',
+            }}
+            /* 🔥 REMOVE EXTRA SPACING / TABS */
+            tagsStyles={{
+              p: {
+                marginTop: 0,
+                marginBottom: 6,
+                padding: 0,
+              },
+              div: {
+                margin: 0,
+                padding: 0,
+              },
+              h2: {
+                textAlign: 'center',
+                fontSize: verticalScale(14),
+                fontFamily: FONT.SEMIBOLD,
+                marginTop: verticalScale(10),
+                marginBottom: verticalScale(6),
+                color: '#666',
+              },
+              img: {
+                width: width - 40, // ✅ FIXED WIDTH
+                height: 180, // ✅ FIXED HEIGHT
+                borderRadius: moderateScale(6),
+                marginVertical: verticalScale(8),
+                alignSelf: 'center',
+              },
+              a: {
+                textDecorationLine: 'none',
+              },
+            }}
+            renderersProps={{
+              img: {
+                enableExperimentalPercentWidth: true,
+              },
+            }}
+            onLinkPress={(event, href) => {
+              if (href) Linking.openURL(href);
+            }}
+          />
+        </ScrollView>
+      )}
+      <CartComponent />
+      <Loader visible={loader} />
+    </SafeAreaView>
+  );
+};
+const styles = ScaledSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
+  },
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  itemPrice: {
+    fontSize: moderateScale(13),
+    color: '#555',
+  },
+  itemTextContainer: {
+    flex: 1,
+    paddingRight: moderateScale(5),
+  },
+
+  row: {
+    marginBottom: moderateScale(12),
+  },
+
+  card: {
+    width: '31%',
+    marginRight: moderateScale(10),
+    // marginHorizontal: moderateScale(6),
+  },
+
+  imageWrapper: {
+    width: '100%',
+    height: moderateScale(150),
+    borderRadius: moderateScale(6),
+    backgroundColor: '#f2f2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+
+  productName: {
+    marginTop: moderateScale(6),
+    fontSize: moderateScale(13),
+    fontFamily: FONT.SEMIBOLD,
+    color: '#333',
+    lineHeight: moderateScale(16),
+  },
+
+  productPrice: {
+    marginTop: moderateScale(2),
+    fontSize: moderateScale(12),
+    color: '#666',
+    fontFamily: FONT.MEDIUM,
+  },
+});
+
+export default CategoryList2;

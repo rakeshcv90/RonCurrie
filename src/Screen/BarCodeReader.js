@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  FlatList,
 } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,9 +31,14 @@ import { MMKVStorage } from '../utility/MmkvStore';
 import { createProduct } from '../Redux/Slice/BarCodeDataSlice';
 import { useDispatch } from 'react-redux';
 import { postData } from '../utility/ApiCall';
-import { Api } from '../utility/api';
+import { Api, ImageBaseUrl } from '../utility/api';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
 import { CommonActions } from '@react-navigation/native';
+import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
+import CartComponent from '../Component/CartComponent';
+import SearchComponent from './Component/SearchComponent';
+import FastImage from 'react-native-fast-image';
+import { clearProducts } from '../Redux/Slice/ProductListSlice';
 
 const BarCodeReader = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState('Sales');
@@ -42,18 +48,25 @@ const BarCodeReader = ({ navigation }) => {
   const [userData, setUserData] = useState(null);
   const { hasPermission } = usePermissions();
   const [message, setMessage] = useState(null);
-
+  const dispatch = useDispatch();
   const camera = useRef(null);
   const devices = Camera.getAvailableCameraDevices();
 
   const [currentCamera, setCurrentCamera] = useState('back');
   const [cameraReady, setCameraReady] = useState(false);
   const device = getCameraDevice(devices, currentCamera);
+  const typingTimeoutRef = useRef(null);
+
+  const [results, setResults] = useState([]);
+  const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [imageErrorMap, setImageErrorMap] = useState({});
   useEffect(() => {
     const fetchUserData = async () => {
       const data = await MMKVStorage.getItem('User_Data');
       setUserData(data);
     };
+    typingTimeoutRef.current?.focus();
 
     fetchUserData();
   }, []);
@@ -63,7 +76,8 @@ const BarCodeReader = ({ navigation }) => {
   };
 
   const codeScanner = useCodeScanner({
-    codeTypes: ['qr', 'ean-13'],
+    // codeTypes: ['qr', 'ean-13'],
+    codeTypes: ['qr', 'ean-13', 'code-128', 'code-39'],
     onCodeScanned: codes => {
       if (!scanningEnabled) return;
 
@@ -105,10 +119,13 @@ const BarCodeReader = ({ navigation }) => {
           setBarcode(null);
           setLastScanned(null);
           setScanningEnabled(true);
-          navigation.navigate('AddCartScreen');
+          dispatch(triggerCartRefresh());
+          // navigation.navigate('AddCartScreen');
+          typingTimeoutRef.current?.focus();
         }, 3000);
       } else {
         setMessage({ type: 'error' });
+        typingTimeoutRef.current?.focus();
       }
       setTimeout(() => {
         setMessage(null);
@@ -116,12 +133,84 @@ const BarCodeReader = ({ navigation }) => {
         setLastScanned(null);
         setScanningEnabled(true);
       }, 2000);
+      typingTimeoutRef.current?.focus();
     } catch (error) {
       setBarcode(null);
       setLastScanned(null);
       setScanningEnabled(true);
+      typingTimeoutRef.current?.focus();
       showToast('danger', 'Error', error.message || 'Something went wrong');
     }
+  };
+  const handleManualInput = text => {
+    setBarcode(text);
+
+    // if (typingTimeoutRef.current) {
+    //   clearTimeout(typingTimeoutRef.current);
+    // }
+
+    // // Wait 700ms after user stops typing
+    // typingTimeoutRef.current = setTimeout(() => {
+    //   if (text.length >= 10) {
+    //     handleSubmitBarcode(text);
+    //   }
+    // }, 2000);
+  };
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .trim();
+  };
+  const handleItemPress = item => {
+    dispatch(clearProducts());
+    navigation.navigate('DisplayItems', { itemData: item });
+  };
+  const renderItem1 = ({ item }) => {
+    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+    const handleError = () => {
+      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+    };
+
+    const hasError = imageErrorMap[item.id] || false;
+
+    return (
+      <TouchableOpacity
+        style={styles.itemRow}
+        onPress={() => handleItemPress(item)}
+      >
+        {imageUrl && !hasError ? (
+          <FastImage
+            style={styles.itemImage}
+            source={{
+              uri: imageUrl,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        ) : (
+          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+        )}
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName}>
+            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+            £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
   return (
     <SafeAreaView style={styles.container}>
@@ -130,177 +219,174 @@ const BarCodeReader = ({ navigation }) => {
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        <TouchableOpacity style={styles.headerContainer}>
-          <TouchableOpacity
-            style={styles.leftContainer}
-            onPress={() => {
-              navigation.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'Home' }], // 👈 this becomes the new root
-                }),
-              );
+      <SearchComponent
+        onResults={setResults}
+        onLoadMoreRef={setLoadMoreFunc}
+        navigation={navigation}
+        autoFocus={true}
+      />
+      {results?.length > 0 ? (
+        <>
+          <FlatList
+            data={results}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item, index) =>
+              `${item.id || item.product_id || index}`
+            }
+            renderItem={renderItem1}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: moderateScale(120),
             }}
+            //  keyExtractor={(item, index) => index.toString()}
+            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore && (
+                <Text style={{ textAlign: 'center' }}>Loading...</Text>
+              )
+            }
+          />
+        </>
+      ) : (
+        <>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
           >
-            <Image
-              source={IconData.Logo}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-
-          <View style={styles.rightIcons}>
-            <TouchableOpacity
-              onPress={() => {
-                navigation.navigate('SearchScreen');
-              }}
-              style={styles.iconButton}
-            >
-              <Image source={IconData.Search} style={styles.icon} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                navigation.navigate('AccountProfile');
-              }}
-              style={{
-                width: moderateScale(40),
-                height: moderateScale(40),
-                borderRadius: moderateScale(40),
-                borderWidth: 1,
-                borderColor: Color.GRAY5,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <Ionicons name={'menu'} size={moderateScale(25)} />
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.back}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons
-              name={'arrow-back'}
-              size={moderateScale(20)}
-              color={Color.GRAY}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.tab}>
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                selectedTab === 'Sales' && styles.selectedTab,
-              ]}
-              onPress={() => setSelectedTab('Sales')}
-            >
-              <Text style={styles.textStyle}>Sales</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                selectedTab === 'Refund' && styles.selectedTab,
-              ]}
-              onPress={() => setSelectedTab('Refund')}
-            >
-              <Text style={styles.textStyle}>Refund</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.cameraContainer}>
-          {!hasPermission ? (
-            <Text style={{ color: 'red', textAlign: 'center' }}>
-              Camera permission is required
-            </Text>
-          ) : device ? (
-            <Camera
-              ref={camera}
-              style={{ flex: 1 }}
-              device={device}
-              isActive={true}
-              photo={true}
-              codeScanner={codeScanner}
-              onInitialized={onCameraReady}
-            />
-          ) : (
-            <Text>Loading camera...</Text>
-          )}
-        </View>
-
-        <ScrollView
-          scrollEnabled={hasPermission}
-          contentContainerStyle={{ flexGrow: 1 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.inputSection}>
-            <Text style={styles.label}>ENTER BARCODE MANUALLY</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter barcode"
-              value={barcode}
-              onChangeText={setBarcode}
-            />
-          </View>
-
-          {message?.type == 'error' && (
-            <View style={styles.messageContainer}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  gap: moderateScale(10),
-                  justifyContent: 'flex-start',
-                  alignItems: 'center',
-                }}
+            <View style={styles.header}>
+              <TouchableOpacity
+                style={styles.back}
+                onPress={() => navigation.goBack()}
               >
-                <Image
-                  source={IconData.Error}
-                  style={{ width: 24, height: 24 }}
+                <Ionicons
+                  name={'arrow-back'}
+                  size={moderateScale(20)}
+                  color={Color.GRAY}
                 />
-                <Text style={styles.errorText}>Item not found!</Text>
+              </TouchableOpacity>
+
+              <View style={styles.tab}>
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    selectedTab === 'Sales' && styles.selectedTab,
+                  ]}
+                  onPress={() => setSelectedTab('Sales')}
+                >
+                  <Text style={styles.textStyle}>SM</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    selectedTab === 'Refund' && styles.selectedTab,
+                  ]}
+                  onPress={() => setSelectedTab('Refund')}
+                >
+                  <Text style={styles.textStyle}>RS</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.errorText2}>
-                Barcode scanned is not of a listed product, please try again
-                with a different barcode.
-              </Text>
             </View>
-          )}
-          {message?.type == 'success' && (
-            <View style={styles.messageContainer1}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  gap: moderateScale(10),
-                  justifyContent: 'flex-start',
-                  alignItems: 'center',
-                }}
-              >
-                <MaterialDesignIcons
-                  name="cart"
-                  color={Color.GREEN}
-                  size={24}
+
+            <View style={styles.cameraContainer}>
+              {!hasPermission ? (
+                <Text style={{ color: 'red', textAlign: 'center' }}>
+                  Camera permission is required
+                </Text>
+              ) : device ? (
+                <Camera
+                  ref={camera}
+                  style={{ flex: 1 }}
+                  device={device}
+                  isActive={true}
+                  // photo={true}
+                  photo={false}
+                  video={false}
+                  enableZoomGesture
+                  codeScanner={codeScanner}
+                  onInitialized={onCameraReady}
+                  focusable={true}
+                  preset="high"
                 />
-                <Text style={styles.succText}>Item added to cart!</Text>
-              </View>
-              <Text style={styles.succText2}>
-                Item associated with the scanned barcode has been added to the
-                cart successfully!
-              </Text>
+              ) : (
+                <Text>Loading camera...</Text>
+              )}
             </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+            <ScrollView
+              scrollEnabled={hasPermission}
+              contentContainerStyle={{ flexGrow: 1 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.inputSection}>
+                <Text style={styles.label}>ENTER BARCODE MANUALLY</Text>
+
+                <TextInput
+                  ref={typingTimeoutRef}
+                  style={styles.input}
+                  placeholder="Enter barcode"
+                  value={barcode}
+                  editable={true}
+                  keyboardType="numeric"
+                  onChangeText={handleManualInput}
+                  returnKeyType="search"
+                  onSubmitEditing={() => handleSubmitBarcode(barcode)}
+                />
+              </View>
+
+              {message?.type == 'error' && (
+                <View style={styles.messageContainer}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      gap: moderateScale(10),
+                      justifyContent: 'flex-start',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Image
+                      source={IconData.Error}
+                      style={{ width: 24, height: 24 }}
+                    />
+                    <Text style={styles.errorText}>Item not found!</Text>
+                  </View>
+                  <Text style={styles.errorText2}>
+                    Barcode scanned is not of a listed product, please try again
+                    with a different barcode.
+                  </Text>
+                </View>
+              )}
+              {message?.type == 'success' && (
+                <View style={styles.messageContainer1}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      gap: moderateScale(10),
+                      justifyContent: 'flex-start',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <MaterialDesignIcons
+                      name="cart"
+                      color={Color.GREEN}
+                      size={24}
+                    />
+                    <Text style={styles.succText}>Item added to cart!</Text>
+                  </View>
+                  <Text style={styles.succText2}>
+                    Item associated with the scanned barcode has been added to
+                    the cart successfully!
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
+          <CartComponent />
+        </>
+      )}
     </SafeAreaView>
   );
 };
@@ -465,6 +551,30 @@ const styles = ScaledSheet.create({
     lineHeight: moderateScale(20),
     color: '#4F4F4F',
     marginTop: 10,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
+  },
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  itemPrice: {
+    fontSize: moderateScale(13),
+    color: '#555',
+  },
+  itemTextContainer: {
+    flex: 1,
+    paddingRight: moderateScale(5),
   },
 });
 

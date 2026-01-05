@@ -8,8 +8,9 @@ import {
   Alert,
   KeyboardAvoidingView,
   ScrollView,
+  Keyboard,
 } from 'react-native';
-import { moderateScale, ScaledSheet } from 'react-native-size-matters';
+import { moderateScale, ScaledSheet, verticalScale } from 'react-native-size-matters';
 import React, { useState } from 'react';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -71,7 +72,7 @@ const Login = ({ navigation }) => {
       } else {
         setLoader(false);
 
-        Alert.alert('Login Failed', 'Invalid credentials');
+        // Alert.alert('Login Failed', 'Invalid credentials');
       }
     } catch (error) {
       setLoader(false);
@@ -146,7 +147,7 @@ const Login = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+                height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -189,7 +190,7 @@ const Login = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+                  height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -214,7 +215,10 @@ const Login = ({ navigation }) => {
             <View style={styles.row}>
               <TouchableOpacity
                 onPress={() => {
-                  navigation.navigate('ForgotPassword');
+                  Keyboard.dismiss();
+                  setTimeout(() => {
+                    navigation.navigate('ForgotPassword');
+                  }, 100);
                 }}
               >
                 <Text style={styles.forgotText}>Forgot Password?</Text>
@@ -224,6 +228,7 @@ const Login = ({ navigation }) => {
             <TouchableOpacity
               style={styles.loginBtn}
               onPress={() => {
+                Keyboard.dismiss();
                 loginFunction();
               }}
             >
@@ -231,8 +236,15 @@ const Login = ({ navigation }) => {
             </TouchableOpacity>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Don’t have an Account ? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+              <Text style={styles.footerText}>Don’t have an Account ?</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setTimeout(() => {
+                    navigation.navigate('SignUp');
+                  }, 100);
+                }}
+              >
                 <Text style={styles.signupText}>Sign up</Text>
               </TouchableOpacity>
             </View>

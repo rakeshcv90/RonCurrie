@@ -5,17 +5,28 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  FlatList,
 } from 'react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
-import { moderateScale, ScaledSheet } from 'react-native-size-matters';
+import {
+  moderateScale,
+  ScaledSheet,
+  verticalScale,
+} from 'react-native-size-matters';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import LogoutModal from './Component/LogoutModal';
 import { MMKVStorage } from '../utility/MmkvStore';
 import * as Keychain from 'react-native-keychain';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
+import { clearProducts } from '../Redux/Slice/ProductListSlice';
+import { useDispatch } from 'react-redux';
+import { ImageBaseUrl } from '../utility/api';
+import FastImage from 'react-native-fast-image';
+import SearchComponent from './Component/SearchComponent';
+import CartComponent from '../Component/CartComponent';
 
 const links = [
   {
@@ -30,10 +41,10 @@ const links = [
     id: 3,
     title: 'Order History',
   },
-  {
-    id: 4,
-    title: 'Return Requests',
-  },
+  // {
+  //   id: 4,
+  //   title: 'Return Requests',
+  // },
   // {
   //   id: 5,
   //   title: 'Transactions',
@@ -42,8 +53,13 @@ const links = [
 
 const AccountProfile = ({ navigation, route }) => {
   const [logoutVisible, setLogoutVisible] = useState(false);
-
+  const dispatch = useDispatch();
   const [userData, setUserData] = useState(null);
+
+  const [results, setResults] = useState([]);
+  const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [imageErrorMap, setImageErrorMap] = useState({});
 
   useFocusEffect(
     useCallback(() => {
@@ -56,6 +72,64 @@ const AccountProfile = ({ navigation, route }) => {
       return () => {};
     }, []),
   );
+
+  const handleItemPress = item => {
+    dispatch(clearProducts());
+    navigation.navigate('DisplayItems', { itemData: item });
+  };
+
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .trim();
+  };
+  const renderItem = ({ item }) => {
+    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+    const handleError = () => {
+      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+    };
+
+    const hasError = imageErrorMap[item.id] || false;
+
+    return (
+      <TouchableOpacity
+        style={styles.itemRow}
+        onPress={() => handleItemPress(item)}
+      >
+        {imageUrl && !hasError ? (
+          <FastImage
+            style={styles.itemImage}
+            source={{
+              uri: imageUrl,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        ) : (
+          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+        )}
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName}>
+            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+            £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -64,111 +138,115 @@ const AccountProfile = ({ navigation, route }) => {
         barStyle="dark-content"
       />
 
-    
-          <View style={styles.headerContainer}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.back}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons
-                name={'arrow-back'}
-                size={moderateScale(20)}
-                color={Color.GRAY}
-              />
-            </TouchableOpacity>
-    
-            <TouchableOpacity
-              style={styles.leftContainer}
-              onPress={() => {
-                navigation.dispatch(
-                  CommonActions.reset({
-                    index: 0,
-                    routes: [{ name: 'Home' }], // 👈 this becomes the new root
-                  }),
-                );
-              }}
-            >
-              <Image
-                source={IconData.Logo}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
-   
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: moderateScale(30) }}
-        showsVerticalScrollIndicator={false}
-        style={{ flex: 1, padding: moderateScale(10) }}
-      >
-        <View style={styles.userInfo}>
-          <View style={styles.avatar}>
-            <Image
-              source={ImageData.Profile}
-              style={{
-                width: moderateScale(80),
-                height: moderateScale(80),
-              }}
-              resizeMode="contain"
-            />
-            {/* <TouchableOpacity activeOpacity={0.7} style={styles.editIcon}>
+      <SearchComponent
+        onResults={setResults}
+        onLoadMoreRef={setLoadMoreFunc}
+        navigation={navigation}
+         autoFocus={true}
+      />
+      {results?.length > 0 ? (
+        <>
+          <FlatList
+            data={results}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item, index) =>
+              `${item.id || item.product_id || index}`
+            }
+            renderItem={renderItem}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: moderateScale(120),
+            }}
+            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore && (
+                <Text style={{ textAlign: 'center' }}>Loading...</Text>
+              )
+            }
+          />
+        </>
+      ) : (
+        <>
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: moderateScale(30) }}
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1, paddingHorizontal: verticalScale(10) }}
+          >
+            <View style={styles.userInfo}>
+              <View style={styles.avatar}>
+                <Image
+                  source={ImageData.Profile}
+                  style={{
+                    width: moderateScale(80),
+                    height: moderateScale(80),
+                  }}
+                  resizeMode="contain"
+                />
+                {/* <TouchableOpacity activeOpacity={0.7} style={styles.editIcon}>
               <Ionicons name="pencil" color={Color.BLACK} size={20} />
             </TouchableOpacity> */}
-          </View>
+              </View>
 
+              <View>
+                <Text style={styles.userName}>
+                  {userData?.firstname} {userData?.lastname}
+                </Text>
+                <Text style={styles.userEmail}>{userData?.email}</Text>
+                <Text style={styles.userPhone}>{userData?.telephone}</Text>
+              </View>
+            </View>
+
+            <View style={styles.quickLinks}>
+              <Text style={styles.quickTitle}>Quick Links</Text>
+              <Text style={styles.quickDesc}>
+                Use these quick options to manage your account easily.
+              </Text>
+
+              {links.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.linkItem}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (item?.id == 1) {
+                      navigation.navigate('EditInfotmation');
+                    } else if (item?.id == 2) {
+                      navigation.navigate('ResetPassword');
+                    } else if (item?.id == 3) {
+                      navigation.navigate('OrderHistory');
+                    } else if (item?.id == 4) {
+                      navigation.navigate('ProductReturns');
+                    }
+                    //  else if (item?.id == 5) {
+                    //   alert('URL not available for this link');
+                    // }
+                  }}
+                >
+                  <Text style={styles.linkText}>{item?.title}</Text>
+                  <Ionicons
+                    name="link-outline"
+                    size={moderateScale(18)}
+                    color={Color.BLACK2}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
           <View>
-            <Text style={styles.userName}>
-              {userData?.firstname} {userData?.lastname}
-            </Text>
-            <Text style={styles.userEmail}>{userData?.email}</Text>
-            <Text style={styles.userPhone}>{userData?.telephone}</Text>
+            <CartComponent />
           </View>
-        </View>
-   
-   
 
-        <View style={styles.quickLinks}>
-          <Text style={styles.quickTitle}>Quick Links</Text>
-          <Text style={styles.quickDesc}>Use these quick options to manage your account easily.</Text>
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            activeOpacity={0.7}
+            onPress={() => setLogoutVisible(true)}
+          >
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </>
+      )}
 
-          {links.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.linkItem}
-              activeOpacity={0.7}
-              onPress={() => {
-                if (item?.id == 1) {
-                  navigation.navigate('EditInfotmation');
-                } else if (item?.id == 2) {
-                  navigation.navigate('ResetPassword');
-                } else if (item?.id == 3) {
-                  navigation.navigate('OrderHistory');
-                } else if (item?.id == 4) {
-                 navigation.navigate('ProductReturns');
-                }
-                //  else if (item?.id == 5) {
-                //   alert('URL not available for this link');
-                // }
-              }}
-            >
-              <Text style={styles.linkText}>{item?.title}</Text>
-              <Ionicons
-                name="link-outline"
-                size={moderateScale(18)}
-                color={Color.BLACK2}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-      <TouchableOpacity
-        style={styles.logoutBtn}
-        activeOpacity={0.7}
-        onPress={() => setLogoutVisible(true)}
-      >
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
       <LogoutModal
         visible={logoutVisible}
         onClose={() => setLogoutVisible(false)}
@@ -190,7 +268,7 @@ const styles = ScaledSheet.create({
     backgroundColor: '#fff',
   },
   headerContainer: {
-   flexDirection: 'row',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: moderateScale(12),
@@ -233,7 +311,7 @@ const styles = ScaledSheet.create({
 
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: moderateScale(10),
+    marginTop: moderateScale(5),
     marginBottom: moderateScale(10),
   },
   editIcon: {
@@ -333,6 +411,26 @@ const styles = ScaledSheet.create({
     color: Color.WHITE,
     fontFamily: FONT.SEMIBOLD,
     fontSize: moderateScale(14),
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
+  },
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  itemPrice: {
+    fontSize: moderateScale(13),
+    color: '#555',
   },
 });
 

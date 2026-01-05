@@ -4,14 +4,14 @@ import { getData } from '../../utility/ApiCall';
 
 export const fetchOrderList = createAsyncThunk(
   'orderList/fetchOrderList',
-  async ({ page = 1, limit = 10, name = '' }, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10, search = '' }, { rejectWithValue }) => {
     try {
       const url = `${
         Api.ORDER_LIST
-      }?page=${page}&limit=${limit}&name=${encodeURIComponent(name)}`;
+      }?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
 
       const response = await getData(url);
-      console.log("Ccccccc",response)
+
       return { data: response?.data?.data || [], page };
     } catch (error) {
       return rejectWithValue(error);

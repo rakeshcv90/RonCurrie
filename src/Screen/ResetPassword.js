@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import FastImage from 'react-native-fast-image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Color, FONT, ImageData } from '../Component/Image';
-import { moderateScale, ScaledSheet } from 'react-native-size-matters';
+import { moderateScale, ScaledSheet, verticalScale } from 'react-native-size-matters';
 import { showToast } from '../utility/showToast';
 import Loader from '../Component/Loader';
 import { postData } from '../utility/ApiCall';
@@ -65,18 +65,17 @@ const ResetPassword = ({ navigation }) => {
     try {
       setLoader(true);
       const payload = {
-        current_password:currentPassword ,
+        current_password: currentPassword,
         password: newPassword,
         confirm_password: repeatPassword,
       };
       // const response = await postData(Api.CHANGE_PASSWOIRD,payload);
-         const response = await postData(Api.CHANGE_PASSWOIRD, payload);
-  
+      const response = await postData(Api.CHANGE_PASSWOIRD, payload);
 
       if (response?.status === 200) {
         setLoader(false);
         showToast('success', 'Success', 'Password changed successfully');
-      
+
         setCurrentPassword('');
         setNewPassword('');
         setRepeatPassword('');
@@ -146,7 +145,7 @@ const ResetPassword = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -197,7 +196,7 @@ const ResetPassword = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -247,7 +246,7 @@ const ResetPassword = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>

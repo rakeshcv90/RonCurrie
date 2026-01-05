@@ -53,7 +53,7 @@ const handleApiError = async error => {
   if (error.response) {
     const { status, data } = error.response;
 
-
+ 
     try {
       if (status === 403) {
         await MMKVStorage.clearAllData();
@@ -63,6 +63,7 @@ const handleApiError = async error => {
       } else if (status === 404) {
         showToast('danger', 'Data List', data?.message);
       } else if (status === 422) {
+
         const messagesObj = data?.messages;
         const messagesArray = Object.values(messagesObj).flat().join('\n');
         showToast('danger', 'Validation Error', messagesArray);

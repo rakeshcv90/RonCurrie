@@ -59,7 +59,7 @@ const ProductModal = ({ visible, onClose, product }) => {
 
                   cache: FastImage.cacheControl.immutable,
                 }}
-                resizeMode={FastImage.resizeMode.cover}
+                resizeMode={FastImage.resizeMode.stretch}
               />
             )}
           />

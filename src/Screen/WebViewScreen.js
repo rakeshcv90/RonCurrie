@@ -1,5 +1,5 @@
-import { View, Text, StatusBar, Image } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import { View, Text, StatusBar, Image, ActivityIndicator, FlatList } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   moderateScale,
   ScaledSheet,
@@ -11,28 +11,107 @@ import { TouchableOpacity } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { WebView } from 'react-native-webview';
 import * as Keychain from 'react-native-keychain';
+import { CommonActions, useNavigation } from '@react-navigation/native';
+import { ImageBaseUrl } from '../utility/api';
+import FastImage from 'react-native-fast-image';
+import { clearProducts, fetchProductsList } from '../Redux/Slice/ProductListSlice';
+import { useDispatch } from 'react-redux';
+import SearchComponent from './Component/SearchComponent';
 
 const WebViewScreen = ({ navigation, route }) => {
-  const urlData = route?.params?.urlData;
+  const navigation1 = useNavigation();
+  const urlData = route?.params?.payload;
+  const webViewRef = useRef(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [results, setResults] = useState([]);
+  const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [imageErrorMap, setImageErrorMap] = useState({});
+  const dispatch = useDispatch();
 
-  const [token, setToken] = useState(null);
+  const injectedJS = `
+  (function() {
+    const logo = document.querySelector("img[alt*='Ron'], img[src*='logo'], img[style*='1954']");
+    if (logo) logo.remove();
+
+    
+       const homeIcon = document.querySelector("img[alt*='Home'], img[src*='home'], i[class*='home'], svg[class*='home'], a[href*='home']");
+    if (homeIcon) homeIcon.remove();
+     
+    const btn2 = Array.from(document.querySelectorAll("button, a")).find(el =>
+      el.innerText.includes("Product Page")
+    );
+
+    if (btn2) {
+      btn2.addEventListener("click", function(e) {
+        e.preventDefault();
+        window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
+      });
+    }
+  })();
+  true;
+  `;
+
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .trim();
+  };
 
 
-  useEffect(() => {
-    const fetchToken = async () => {
-      try {
-        const credentials = await Keychain.getGenericPassword();
-        if (credentials) {
-          setToken(credentials.password); // This is your saved token
-        }
-      } catch (err) {
-        console.log('Error fetching token', err);
-      }
+  const handleItemPress = item => {
+    dispatch(clearProducts());
+    navigation.navigate('DisplayItems', { itemData: item });
+  };
+
+  const renderItem1 = ({ item }) => {
+    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+    const handleError = () => {
+      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
     };
 
-    fetchToken();
-  }, [route]);
+    const hasError = imageErrorMap[item.id] || false;
 
+    return (
+      <TouchableOpacity
+        style={styles.itemRow}
+        onPress={() => handleItemPress(item)}
+      >
+        {imageUrl && !hasError ? (
+          <FastImage
+            style={styles.itemImage}
+            source={{
+              uri: imageUrl,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        ) : (
+          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+        )}
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName}>
+            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+            £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -40,102 +119,102 @@ const WebViewScreen = ({ navigation, route }) => {
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-      <View style={styles.headerContainer}>
-        <View style={styles.header} activeOpacity={0.7}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.back}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons
-              name={'arrow-back'}
-              size={moderateScale(20)}
-              color={Color.GRAY}
-            />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.leftContainer}>
-          <Image
-            source={IconData.Logo}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
-      </View>
-      <View
-        style={{
-          width: '100%',
-          alignItems: 'center',
-          marginBottom: verticalScale(20),
-          marginTop: verticalScale(10),
-        }}
-      >
-        <Text
-          style={{
-            fontSize: moderateScale(18),
-            color: Color.BLACK,
-            fontFamily: FONT.SEMIBOLD,
-          }}
-        >
-          {urlData?.title}
-        </Text>
-      </View>
-      <View
-        style={{
-          flex: 1,
-          //   alignItems: 'center',
-          //   marginBottom: verticalScale(20),
-          //   marginTop: verticalScale(10),
-        }}
-      >
-        {/* <WebView
-          source={{ uri: urlData?.url }}
-          startInLoadingState
-          javaScriptEnabled
-          domStorageEnabled
-          style={{ flex: 1 }}
-        /> */}
-
-        {/* <WebView
-          source={{
-            uri: urlData?.url,
-            headers: {
-              Authorization: 'Bearer YOUR_TOKEN_HERE',
-            },
-          }}
-          startInLoadingState
-          javaScriptEnabled
-          domStorageEnabled
-        /> */}
-
-        {token && urlData?.url && (
-          <WebView
-            source={{
-              uri: urlData?.url,
-            //   headers: {
-            //     Authorization: `Bearer ${token}`,
-            //   },
+      <SearchComponent
+        onResults={setResults}
+        onLoadMoreRef={setLoadMoreFunc}
+        navigation={navigation}
+        autoFocus={true}
+      />
+      {results?.length > 0 ? (
+        <>
+          <FlatList
+            data={results}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item, index) =>
+              `${item.id || item.product_id || index}`
+            }
+            renderItem={renderItem1}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: moderateScale(120),
             }}
+            //  keyExtractor={(item, index) => index.toString()}
+            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore && (
+                <Text style={{ textAlign: 'center' }}>Loading...</Text>
+              )
+            }
+          />
+        </>
+      ) : (
+        <>
+      
+          {loading && (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" />
+              <Text style={{ marginTop: 10 }}>Loading...</Text>
+            </View>
+          )}
+          <WebView
+            ref={webViewRef}
+            source={{ uri: 'https://roncurry.co.uk/epos/index.php' }}
+            originWhitelist={['*']}
             javaScriptEnabled={true}
             domStorageEnabled={true}
-            startInLoadingState={true}
-            injectedJavaScript={`
-          // Remove header
-          const header = document.querySelector('header');
-          if(header) header.style.display='none';
+            scalesPageToFit={true}
+            cacheEnabled={true}
+            injectedJavaScript={injectedJS}
+            onLoadStart={() => setLoading(true)}
+            onLoadEnd={() => {
+              setLoading(false);
 
-          // Remove menu
-          const menu = document.querySelector('.menu'); // replace '.menu' with actual class/id
-          if(menu) menu.style.display='none';
+              // Re-inject JS to attach listener again in case page re-renders
+              webViewRef.current?.injectJavaScript(injectedJS);
 
-          // Remove footer (optional)
-          const footer = document.querySelector('footer');
-          if(footer) footer.style.display='none';
-          true;
-        `}
+              if (urlData && !submitted) {
+                const postForm = `
+              (function() {
+                if (window.__RN_POST_SUBMITTED__) return;
+                window.__RN_POST_SUBMITTED__ = true;
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'https://roncurry.co.uk/epos/index.php';
+
+                const fields = ${JSON.stringify(urlData)};
+                for (const key in fields) {
+                  const input = document.createElement('input');
+                  input.type = 'hidden';
+                  input.name = key;
+                  input.value = fields[key];
+                  form.appendChild(input);
+                }
+
+                document.body.appendChild(form);
+                form.submit();
+              })();
+              true;
+              `;
+
+                webViewRef.current?.injectJavaScript(postForm);
+                setSubmitted(true);
+               
+              }
+            }}
+            onMessage={event => {
+              if (event.nativeEvent.data === 'GO_BACK_PRODUCT_PAGE') {
+             
+                navigation1.goBack();
+              } else {
+                
+              }
+            }}
+            style={{ flex: 1 }}
           />
-        )}
-      </View>
+        </>
+      )}
     </SafeAreaView>
   );
 };
@@ -174,5 +253,36 @@ const styles = ScaledSheet.create({
     backgroundColor: Color.GRAY3,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loaderContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white', // optional
+    zIndex: 999,
+  },
+    itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
+  },
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  itemPrice: {
+    fontSize: moderateScale(13),
+    color: '#555',
   },
 });

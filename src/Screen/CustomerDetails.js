@@ -32,22 +32,30 @@ import {
   setSkipAutoBack,
 } from '../Redux/Slice/CartDataShowSlice';
 import { useDispatch } from 'react-redux';
+import DeliveryOptionsModal from '../Component/DeliveryOptionsModal';
 
 const CustomerDetails = ({ navigation, route }) => {
   const dispatch = useDispatch();
+  const totalPrice = route?.params?.totalPrice;
+  const cartData = route?.params?.cartData;
   const miscellaneous = route?.params?.addCost;
-  const [selectedTab, setSelectedTab] = useState('Get Delivery');
+
+  const [selectedTab, setSelectedTab] = useState('Collect From Store');
   const [pushEnabled, setPushEnabled] = useState(true);
   const [value, setValue] = useState(null);
   const [isFocus, setIsFocus] = useState(false);
-  const [postcode, setPostcode] = useState('HA3 0JA');
+
   const [loader, setLoader] = useState(false);
   const [addressData, setAddressData] = useState([]);
-  const [resData, setResData] = useState([]);
+ const [postcode, setPostcode] = useState('HA3 0JA');
   const [selectedAddress, setSelectedAddress] = useState('');
+
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [carDetails, setCarDetails] = useState('');
+  const [openModal, setOpenModal] = useState(false);
+  const [cashTendered, setCashTendered] = useState(null);
+  const [deliveryType, setDeliveryType] = useState(null);
 
   const handleFindAddress = async () => {
     try {
@@ -67,16 +75,27 @@ const CustomerDetails = ({ navigation, route }) => {
       if (res?.responseCode === 200) {
         showToast('success', 'Success!', res?.message || 'Address found');
 
-        setResData(res || []);
+        // const transformedData =
+        //   res.data?.map((address, index) => ({
+        //     label: address,
+        //     value: index.toString(),
+        //     originalAddress: address,
+        //   })) || [];
         const transformedData =
           res.data?.map((address, index) => ({
             label: address,
             value: index.toString(),
             originalAddress: address,
+
+            // 🔥 store all extra fields INSIDE each item
+            region: res.region,
+            country_id: res.country_id,
+            country_name: res.country_name,
+            zone_id: res.zone_id,
+            zone_name: res.zone_name,
           })) || [];
         setAddressData(transformedData);
       } else {
-
         setAddressData([]);
       }
     } catch (error) {
@@ -100,26 +119,57 @@ const CustomerDetails = ({ navigation, route }) => {
     const numericText = text.replace(/[^0-9]/g, '');
     setContactNumber(numericText);
   };
-  const onCreateOrder = async () => {
-    let validations = [];
-    if (selectedTab === 'Get Delivery') {
-      validations = [
-        { field: 'postcode', message: 'Please enter your postcode' },
-        { field: 'customerName', message: 'Please enter customer name' },
-        { field: 'address', message: 'Please enter address' },
-        { field: 'phone', message: 'Please enter your phone number' },
-      ];
-    } else {
-      validations = [
-        { field: 'phone', message: 'Please enter your phone number' },
-        { field: 'carDetails', message: 'Please enter car details' },
-      ];
+  const handleApply = (id, date, name, price) => {
+    
+    setDeliveryType({
+      id: id.id,
+      date: id?.date,
+      name: id?.name,
+      price: id.price,
+    });
+
+    setOpenModal(false);
+  };
+
+  const onCreateDeliverOrder = async () => {
+    const parts = selectedAddress?.originalAddress
+      .split(',')
+      .map(item => item.trim());
+
+    let addressObj = {};
+
+    if (parts?.length === 2) {
+      addressObj = {
+        address1: parts[0],
+        city: parts[1],
+      };
+    } else if (parts?.length === 3) {
+      addressObj = {
+        company: parts[0],
+        address1: parts[1],
+        city: parts[2],
+      };
+    } else if (parts?.length === 4) {
+      addressObj = {
+        company: parts[0],
+        address1: parts[1],
+        address2: parts[2],
+        city: parts[3],
+      };
     }
+    let validations = [];
+
+    validations = [
+      { field: 'postcode', message: 'Please enter your postcode' },
+      { field: 'customerName', message: 'Please enter customer name' },
+      { field: 'address', message: 'Please enter address' },
+      { field: 'phone', message: 'Please enter your phone number' },
+    ];
 
     const formData = {
       postcode: postcode.trim(),
       customerName: customerName.trim(),
-      address: selectedAddress.trim(),
+      address: selectedAddress?.originalAddress,
       phone: contactNumber.trim(),
       carDetails: carDetails.trim(),
     };
@@ -154,23 +204,31 @@ const CustomerDetails = ({ navigation, route }) => {
     );
 
     const payload = {
-      shipping_method:
-        selectedTab == 'Get Delivery' ? 'Delivery' : 'Collection',
-      shipping_type: selectedTab == 'Get Delivery' ? 'delivery' : 'collection',
-      shipping_date: new Date().toISOString().split('T')[0],
+      shipping_method: 'Delivery',
+      shipping_code: '',
+      shipping_type: 'delivery',
+      shipping_date: deliveryType?.date,
+      shipping_detail_id: deliveryType?.id,
       epos_customer_name: customerName,
       epos_customer_number: contactNumber,
-      epos_customer_address: selectedAddress,
+      epos_customer_address: selectedAddress?.originalAddress,
       payment_method: 'epos_system',
+      shipping_company: addressObj?.company,
+      shipping_address_1: addressObj?.address1,
+      shipping_city: addressObj?.city,
+      shipping_postcode: postcode,
+      shipping_country_id: selectedAddress?.country_id,
+      shipping_zone_id: selectedAddress?.zone_id,
+      shipping_zone: selectedAddress?.zone_name,
+      shipping_country: selectedAddress?.country_name,
     };
-    if (selectedTab !== 'Get Delivery') {
-      payload.epos_car_detail = carDetails;
-    }
 
     if (hasMisc) {
       payload.miscellaneous = miscellaneous;
     }
+
     setLoader(true);
+  
     try {
       const response = await postData(Api.ORDER_PLACE, payload);
 
@@ -183,15 +241,12 @@ const CustomerDetails = ({ navigation, route }) => {
           resData?.data?.message || 'Items added successfully.',
         );
 
-        dispatch(setSkipAutoBack(true)); 
+        dispatch(setSkipAutoBack(true));
 
         navigation.navigate('OrderSuccessFull', {
           resData: resData?.data,
         });
-    
       } else {
-        
-      
       }
     } catch (error) {
       console.error('Error adding to basket:', error);
@@ -199,6 +254,100 @@ const CustomerDetails = ({ navigation, route }) => {
     } finally {
       setLoader(false);
     }
+  };
+  const onCreateOrder1 = async () => {
+    let validations = [];
+
+    validations = [
+      { field: 'customerName', message: 'Please enter customer name' },
+      { field: 'phone', message: 'Please enter your phone number' },
+      { field: 'carDetails', message: 'Please enter car details' },
+    ];
+
+    const formData = {
+      customerName: customerName.trim(),
+      phone: contactNumber.trim(),
+      carDetails: carDetails.trim(),
+    };
+
+    for (let i = 0; i < validations.length; i++) {
+      const { field, message } = validations[i];
+
+      if (!formData[field]) {
+        Alert.alert('Validation Error', message);
+        return;
+      }
+      if (field === 'phone') {
+        if (formData.phone.length < 10) {
+          Alert.alert(
+            'Validation Error',
+            'Phone number must be at least 10 digits.',
+          );
+          return;
+        } else if (formData.phone.length > 15) {
+          Alert.alert(
+            'Validation Error',
+            'Phone number cannot be more than 15 digits.',
+          );
+          return;
+        }
+      }
+    }
+
+    const hasMisc = miscellaneous?.some(
+      item =>
+        item.description?.trim() !== '' || item.price?.toString().trim() !== '',
+    );
+
+    const payload = {
+      shipping_method: 'Collection',
+      shipping_type: 'collection',
+      payment_method: 'epos_system',
+      shipping_detail_id: 0,
+      epos_customer_name: customerName,
+      epos_customer_number: contactNumber,
+      epos_car_detail: carDetails,
+    };
+
+    if (hasMisc) {
+      payload.miscellaneous = miscellaneous;
+    }
+
+    setLoader(true);
+
+    try {
+      const response = await postData(Api.ORDER_PLACE, payload);
+
+      const resData = response;
+
+      if (resData?.data?.success && resData?.data?.responseCode === 200) {
+        showToast(
+          'success',
+          'Success',
+          resData?.data?.message || 'Items added successfully.',
+        );
+
+        dispatch(setSkipAutoBack(true));
+
+        navigation.navigate('OrderSuccessFull', {
+          resData: resData?.data,
+        });
+      } else {
+      }
+    } catch (error) {
+      console.error('Error adding to basket:', error);
+      showToast('danger', 'Error', error.message || 'Something went wrong.');
+    } finally {
+      setLoader(false);
+    }
+  };
+  const getTotal = (price, price2) => {
+    const cleanPrice2 = Number(price2.replace('£', ''));
+    const cleanPrice = Number(price);
+    const total = cleanPrice + cleanPrice2;
+ 
+
+    return total.toFixed(2);
   };
   return (
     <SafeAreaView style={styles.container}>
@@ -213,25 +362,7 @@ const CustomerDetails = ({ navigation, route }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <View style={styles.headerContainer}>
-          <TouchableOpacity
-            style={styles.leftContainer}
-            onPress={() => {
-              navigation.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'Home' }], // 👈 this becomes the new root
-                }),
-              );
-            }}
-          >
-            <Image
-              source={IconData.Logo}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        </View>
+       
 
         <View style={styles.header}>
           <TouchableOpacity
@@ -318,13 +449,209 @@ const CustomerDetails = ({ navigation, route }) => {
                     onBlur={() => setIsFocus(false)}
                     onChange={item => {
                       setValue(item.value);
+
                       setSelectedAddress(prev =>
-                        prev && prev !== '' ? prev : item.originalAddress,
+                        prev && prev !== '' ? prev : item,
                       );
                       setIsFocus(false);
                     }}
                   />
                 </View>
+
+                <TouchableOpacity
+                  style={{
+                    width: '100%',
+                    height: moderateScale(48),
+                    backgroundColor: Color.BLACK3,
+                    borderRadius: moderateScale(4),
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => {
+                    const value = selectedAddress?.label || selectedAddress; // if it's an object with label
+
+                    if (
+                      !value ||
+                      (typeof value === 'string' && !value.trim())
+                    ) {
+                      Alert.alert(
+                        'Validation Error',
+                        'Please select address first',
+                      );
+                    } else {
+                      setOpenModal(true);
+                    }
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: Color.WHITE,
+                      fontFamily: FONT.SEMIBOLD,
+                      fontSize: 14,
+                      lineHeight: 24,
+                    }}
+                  >
+                    Delivery Option
+                  </Text>
+                </TouchableOpacity>
+
+                {deliveryType != null && (
+                  <>
+                    <View
+                      style={{
+                        width: '100%',
+                        height: moderateScale(116),
+                        backgroundColor: Color.GRAY3,
+                        borderRadius: moderateScale(4),
+                        alignItems: 'center',
+                        marginVertical: moderateScale(16),
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: '100%',
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          paddingHorizontal: 10,
+                          marginTop: 10,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: Color.GRAY,
+                            fontFamily: FONT.BOLD,
+                            fontSize: 16,
+                            lineHeight: 24,
+                          }}
+                        >
+                          Sub-Total:
+                        </Text>
+
+                        <Text
+                          style={{
+                            color: Color.BLACK,
+                            fontFamily: FONT.BOLD,
+                            fontSize: 16,
+                            lineHeight: 24,
+                          }}
+                        >
+                          £{totalPrice}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          width: '100%',
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          paddingHorizontal: 10,
+                        }}
+                      >
+                        <View style={{ width: 200 }}>
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              color: Color.GRAY,
+                              fontFamily: FONT.BOLD,
+                              fontSize: 16,
+
+                              lineHeight: 24,
+                            }}
+                          >
+                            {deliveryType?.name}:
+                          </Text>
+                        </View>
+
+                        <Text
+                          style={{
+                            color: Color.BLACK,
+                            fontFamily: FONT.BOLD,
+                            fontSize: 16,
+                            lineHeight: 24,
+                          }}
+                        >
+                          {deliveryType?.price}:
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          width: '100%',
+                          height: 1,
+                          backgroundColor: Color.GRAY5,
+                          marginTop: 10,
+                        }}
+                      />
+                      <View
+                        style={{
+                          width: '100%',
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          paddingHorizontal: 10,
+                          alignItems: 'center',
+                          marginTop: 10,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: Color.GRAY,
+                            fontFamily: FONT.BOLD,
+                            fontSize: 16,
+                            lineHeight: 24,
+                          }}
+                        >
+                          Preferred Date:
+                        </Text>
+                        <Text
+                          style={{
+                            color: Color.BLACK,
+                            fontFamily: FONT.BOLD,
+                            fontSize: 16,
+                            lineHeight: 24,
+                          }}
+                        >
+                          {deliveryType?.date}:
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.totalContainer}>
+                      <View>
+                        <Text style={styles.totalLabel}>TOTAL</Text>
+                        <Text style={styles.totalValue}>
+                          £{getTotal(totalPrice, deliveryType?.price)}
+                        </Text>
+                      </View>
+                      <View style={styles.cashBox}>
+                        <Text style={styles.cashLabel}>CASH TENDERED</Text>
+                        <View style={styles.cashInputRow}>
+                          <Text style={styles.cashSymbol}>£</Text>
+                          <TextInput
+                            style={styles.cashInput}
+                            keyboardType="numeric"
+                            value={cashTendered}
+                            placeholder="0.00"
+                            onChangeText={setCashTendered}
+                          />
+                        </View>
+                        {cashTendered && (
+                          <Text style={styles.changeText}>
+                            Change To Give:{' '}
+                            <Text style={styles.changeValue}>
+                              £
+                              {(
+                                parseFloat(cashTendered || 0) -
+                                parseFloat(
+                                  getTotal(totalPrice, deliveryType?.price) ||
+                                    0,
+                                )
+                              ).toFixed(2)}
+                            </Text>
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  </>
+                )}
+
                 <Text style={styles.sectionTitle}>Customer Information</Text>
 
                 <Text style={styles.label}>CUSTOMER NAME</Text>
@@ -339,7 +666,7 @@ const CustomerDetails = ({ navigation, route }) => {
                 <TextInput
                   style={[styles.input2, styles.multilineInput]}
                   placeholder="Delivery Address"
-                  value={selectedAddress}
+                  value={selectedAddress?.originalAddress}
                   multiline={true}
                   textAlignVertical="top"
                   onChangeText={text => setSelectedAddress(text)}
@@ -357,6 +684,13 @@ const CustomerDetails = ({ navigation, route }) => {
             ) : (
               <View>
                 <Text style={styles.sectionTitle}>Customer Details</Text>
+                <Text style={styles.label}>CUSTOMER NAME</Text>
+                <TextInput
+                  style={styles.input2}
+                  placeholder="Enter Name"
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                />
                 <Text style={styles.label}>CUSTOMER CONTACT NUMBER</Text>
                 <TextInput
                   style={styles.input2}
@@ -372,32 +706,125 @@ const CustomerDetails = ({ navigation, route }) => {
                   value={carDetails}
                   onChangeText={setCarDetails}
                 />
+
+                <>
+                  <View
+                    style={{
+                      width: '100%',
+
+                      backgroundColor: Color.GRAY3,
+                      borderRadius: moderateScale(4),
+                      alignItems: 'center',
+                      padding: 10,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: '100%',
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: Color.GRAY,
+                          fontFamily: FONT.BOLD,
+                          fontSize: 16,
+                          lineHeight: 24,
+                        }}
+                      >
+                        Sub-Total:
+                      </Text>
+                      <Text
+                        style={{
+                          color: Color.BLACK,
+                          fontFamily: FONT.BOLD,
+                          fontSize: 16,
+                          lineHeight: 24,
+                        }}
+                      >
+                        £{totalPrice}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.totalContainer, { marginTop: 10 }]}>
+                    <View>
+                      <Text style={styles.totalLabel}>TOTAL</Text>
+                      <Text style={styles.totalValue}>£{totalPrice}</Text>
+                    </View>
+                    <View style={styles.cashBox}>
+                      <Text style={styles.cashLabel}>CASH TENDERED</Text>
+                      <View style={styles.cashInputRow}>
+                        <Text style={styles.cashSymbol}>£</Text>
+                        <TextInput
+                          style={styles.cashInput}
+                          keyboardType="numeric"
+                          value={cashTendered}
+                          placeholder="0.00"
+                          onChangeText={setCashTendered}
+                        />
+                      </View>
+                      {cashTendered && (
+                        <Text style={styles.changeText}>
+                          Change To Give:{' '}
+                          <Text style={styles.changeValue}>
+                            £
+                            {(
+                              parseFloat(cashTendered || 0) -
+                              parseFloat(totalPrice || 0)
+                            ).toFixed(2)}
+                          </Text>
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </>
               </View>
             )}
           </View>
         </ScrollView>
-        <View style={styles.actionRow}>
-          <View style={styles.pushWrapper}>
-            <View style={styles.circleCheck}>
-              <Ionicons
-                name={'checkmark-sharp'}
-                size={moderateScale(15)}
-                color={Color.WHITE}
-              />
-            </View>
-            <Text style={styles.toggleText}>Push Notification</Text>
-          </View>
+        {selectedTab == 'Get Delivery' && deliveryType != null && (
+          <View style={styles.actionRow}>
+            <View style={styles.pushWrapper}></View>
 
-          <TouchableOpacity
-            style={styles.createOrderBtn}
-            onPress={() => {
-              onCreateOrder();
-            }}
-          >
-            <Text style={styles.createOrderText}>Create Order</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={styles.createOrderBtn}
+              onPress={() => {
+                onCreateDeliverOrder();
+              }}
+            >
+              <Text style={styles.createOrderText}>Create Order</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {selectedTab != 'Get Delivery' && (
+          <View style={styles.actionRow}>
+            <View style={styles.pushWrapper}></View>
+
+            <TouchableOpacity
+              style={styles.createOrderBtn}
+              onPress={() => {
+                onCreateOrder1();
+              }}
+            >
+              <Text style={styles.createOrderText}>Create Order</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {openModal && (
+          <DeliveryOptionsModal
+            visible={openModal}
+            onClose={() => setOpenModal(false)}
+            onApply={handleApply}
+            cartData={cartData}
+            addressData={selectedAddress}
+            areaPin={postcode}
+          />
+        )}
       </KeyboardAvoidingView>
+
       <Loader visible={loader} />
     </SafeAreaView>
   );
@@ -595,6 +1022,38 @@ const styles = ScaledSheet.create({
     fontSize: moderateScale(16),
     fontFamily: FONT.BOLD,
   },
+
+  totalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+
+    paddingHorizontal: moderateScale(10),
+    marginBottom: 10,
+  },
+
+  totalLabel: { fontSize: 14, fontFamily: FONT.SEMIBOLD, color: Color.GRAY4 },
+  totalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: verticalScale(20),
+  },
+  cashBox: { alignItems: 'flex-end' },
+  cashLabel: { fontSize: 14, fontFamily: FONT.SEMIBOLD, color: Color.GRAY4 },
+  cashInputRow: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: moderateScale(5),
+    paddingHorizontal: moderateScale(10),
+    width: 100,
+    marginVertical: moderateScale(5),
+    alignItems: 'center',
+  },
+  cashSymbol: { fontSize: 16, marginRight: 5 },
+  cashInput: { fontSize: 16, width: moderateScale(60) },
+  cashInput1: { fontSize: 16, width: moderateScale(130) },
+  changeText: { fontSize: 14 },
+  changeValue: { color: 'red', fontWeight: '600' },
 });
 
 export default CustomerDetails;

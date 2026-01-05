@@ -24,8 +24,11 @@ import FastImage from 'react-native-fast-image';
 import { CommonActions } from '@react-navigation/native';
 
 import { postData } from '../utility/ApiCall';
-import { Api } from '../utility/api';
+import { Api, ImageBaseUrl } from '../utility/api';
 import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
+import SearchComponent from './Component/SearchComponent';
+import { clearProducts } from '../Redux/Slice/ProductListSlice';
+import CartComponent from '../Component/CartComponent';
 const OrderHistory = ({ navigation }) => {
   const dispatch = useDispatch();
   const [search, setSearch] = useState('');
@@ -33,13 +36,20 @@ const OrderHistory = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const limit = 10;
   const { orderList, loading, hasMore } = useSelector(state => state.orderList);
-
+  const [imageErrorMap, setImageErrorMap] = useState({});
   const [lastFetched, setLastFetched] = useState(null);
   const [loader, setLoader] = useState(false);
+  const [results, setResults] = useState([]);
+  const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const loadData = async (pageNumber = 1, searchTerm = '') => {
     try {
       await dispatch(
-        fetchOrderList({ page: pageNumber, limit, name: searchTerm }),
+        fetchOrderList({
+          page: pageNumber,
+          limit,
+          search: searchTerm,
+        }),
       ).unwrap();
       setLastFetched(Date.now());
     } catch (error) {
@@ -105,7 +115,7 @@ const OrderHistory = ({ navigation }) => {
         setLoader(false);
         if (responseData?.status == 200) {
           showToast('success', 'Success!', responseData?.data?.message);
-            dispatch(triggerCartRefresh());
+          dispatch(triggerCartRefresh());
         } else {
           showToast('danger', 'Network Error', 'Something went wrong');
         }
@@ -125,6 +135,64 @@ const OrderHistory = ({ navigation }) => {
       }
     }
   };
+
+  const handleItemPress = item => {
+    dispatch(clearProducts());
+    navigation.navigate('DisplayItems', { itemData: item });
+  };
+
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .trim();
+  };
+  const renderItem = ({ item }) => {
+    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+    const handleError = () => {
+      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+    };
+
+    const hasError = imageErrorMap[item.id] || false;
+
+    return (
+      <TouchableOpacity
+        style={styles.itemRow}
+        onPress={() => handleItemPress(item)}
+      >
+        {imageUrl && !hasError ? (
+          <FastImage
+            style={styles.itemImage}
+            source={{
+              uri: imageUrl,
+            priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        ) : (
+          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+        )}
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName}>
+            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+            £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -132,171 +200,170 @@ const OrderHistory = ({ navigation }) => {
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          style={styles.leftContainer}
-          onPress={() => {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Home' }], // 👈 this becomes the new root
-              }),
-            );
-          }}
-        >
-          <Image
-            source={IconData.Logo}
-            style={styles.logo}
-            resizeMode="contain"
+      <SearchComponent
+        onResults={setResults}
+        onLoadMoreRef={setLoadMoreFunc}
+        navigation={navigation}
+         autoFocus={true}
+      />
+      {results?.length > 0 ? (
+        <>
+          <FlatList
+            data={results}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item, index) =>
+              `${item.id || item.product_id || index}`
+            }
+            renderItem={renderItem}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: moderateScale(120),
+            }}
+            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore && (
+                <Text style={{ textAlign: 'center' }}>Loading...</Text>
+              )
+            }
           />
-        </TouchableOpacity>
-      </View>
+        </>
+      ) : (
+        <>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.back}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons
+                name={'arrow-back'}
+                size={moderateScale(20)}
+                color={Color.GRAY}
+              />
+            </TouchableOpacity>
 
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.back}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons
-            name={'arrow-back'}
-            size={moderateScale(20)}
-            color={Color.GRAY}
-          />
-        </TouchableOpacity>
+            <View style={styles.tab}>
+              <TextInput
+                value={search}
+                onChangeText={handleSearch}
+                placeholder="Search Term"
+                style={styles.searchInput}
+              />
+            </View>
+          </View>
+          {orderList?.length > 0 ? (
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>Order History</Text>
+              <Text style={styles.subTitle}>
+                View and track all your past orders here.
+              </Text>
+              <View style={styles.table}>
+                <View style={styles.tableHeader}>
+                  <View style={[styles.cell, styles.borderRight]}>
+                    <Text style={styles.headerText}>ORDER ID</Text>
+                  </View>
+                  <View style={[styles.cell, styles.borderRight]}>
+                    <Text style={styles.headerText}>CUSTOMER</Text>
+                  </View>
 
-        <View style={styles.tab}>
-          <TextInput
-            value={search}
-            onChangeText={handleSearch}
-            placeholder="Search Term"
-            style={styles.searchInput}
-          />
-        </View>
-      </View>
-      {orderList?.length > 0 ? (
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Order History</Text>
-          <Text style={styles.subTitle}>View and track all your past orders here.</Text>
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <View style={[styles.cell, styles.borderRight]}>
-                <Text style={styles.headerText}>ORDER ID</Text>
-              </View>
-              <View style={[styles.cell, styles.borderRight]}>
-                <Text style={styles.headerText}>CUSTOMER</Text>
-              </View>
+                  <View style={styles.cell}>
+                    <Text style={styles.headerText}>DATE</Text>
+                  </View>
+                  <View style={styles.cell}>
+                    <Text style={styles.headerText}>RE-ORDER</Text>
+                  </View>
+                </View>
 
-              <View style={styles.cell}>
-                <Text style={styles.headerText}>DATE</Text>
-              </View>
-              <View style={styles.cell}>
-                <Text style={styles.headerText}>RE-ORDER</Text>
+                <FlatList
+                  data={orderList}
+                  showsVerticalScrollIndicator={false}
+                  // contentContainerStyle={{
+                  //   paddingBottom: moderateScale(10),
+                  // }}
+
+                  contentContainerStyle={{
+                    paddingBottom: moderateScale(
+                      orderList?.length > 15 ? 120 : 0,
+                    ),
+                  }}
+                  keyExtractor={(item, index) => `${item.id}_${index}`}
+                  renderItem={({ item, index }) => (
+                    <View
+                      style={[
+                        styles.tableRow,
+                        index === orderList.length - 1 && {
+                          borderBottomWidth: 0,
+                        },
+                      ]}
+                    >
+                      <TouchableOpacity
+                        style={[styles.cell, styles.orderIdColumn]}
+                        onPress={() => {
+                          navigation.navigate('OrderHistoryDetails', {
+                            orderItem: item,
+                          });
+                        }}
+                      >
+                        <Text style={styles.orderId}># {item?.order_id}</Text>
+                      </TouchableOpacity>
+                      <View style={[styles.cell, styles.customerColumn]}>
+                        <Text style={styles.customer}>{item.name}</Text>
+                      </View>
+                      <View style={[styles.cell, styles.dateColumn]}>
+                        <Text style={styles.date}>{item.date_added}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.cell, styles.reorderColumn]}
+                        onPress={() => {
+                          reOrder(item);
+                        }}
+                      >
+                        <Image
+                          source={IconData.CART}
+                          style={{ width: 24, height: 24 }}
+                          resizeMode="contain"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  onEndReached={loadMore}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={loading && <Loader visible={true} />}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
+                    />
+                  }
+                />
               </View>
             </View>
-
-            <FlatList
-              data={orderList}
-              showsVerticalScrollIndicator={false}
-              // contentContainerStyle={{
-              //   paddingBottom: moderateScale(10),
-              // }}
-
-                contentContainerStyle={{
-                              paddingBottom: moderateScale(orderList?.length >15?100:0),
-                            }}
-              keyExtractor={(item, index) => `${item.id}_${index}`}
-              renderItem={({ item, index }) => (
-                <View
-                  style={[
-                    styles.tableRow,
-                    index === orderList.length - 1 && { borderBottomWidth: 0 },
-                  ]}
-                >
-                  <TouchableOpacity
-                    style={[styles.cell, styles.orderIdColumn]}
-                    onPress={() => {
-                      navigation.navigate('OrderHistoryDetails', {
-                        orderItem: item,
-                      });
-                    }}
-                  >
-                    <Text style={styles.orderId}># {item?.order_id}</Text>
-                  </TouchableOpacity>
-                  <View style={[styles.cell, styles.customerColumn]}>
-                    <Text style={styles.customer}>{item.name}</Text>
-                  </View>
-                  <View style={[styles.cell, styles.dateColumn]}>
-                    <Text style={styles.date}>{item.date_added}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.cell, styles.reorderColumn]}
-                    onPress={() => {
-                      reOrder(item);
-                    }}
-                  >
-                    <Image
-                      source={IconData.CART}
-                      style={{ width: 24, height: 24 }}
-                      resizeMode="contain"
-                    />
-                  </TouchableOpacity>
-                </View>
-              )}
-              onEndReached={loadMore}
-              onEndReachedThreshold={0.5}
-              ListFooterComponent={loading && <Loader visible={true} />}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-            />
-          </View>
-        </View>
-      ) : (
-        <View style={styles.emptyContainer}>
-          {Platform.OS == 'android' ? (
-            <FastImage
-              source={ImageData.NoData}
-              style={{ width: 200, height: 200 }}
-              resizeMode={FastImage.resizeMode.contain}
-            />
           ) : (
-            <Text style={styles.emptyText}>No items available</Text>
+            <View style={styles.emptyContainer}>
+              {Platform.OS == 'android' ? (
+                <FastImage
+                  source={ImageData.NoData}
+                  style={{ width: 200, height: 200 }}
+                  resizeMode={FastImage.resizeMode.contain}
+                />
+              ) : (
+                <Text style={styles.emptyText}>No items available</Text>
+              )}
+            </View>
           )}
-        </View>
+
+          {orderList?.length <= 0 ||
+            (loader && <Loader visible={loading || loader} />)}
+               <CartComponent />
+        </>
       )}
 
-      {orderList?.length <= 0 ||
-        (loader && <Loader visible={loading || loader} />)}
     </SafeAreaView>
   );
 };
 const styles = ScaledSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: moderateScale(12),
-    backgroundColor: '#f8f8f8',
-  },
-  leftContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    overflow: 'hidden',
-  },
-  logo: { width: '80%', height: moderateScale(40) },
-  rightIcons: { flexDirection: 'row', alignItems: 'center' },
-  iconButton: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(40),
-    borderWidth: 1,
-    borderColor: Color.GRAY5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -429,6 +496,26 @@ const styles = ScaledSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
+  },
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  itemPrice: {
+    fontSize: moderateScale(13),
+    color: '#555',
   },
 });
 

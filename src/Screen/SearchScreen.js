@@ -1,41 +1,63 @@
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
-  Text,
-  StatusBar,
-  Image,
-  TouchableOpacity,
   TextInput,
-  FlatList,
+  TouchableOpacity,
+  Text,
+  Image,
+  Keyboard,
 } from 'react-native';
-import React, { useCallback, useEffect, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Color, FONT, IconData, ImageData } from '../Component/Image';
-import Loader from '../Component/Loader';
-import { moderateScale, ScaledSheet } from 'react-native-size-matters';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
-import { Api, ImageBaseUrl } from '../utility/api';
+import { ScaledSheet, moderateScale } from 'react-native-size-matters';
+ import { Color, FONT, IconData, ImageData } from '../Component/Image';
+import { Api } from '../utility/api';
 import debounce from 'lodash.debounce';
 import { getData } from '../utility/ApiCall';
-import FastImage from 'react-native-fast-image';
-import CartComponent from '../Component/CartComponent';
-import { CommonActions } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 
-const SearchScreen = ({ navigation }) => {
-  const [loader, setLoader] = useState(false);
+const SearchComponent = ({ onResults, onLoadMoreRef, navigation, autoFocus = false }) => {
   const [search, setSearch] = useState('');
-  const [results, setResults] = useState([]);
+  const [loader, setLoader] = useState(false);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [imageErrorMap, setImageErrorMap] = useState({});
-  const LIMIT = 20; // Matches API per_page
+  const LIMIT = 20;
+
+  const searchInputRef = useRef(null);
+
+  // Auto-focus when component mounts or when autoFocus prop changes
+  useEffect(() => {
+    if (autoFocus) {
+      const timer = setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocus]);
+
+  // Also auto-focus when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoFocus) {
+        const timer = setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus();
+          }
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }, [autoFocus])
+  );
 
   const fetchData = async (query, pageNumber = 1) => {
     if (!query || query.trim() === '') {
-      setResults([]);
+      onResults([]);
       return;
     }
+
     try {
       if (pageNumber === 1) setLoader(true);
       else setLoadingMore(true);
@@ -46,20 +68,30 @@ const SearchScreen = ({ navigation }) => {
         )}&page=${pageNumber}&limit=${LIMIT}`,
       );
 
-      const data = res?.data?.data?.data || [];
-      const currentPage = res?.data?.data?.current_page || 1;
-      const last_page = res?.data?.data?.last_page || 1;
+      const response = res?.data?.data;
+      let extracted = [];
+      let currentPage = 1;
+      let last_page = 1;
+
+      if (Array.isArray(response?.data)) {
+        extracted = response.data;
+        currentPage = response.current_page || 1;
+        last_page = response.last_page || 1;
+      } else if (response && typeof response === 'object') {
+        extracted = [response];
+      }
 
       if (pageNumber === 1) {
-        setResults(data);
+        onResults(extracted);
       } else {
-        setResults(prev => [...prev, ...data]);
+        onResults(prev => [...prev, ...extracted]);
       }
 
       setPage(currentPage);
       setLastPage(last_page);
     } catch (err) {
       console.log(err);
+      onResults([]);
     } finally {
       setLoader(false);
       setLoadingMore(false);
@@ -67,135 +99,48 @@ const SearchScreen = ({ navigation }) => {
   };
 
   const debouncedSearch = useCallback(
-    debounce(text => fetchData(text, 1), 5000),
-    [],
+    debounce(text => fetchData(text, 1), 500),
+    []
   );
+
   const handleSearch = text => {
     setSearch(text);
 
     if (text.trim().length > 0) {
       debouncedSearch(text);
     } else {
-      debouncedSearch.cancel(); // cancel pending API calls
-      setResults([]);
+      debouncedSearch.cancel();
+      onResults([]);
     }
   };
+
   const loadMore = () => {
-    if (!loadingMore && page < lastPage) {
+    if (!loadingMore && page < lastPage && search.trim().length > 0) {
       fetchData(search, page + 1);
     }
   };
 
-  // const renderItem = ({ item }) => {
-  //   // const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+  // Pass loadMore function to parent via ref
+  useEffect(() => {
+    if (onLoadMoreRef) {
+      onLoadMoreRef(loadMore);
+    }
+  }, [page, lastPage, loadingMore, search]);
 
-  //   const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
-  //   return (
-  //     // <View style={styles.itemRow}>
-  //     //   {imageUrl ? (
-  //     //     <>
-  //     //       <FastImage
-  //     //         style={styles.itemImage}
-  //     //         source={{
-  //     //           uri: imageUrl,
-  //     //           priority: FastImage.priority.normal,
-  //     //           cache: FastImage.cacheControl.immutable,
-  //     //         }}
-  //     //         resizeMode={FastImage.resizeMode.cover}
-  //     //       />
-  //     //     </>
-  //     //   ) : (
-  //     //     <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
-  //     //   )}
-
-  //     //   <View style={styles.itemTextContainer}>
-  //     //     <Text style={styles.itemName}>{item.name}</Text>
-  //     //     <Text style={styles.itemPrice}>£ {item.price}</Text>
-  //     //   </View>
-  //     // </View>
-  //     <View style={styles.itemRow}>
-  //       {imageUrl && !error ? (
-  //         <FastImage
-  //           style={styles.itemImage}
-  //           source={{
-  //             uri: imageUrl,
-  //             priority: FastImage.priority.normal,
-  //             cache: FastImage.cacheControl.immutable,
-  //           }}
-  //           resizeMode={FastImage.resizeMode.cover}
-  //           onError={() => setError(true)} // fallback trigger
-  //         />
-  //       ) : (
-  //         <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
-  //       )}
-
-  //       <View style={styles.itemTextContainer}>
-  //         <Text style={styles.itemName}>{item.name}</Text>
-  //         <Text style={styles.itemPrice}>£ {item.price}</Text>
-  //       </View>
-  //     </View>
-  //   );
-  // };
-
-  const renderItem = ({ item }) => {
-    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
-
-    const handleError = () => {
-      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
-    };
-
-    const hasError = imageErrorMap[item.id] || false;
-
-    return (
-      <TouchableOpacity
-        style={styles.itemRow}
-        onPress={() => handleItemPress(item)}
-      >
-        {imageUrl && !hasError ? (
-          <FastImage
-            style={styles.itemImage}
-            source={{
-              uri: imageUrl,
-              priority: FastImage.priority.normal,
-              cache: FastImage.cacheControl.immutable,
-            }}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
-        ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
-        )}
-
-        <View style={styles.itemTextContainer}>
-          <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.itemPrice}>£ {item.price}</Text>
-        </View>
-      </TouchableOpacity>
-    );
+  const clearSearch = () => {
+    setSearch('');
+    onResults([]);
+    if (searchInputRef.current) {
+      searchInputRef.current.blur();
+    }
   };
 
-  const handleItemPress = item => {
-    navigation.navigate('DisplayItems', { itemData: item });
-  };
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="dark-content"
-      />
-
-      <TouchableOpacity style={styles.headerContainer}>
+    <View style={styles.container}>
+      <View style={styles.headerContainer}>
         <TouchableOpacity
           style={styles.leftContainer}
-          onPress={() => {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Home' }], // 👈 this becomes the new root
-              }),
-            );
-          }}
+          onPress={() => navigation.navigate('Home')}
         >
           <Image
             source={IconData.Logo}
@@ -203,7 +148,7 @@ const SearchScreen = ({ navigation }) => {
             resizeMode="contain"
           />
         </TouchableOpacity>
-        <Loader visible={loader} />
+        
         <View style={styles.rightIcons}>
           <TouchableOpacity
             onPress={() => navigation.navigate('AccountProfile')}
@@ -212,57 +157,49 @@ const SearchScreen = ({ navigation }) => {
             <Ionicons name={'menu'} size={moderateScale(25)} />
           </TouchableOpacity>
         </View>
-      </TouchableOpacity>
-
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.back}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons
-            name={'arrow-back'}
-            size={moderateScale(20)}
-            color={Color.GRAY}
-          />
-        </TouchableOpacity>
-
-        <View style={styles.tab}>
-          <TextInput
-            value={search}
-            onChangeText={text => {
-              handleSearch(text);
-            }}
-            placeholder="Search Term"
-            style={styles.searchInput}
-          />
-        </View>
       </View>
 
-      <Text style={styles.resultText}>{results.length} Results Found</Text>
-
-      <FlatList
-        data={results}
-        showsVerticalScrollIndicator={false}
-        keyExtractor={(item, index) => `${item.id}_${index}`}
-        renderItem={renderItem}
-        contentContainerStyle={{
-          paddingHorizontal: 12,
-          paddingBottom: moderateScale(120),
-        }}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={
-          loadingMore && <Text style={{ textAlign: 'center' }}>Loading...</Text>
-        }
-      />
-
-      <CartComponent />
-    </SafeAreaView>
+      <View style={styles.searchContainer}>
+        <View style={styles.tab}>
+          {/* <Ionicons
+            name="search"
+            size={moderateScale(20)}
+            color={Color.GRAY}
+            style={styles.searchIcon}
+          /> */}
+          <TextInput
+            ref={searchInputRef}
+            value={search}
+            onChangeText={handleSearch}
+            placeholder="Search products..."
+            style={styles.searchInput}
+            autoFocus={autoFocus}
+            returnKeyType="search"
+            onSubmitEditing={() => {
+              if (search.trim().length > 0) {
+                fetchData(search, 1);
+              }
+            }}
+          />
+          {/* {search.length > 0 && (
+            <TouchableOpacity onPress={clearSearch}>
+              <Ionicons
+                name="close-circle"
+                size={moderateScale(20)}
+                color={Color.GRAY}
+              />
+            </TouchableOpacity>
+          )} */}
+        </View>
+      </View>
+    </View>
   );
 };
 
 const styles = ScaledSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: {
+    backgroundColor: '#f8f8f8',
+  },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -276,8 +213,14 @@ const styles = ScaledSheet.create({
     flex: 1,
     overflow: 'hidden',
   },
-  logo: { width: '90%', height: moderateScale(45) },
-  rightIcons: { flexDirection: 'row', alignItems: 'center' },
+  logo: { 
+    width: '90%', 
+    height: moderateScale(45) 
+  },
+  rightIcons: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
   iconButton: {
     width: moderateScale(40),
     height: moderateScale(40),
@@ -287,115 +230,34 @@ const styles = ScaledSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: moderateScale(10),
-    padding: moderateScale(10),
-  },
-  back: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(40),
-    borderWidth: 1,
-    borderColor: Color.GRAY2,
-    backgroundColor: Color.GRAY3,
-    justifyContent: 'center',
-    alignItems: 'center',
+  searchContainer: {
+    paddingHorizontal: moderateScale(10),
+    paddingBottom: moderateScale(10),
   },
   tab: {
-    height: moderateScale(40),
-    borderRadius: moderateScale(40),
+    height: moderateScale(45),
+    borderRadius: moderateScale(25),
     borderWidth: 1,
-    width: '85%',
     borderColor: Color.GRAY2,
     paddingHorizontal: moderateScale(15),
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Color.WHITE,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  searchInput: {
-    fontSize: moderateScale(14),
-    flex: 1,
-    paddingHorizontal: moderateScale(10),
-  },
-  resultText: {
-    paddingHorizontal: moderateScale(15),
-    paddingVertical: moderateScale(8),
-    color: Color.RED,
-    fontFamily: FONT.BOLD,
-    fontSize: moderateScale(20),
-  },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: moderateScale(8),
-    gap: moderateScale(5),
-  },
-  itemImage: {
-    width: moderateScale(70),
-    height: moderateScale(70),
-    borderRadius: moderateScale(5),
+  searchIcon: {
     marginRight: moderateScale(10),
   },
-  itemName: {
-    fontSize: moderateScale(14),
-    fontWeight: '600',
-  },
-  itemPrice: {
-    fontSize: moderateScale(13),
-    color: '#555',
-  },
-  itemTextContainer: {
+  searchInput: {
+    fontSize: moderateScale(16),
     flex: 1,
-    paddingRight: moderateScale(5),
-  },
-  bottomCard: {
-    position: 'absolute',
-    bottom: moderateScale(20),
-    width: '75%',
-    height: moderateScale(50),
-    flexDirection: 'row',
-    backgroundColor: Color.WHITE,
-    borderRadius: moderateScale(40),
-    elevation: 5,
-    left: '12.5%',
-    alignItems: 'center',
-    padding: moderateScale(5),
-    gap: moderateScale(5),
-  },
-  circleLeft: {
-    width: '75%',
-    height: moderateScale(45),
-    borderRadius: moderateScale(50),
-    backgroundColor: '#3D3D3D',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: moderateScale(5),
-  },
-  circleLeft1: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(20),
-    backgroundColor: 'black',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: moderateScale(3),
-  },
-  circleRight: {
-    width: '20%',
-    height: moderateScale(40),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  barcodeIcon: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(20),
-    backgroundColor: '#B71C1C',
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: moderateScale(10),
+    fontFamily: FONT.REGULAR,
   },
 });
 
-export default SearchScreen;
+export default SearchComponent;

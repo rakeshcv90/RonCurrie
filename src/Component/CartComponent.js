@@ -1,7 +1,11 @@
 import { View, Text, TouchableOpacity, Keyboard } from 'react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 
-import { ScaledSheet, moderateScale } from 'react-native-size-matters';
+import {
+  ScaledSheet,
+  moderateScale,
+  verticalScale,
+} from 'react-native-size-matters';
 
 import { MaterialDesignIcons } from '@react-native-vector-icons/material-design-icons';
 import { Color } from './Image';
@@ -20,6 +24,7 @@ const CartComponent = () => {
   const { cartList, loading, error, refreshKey } = useSelector(
     state => state.cartListData,
   );
+
   const [userData, setUserData] = useState(null);
   useEffect(() => {
     const fetchUserData = async () => {
@@ -69,7 +74,14 @@ const CartComponent = () => {
 
         if (typeof firstValue === 'string' && firstValue.includes('#')) {
           const parts = firstValue.split('#');
-          customOptionPrice = Number(parts[2]) || 0;
+
+          const middleValue = firstValue.split('#')[2];
+          const secondValue = firstValue.split('#')[1];
+          const totalPriceNumber =
+            (Number(secondValue) || 0) *
+            (Number(item?.options?.[0]?.bespoke_factor_val) || 0) *
+            (Number(item?.cart_quantity) || 0);
+          customOptionPrice = totalPriceNumber || 0;
         } else {
           const price = item?.options?.[0]?.values?.[0]?.price;
 
@@ -89,7 +101,7 @@ const CartComponent = () => {
       optionData = JSON.parse(additional_option);
     } catch (e) {
       parsedOption = [];
-      // return Number(item.price) * (cart_quantity || 1);
+      return Number(item.price) * (cart_quantity || 1);
     }
 
     const values = Object.values(optionData)
@@ -140,13 +152,14 @@ const CartComponent = () => {
 
     return subTotal?.toFixed(2);
   };
+
   const getItemCount = () => {
     const subTotal = cartList?.reduce(
       (sum, item) => sum + item?.cart_quantity,
       0,
     );
 
-    return subTotal.toFixed(2);
+    return Number(subTotal);
   };
   return (
     <View style={styles.bottomWrapper}>
@@ -156,10 +169,8 @@ const CartComponent = () => {
           onPress={() => {
             Keyboard.dismiss();
             if (cartList?.length > 0) {
-              // navigation.navigate('AddCartScreen');
-
               setTimeout(() => {
-                navigation.navigate('AddCartScreen'); // or whatever your route is
+                navigation.navigate('AddCartScreen');
               }, 80);
             } else {
               showToast(
@@ -186,12 +197,12 @@ const CartComponent = () => {
               borderRadius: 2,
             }}
           />
-          <View>
+          <View style={{ marginRight: 5 }}>
             <Text style={{ color: 'white', fontSize: 10 }}>
-              {getItemCount()}
+              {cartList?.length} Groups
             </Text>
             <Text style={{ color: 'white', fontSize: 10 }}>
-              ITEMS ({cartList?.length})
+              {getItemCount()} Items
             </Text>
           </View>
         </TouchableOpacity>
@@ -205,22 +216,19 @@ const CartComponent = () => {
         />
         <TouchableOpacity
           style={styles.circleRight}
-          // onPress={() => {
-          //   navigation.navigate('BarCodeReader');
-          // }}
           onPress={() => {
             Keyboard.dismiss();
             setTimeout(() => {
-              navigation.navigate('BarCodeReader'); // or whatever your route is
+              navigation.navigate('BarCodeReader');
             }, 80);
           }}
         >
           <View
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: '#B71C1C', // red
+              width: verticalScale(35),
+              height: verticalScale(35),
+              borderRadius: verticalScale(35),
+              backgroundColor: '#B71C1C',
               justifyContent: 'center',
               alignItems: 'center',
             }}
@@ -228,7 +236,7 @@ const CartComponent = () => {
             <MaterialDesignIcons
               name="barcode-scan"
               color={Color.WHITE}
-              size={25}
+              size={verticalScale(20)}
             />
           </View>
         </TouchableOpacity>
@@ -240,16 +248,14 @@ const styles = ScaledSheet.create({
   bottomCard: {
     position: 'absolute',
     bottom: 20,
-    width: '75%',
-    height: 50,
+    height: verticalScale(40),
     flexDirection: 'row',
     backgroundColor: Color.WHITE,
     borderRadius: 40,
-    // overflow: 'hidden',
     elevation: 5,
-    left: '12.5%',
+
     alignItems: 'center',
-    padding: '5@ms',
+    padding: '2@ms',
     gap: 5,
 
     shadowColor: '#000',
@@ -258,8 +264,7 @@ const styles = ScaledSheet.create({
     shadowRadius: 4,
   },
   circleLeft: {
-    width: '75%',
-    height: 45,
+    height: verticalScale(38),
     borderRadius: 50,
     backgroundColor: '#3D3D3D',
     justifyContent: 'flex-start',
@@ -277,7 +282,7 @@ const styles = ScaledSheet.create({
     marginLeft: '3@ms',
   },
   circleRight: {
-    width: '20%',
+    // width: '20%',
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -294,4 +299,4 @@ const styles = ScaledSheet.create({
   },
 });
 
-export default CartComponent;
+export default React.memo(CartComponent);

@@ -21,10 +21,17 @@ import EditInfotmation from '../Screen/EditInfotmation';
 import ProductReturns from '../Screen/ProductReturns';
 import ReturnRequestDetails from '../Screen/ReturnRequestDetails';
 import OrderSuccessFull from '../Screen/OrderSuccessFull';
+import CategoryData from '../Screen/CategoryData';
+import SubProductList from '../Screen/SubProductList';
+import SubProductList2 from '../Screen/SubProductList2';
+import CategoryList from '../Screen/Category/CategoryList';
+import CategoryList2 from '../Screen/Category/CategoryList2';
+import CategoryPage from '../Screen/Category/CategoryPage';
+import WebScreen from '../Screen/Category/WebScreen';
 
 const screenOptions = {
   headerShown: false,
-  animation: 'slide_from_right',
+  animation: 'none',
   contentStyle: {
     backgroundColor: 'transparent',
   },
@@ -60,6 +67,14 @@ const Router = () => {
         component={OrderHistoryDetails}
       />
       <Stack.Screen name="WebViewScreen" component={WebViewScreen} />
+      <Stack.Screen name="SubProductList" component={SubProductList} />
+      <Stack.Screen name="SubProductList2" component={SubProductList2} />
+
+      <Stack.Screen name="CategoryData" component={CategoryData} />
+      <Stack.Screen name="CategoryList" component={CategoryList} />
+      <Stack.Screen name="CategoryList2" component={CategoryList2} />
+      <Stack.Screen name="CategoryPage" component={CategoryPage} />
+    <Stack.Screen name="WebScreen" component={WebScreen} />
     </Stack.Navigator>
   );
 };

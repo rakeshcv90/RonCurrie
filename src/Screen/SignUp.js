@@ -127,10 +127,10 @@ const SignUp = ({ navigation }) => {
     }
 
     // Privacy policy check
-    if (!agree) {
-      Alert.alert('Validation Error', 'You must agree to the Privacy Policy');
-      return;
-    }
+    // if (!agree) {
+    //   Alert.alert('Validation Error', 'You must agree to the Privacy Policy');
+    //   return;
+    // }
 
     // Robot check
     if (!notRobot) {
@@ -163,11 +163,6 @@ const SignUp = ({ navigation }) => {
 
       if (response?.status == 201) {
         if (response?.data?.success == true) {
-          // await Keychain.setGenericPassword(
-          //   'userToken',
-          //   response?.data?.data?.token,
-          // );
-          // await MMKVStorage.setItem('User_Data', response?.data?.data?.user);
           setFirstName('');
           setLastName('');
           setEmail('');
@@ -229,11 +224,7 @@ const SignUp = ({ navigation }) => {
             originalAddress: address,
           })) || [];
         setAddressData(transformedData);
-       
-      
-     
       } else {
-
         setAddressData([]);
       }
     } catch (error) {
@@ -347,7 +338,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+               height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -365,6 +356,7 @@ const SignUp = ({ navigation }) => {
               style={{
                 marginBottom: moderateScale(5),
                 marginTop: moderateScale(10),
+                
               }}
             >
               <Text
@@ -391,7 +383,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+              height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -435,7 +427,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+               height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -479,7 +471,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+               height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -537,7 +529,7 @@ const SignUp = ({ navigation }) => {
                 <Text style={styles.findBtnText}>Find Address</Text>
               </TouchableOpacity>
             </View>
-          {console.log("XCcccccccccccc",addressData)}
+
             <View style={styles.container}>
               <Dropdown
                 style={styles.input2}
@@ -595,7 +587,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+               height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -640,7 +632,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+            height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -684,7 +676,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+              height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -728,7 +720,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+                height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -774,7 +766,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+              height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -819,7 +811,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+            height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -862,7 +854,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+        height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -914,7 +906,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: 45,
+              height: verticalScale (40),
               }}
             >
               <View style={styles.inputRow}>
@@ -939,7 +931,7 @@ const SignUp = ({ navigation }) => {
               <Text style={styles.errorText}>{confirmPasswordError}</Text>
             ) : null}
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.checkboxRow}
               onPress={() => setSubscribe(!subscribe)}
             >
@@ -949,9 +941,9 @@ const SignUp = ({ navigation }) => {
                 color={Color.GRAY}
               />
               <Text style={styles.label}>Subscribe to our newsletter.</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.checkboxRow}
               onPress={() => setAgree(!agree)}
             >
@@ -964,7 +956,7 @@ const SignUp = ({ navigation }) => {
                 I have read and agree to the{' '}
                 <Text style={styles.linkText}>Privacy Policy</Text>
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               activeOpacity={0.8}
               style={styles.robotBox}

@@ -8,6 +8,7 @@ import {
   StatusBar,
   Image,
   Alert,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScaledSheet, moderateScale } from 'react-native-size-matters';
@@ -17,14 +18,25 @@ import { CommonActions } from '@react-navigation/native';
 import { MMKVStorage } from '../utility/MmkvStore';
 import Loader from '../Component/Loader';
 import { postData } from '../utility/ApiCall';
-import { Api } from '../utility/api';
+import { Api, ImageBaseUrl } from '../utility/api';
 import { showToast } from '../utility/showToast';
+import SearchComponent from './Component/SearchComponent';
+import { clearProducts } from '../Redux/Slice/ProductListSlice';
+import { useDispatch } from 'react-redux';
+import FastImage from 'react-native-fast-image';
+import CartComponent from '../Component/CartComponent';
 const EditInfotmation = ({ navigation }) => {
+  const dispatch = useDispatch();
+
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('Singh');
   const [email, setEmail] = useState();
   const [phone, setPhone] = useState();
   const [loader, setLoader] = useState(false);
+  const [results, setResults] = useState([]);
+  const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [imageErrorMap, setImageErrorMap] = useState({});
   const [defaultValues, setDefaultValues] = useState({
     firstname: '',
     lastname: '',
@@ -90,7 +102,63 @@ const EditInfotmation = ({ navigation }) => {
       showToast('danger', 'Error', error.message || 'Something went wrong');
     }
   };
+  const handleItemPress = item => {
+    dispatch(clearProducts());
+    navigation.navigate('DisplayItems', { itemData: item });
+  };
 
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .trim();
+  };
+  const renderItem = ({ item }) => {
+    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+    const handleError = () => {
+      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+    };
+
+    const hasError = imageErrorMap[item.id] || false;
+
+    return (
+      <TouchableOpacity
+        style={styles.itemRow}
+        onPress={() => handleItemPress(item)}
+      >
+        {imageUrl && !hasError ? (
+          <FastImage
+            style={styles.itemImage}
+            source={{
+              uri: imageUrl,
+             priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        ) : (
+          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+        )}
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName}>
+            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+            £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -98,123 +166,126 @@ const EditInfotmation = ({ navigation }) => {
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.back}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons
-            name={'arrow-back'}
-            size={moderateScale(20)}
-            color={Color.GRAY}
+      <SearchComponent
+        onResults={setResults}
+        onLoadMoreRef={setLoadMoreFunc}
+        navigation={navigation}
+         autoFocus={true}
+      />
+      {results?.length > 0 ? (
+        <>
+          <FlatList
+            data={results}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item, index) =>
+              `${item.id || item.product_id || index}`
+            }
+            renderItem={renderItem}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: moderateScale(120),
+            }}
+            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore && (
+                <Text style={{ textAlign: 'center' }}>Loading...</Text>
+              )
+            }
           />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.leftContainer}
-          onPress={() => {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Home' }], // 👈 this becomes the new root
-              }),
-            );
-          }}
-        >
-          <Image
-            source={IconData.Logo}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={{
-          padding: moderateScale(10),
-          backgroundColor: '#fff',
-        }}
-      >
-        <Text style={styles.title}>My Account Information</Text>
-
-        <Text style={styles.sectionText}>Your Personal Details</Text>
-
-        <View style={styles.row}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>First Name *</Text>
-            <TextInput
-              value={firstName}
-              onChangeText={setFirstName}
-              style={styles.input}
-              placeholder="First Name"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Last Name *</Text>
-            <TextInput
-              value={lastName}
-              onChangeText={setLastName}
-              style={styles.input}
-              placeholder="Last Name"
-            />
-          </View>
-        </View>
-
-        {/* Email */}
-        <View style={styles.inputGroupFull}>
-          <Text style={styles.label}>Email *</Text>
-          <TextInput
-            value={email}
-            // onChangeText={setEmail}
-            editable={false}
-            selectTextOnFocus={false}
-            showSoftInputOnFocus={false}
-            caretHidden={true}
-            style={styles.input}
-            placeholder="Email"
-          />
-        </View>
-
-        {/* Phone */}
-        <View style={styles.inputGroupFull}>
-          <Text style={styles.label}>Phone *</Text>
-          <TextInput
-            value={phone}
-            onChangeText={setPhone}
-            style={styles.input}
-            placeholder="Phone"
-            maxLength={15}
-            keyboardType="number-pad"
-          />
-        </View>
-
-        {/* Buttons */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => {
-              setFirstName(defaultValues.firstname);
-              setLastName(defaultValues.lastname);
-              //   setEmail(defaultValues.email);
-              setPhone(defaultValues.telephone);
+        </>
+      ) : (
+        <>
+          <ScrollView
+            contentContainerStyle={{
+              padding: moderateScale(10),
+              backgroundColor: '#fff',
             }}
           >
-            <Text style={styles.backText}>Clear</Text>
-          </TouchableOpacity>
+            <Text style={styles.title}>My Account Information</Text>
 
-          <TouchableOpacity
-            style={styles.submitBtn}
-            onPress={() => {
-              handleSubmit();
-            }}
-          >
-            <Text style={styles.submitText}>Submit</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            <Text style={styles.sectionText}>Your Personal Details</Text>
+
+            <View style={styles.row}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>First Name *</Text>
+                <TextInput
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  style={styles.input}
+                  placeholder="First Name"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Last Name *</Text>
+                <TextInput
+                  value={lastName}
+                  onChangeText={setLastName}
+                  style={styles.input}
+                  placeholder="Last Name"
+                />
+              </View>
+            </View>
+
+            {/* Email */}
+            <View style={styles.inputGroupFull}>
+              <Text style={styles.label}>Email *</Text>
+              <TextInput
+                value={email}
+                // onChangeText={setEmail}
+                editable={false}
+                selectTextOnFocus={false}
+                showSoftInputOnFocus={false}
+                caretHidden={true}
+                style={styles.input}
+                placeholder="Email"
+              />
+            </View>
+
+            {/* Phone */}
+            <View style={styles.inputGroupFull}>
+              <Text style={styles.label}>Phone *</Text>
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                style={styles.input}
+                placeholder="Phone"
+                maxLength={15}
+                keyboardType="number-pad"
+              />
+            </View>
+
+            {/* Buttons */}
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => {
+                  setFirstName(defaultValues.firstname);
+                  setLastName(defaultValues.lastname);
+                  //   setEmail(defaultValues.email);
+                  setPhone(defaultValues.telephone);
+                }}
+              >
+                <Text style={styles.backText}>Clear</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.submitBtn}
+                onPress={() => {
+                  handleSubmit();
+                }}
+              >
+                <Text style={styles.submitText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </>
+      )}
+  <View>
+            <CartComponent />
+          </View>
+
       <Loader visible={loader} />
     </SafeAreaView>
   );
@@ -323,6 +394,26 @@ const styles = ScaledSheet.create({
     color: '#fff',
     fontSize: '16@s',
     fontFamily: FONT.SEMIBOLD,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
+  },
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  itemPrice: {
+    fontSize: moderateScale(13),
+    color: '#555',
   },
 });
 

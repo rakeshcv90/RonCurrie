@@ -1,6 +1,10 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { moderateScale, ScaledSheet } from 'react-native-size-matters';
+import {
+  moderateScale,
+  ScaledSheet,
+  verticalScale,
+} from 'react-native-size-matters';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Color, FONT } from './Image';
 import { MMKVStorage } from '../utility/MmkvStore';
@@ -9,8 +13,14 @@ import { deleteData, putData } from '../utility/ApiCall';
 import { useDispatch } from 'react-redux';
 import { fetchCartData } from '../Redux/Slice/CartDataShowSlice';
 import { showToast } from '../utility/showToast';
-const RenderItem = ({ item,navigation }) => {
+import Loader from './Loader';
+const RenderItem = ({ item, navigation }) => {
   const [userData, setUserData] = useState(null);
+  const [loader, setLoader] = useState(false);
+  const [inputQty, setInputQty] = useState('');
+  useEffect(() => {
+    setInputQty(String(item?.cart_quantity ?? 1));
+  }, [item?.cart_quantity]);
   const dispatch = useDispatch();
   useEffect(() => {
     const fetchUserData = async () => {
@@ -144,7 +154,7 @@ const RenderItem = ({ item,navigation }) => {
       cart_id: item?.cart_id,
       ...(item?.mode && { mode: item?.mode }),
     };
-
+    setLoader(true);
     try {
       const response = await deleteData(Api.DELETE_CART, itemData);
 
@@ -152,11 +162,11 @@ const RenderItem = ({ item,navigation }) => {
 
       if (response?.status == 200) {
         showToast('success', 'Success!', response?.data?.message);
-
-
       } else {
       }
+      setLoader(false);
     } catch (error) {
+      setLoader(false);
       console.error('Error updating quantity:', error);
     }
   };
@@ -179,6 +189,7 @@ const RenderItem = ({ item,navigation }) => {
       const itemData = {
         customer_id: userData?.customer_id,
         quantity: newQty,
+        mode: item?.mode,
       };
 
       try {
@@ -210,6 +221,7 @@ const RenderItem = ({ item,navigation }) => {
       const itemData = {
         customer_id: userData?.customer_id,
         quantity: newQty,
+        mode: item?.mode,
       };
 
       try {
@@ -268,410 +280,660 @@ const RenderItem = ({ item,navigation }) => {
   }
   const price = getPrice(item);
 
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .trim();
+  };
+
+  const additionalOptionPrice = (() => {
+    const opt = item?.additional_option;
+
+    if (!opt) return 0;
+
+    let value = '';
+
+    if (typeof opt === 'object' && !Array.isArray(opt)) {
+      value = Object.values(opt)[0];
+    } else if (typeof opt === 'string') {
+      value = opt;
+    }
+
+    if (!value || typeof value !== 'string') return 0;
+
+    const parts = value.split('#');
+    return parseFloat(parts[2]) || 0;
+  })();
+
+  const handleQtyBlur = async (text, type) => {
+    let qty = Number(text);
+
+    // ✅ fallback
+    if (!qty || qty <= 0) qty = 1;
+
+    // ✅ stock check
+    if (qty > item?.stock) {
+      toast.show('Out of stock');
+      qty = item?.stock;
+    }
+
+    // ✅ update input + UI
+    setInputQty(String(qty));
+
+    // ✅ CALL API HERE
+    // await updateCartQtyFromInput(item, qty, type);
+
+    const itemData = {
+      customer_id: userData?.customer_id,
+      quantity: qty,
+      mode: item?.mode,
+    };
+
+    try {
+      const end_point = `${Api.UPDATE_CART}/${item?.cart_id}`;
+      const response = await putData(end_point, itemData);
+
+      dispatch(fetchCartData(userData.customer_id));
+      if (response?.status == 200) {
+        showToast('success', 'Success!', 'Cart update successfully');
+      } else {
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    }
+  };
   return (
     <>
       {optionType == 'normal' && (
-        <View style={styles.cartRowWrapper}>
-          <View style={[styles.topRow, { marginBottom: moderateScale(10) }]}>
-            <Text
-              style={styles.productName}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {item?.isbn}
-       
-            </Text>
-            <TouchableOpacity onPress={() => removeItem(item)}>
-              <Ionicons name="trash-outline" size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.cartRow}>
-            <View style={styles.qtyContainer}>
-              <TouchableOpacity
-                style={styles.qtyButton}
-                onPress={() => handleDecrement(item)}
-              >
-                <Text style={styles.qtyButtonText}>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.qtyCount}>{item?.cart_quantity}</Text>
-              <TouchableOpacity
-                style={styles.qtyButton}
-                onPress={() => handleIncrement(item)}
-              >
-                <Text style={styles.qtyButtonText}>+</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.priceContainer}>
-              <View style={styles.priceBox}>
-                <Text style={styles.priceText}>
-                  £
-                  {parseFloat(
-                    item?.options?.[0]?.values?.[0]?.price || 0,
-                  ).toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.priceBox}>
-                <Text style={styles.priceText}>
-                   £
-                  {(
-                    parseFloat(item?.options?.[0]?.values?.[0]?.price || 0) *
-                    item?.cart_quantity
-                  ).toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          </View>
-          <View style={{ paddingRight: moderateScale(10), marginTop: 5 }}>
-            <Text style={styles.inStock}>
-              In-Stock:{item?.options[0]?.values[0]?.quantity}
-            </Text>
-          </View>
-        </View>
-      )}
-      {optionType == 'no_option' && (
-        <View style={styles.cartRowWrapper}>
-          <View style={[styles.topRow, { marginBottom: moderateScale(10) }]}>
-            <Text style={styles.productName}>{item?.isbn}</Text>
-            <TouchableOpacity onPress={() => removeItem(item, optionType)}>
-              <Ionicons name="trash-outline" size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.cartRow}>
-            <View style={styles.qtyContainer}>
-              <TouchableOpacity
-                style={styles.qtyButton}
-                onPress={() => handleDecrement(item, optionType)}
-              >
-                <Text style={styles.qtyButtonText}>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.qtyCount}>{item?.cart_quantity}</Text>
-              <TouchableOpacity
-                style={styles.qtyButton}
-                onPress={() => handleIncrement(item, optionType)}
-              >
-                <Text style={styles.qtyButtonText}>+</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.priceContainer}>
-              <View style={styles.priceBox}>
-                <Text style={styles.priceText}>
-                  £{parseFloat(item?.price || 0).toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.priceBox}>
-                <Text style={styles.priceText}>
-                  £
-                  {(parseFloat(item?.price || 0) * item?.cart_quantity).toFixed(
-                    2,
-                  )}
-                </Text>
-              </View>
-            </View>
-          </View>
-          <View style={{ paddingRight: moderateScale(10), marginTop: 5 }}>
-            <Text style={styles.inStock}>In-Stock:{item?.quantity}</Text>
-          </View>
-        </View>
-      )}
-      {optionType == 'custom' && (
-        <View style={styles.cartRowWrapper}>
-          <View style={[styles.topRow, { marginBottom: moderateScale(10) }]}>
-            <Text style={styles.productName}>{item?.isbn}</Text>
-            <TouchableOpacity onPress={() => removeItem(item, optionType)}>
-              <Ionicons name="trash-outline" size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.cartRow}>
-            <View style={styles.qtyContainer}>
-              <TouchableOpacity
-                style={styles.qtyButton}
-                onPress={() => handleDecrement(item, optionType)}
-              >
-                <Text style={styles.qtyButtonText}>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.qtyCount}>{item?.cart_quantity}</Text>
-              <TouchableOpacity
-                style={styles.qtyButton}
-                onPress={() => handleIncrement(item, optionType)}
-              >
-                <Text style={styles.qtyButtonText}>+</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.priceContainer}>
-              <View style={styles.priceBox}>
-                <Text style={styles.priceText}>
-                   £
-                  {parseFloat(
-                    item?.options[0]?.bespoke_factor_val || 0,
-                  ).toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.priceBox}>
-                <Text style={styles.priceText}>
-                  £
-                  {(
-                    parseFloat(
-                      secondValue * item?.options?.[0]?.bespoke_factor_val || 0,
-                    ) * item?.cart_quantity
-                  ).toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          </View>
-          <View style={{ paddingRight: moderateScale(10), marginTop: 5 }}>
-            <Text style={styles.inStock}>In-Stock : {item?.quantity}</Text>
-          </View>
-          <View style={{ paddingRight: moderateScale(10), marginTop: 5 }}>
-            <Text style={[styles.inStock1, { top: -moderateScale(20) }]}>
-              Bespoke Value : {item?.options?.[0]?.bespoke_factor_val}
-            </Text>
-          </View>
-        </View>
-      )}
-      {optionType == 'matrix' && (
         <>
           <View style={styles.cartRowWrapper}>
-            <View style={[styles.topRow, { marginBottom: moderateScale(10) }]}>
-              <Text style={styles.productName}>{item?.isbn}</Text>
-              <TouchableOpacity onPress={() => removeItem(item, optionType)}>
-                <Ionicons name="trash-outline" size={20} color="gray" />
+            <View style={styles.topRow}>
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() =>
+                  navigation.navigate('DisplayItems', { itemData: item })
+                }
+              >
+                <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => removeItem(item)}>
+                <Ionicons name="trash-outline" size={22} color="gray" />
               </TouchableOpacity>
             </View>
-            <View style={styles.cartRow}>
-              <View style={styles.qtyContainer}>
-                <TouchableOpacity
-                  style={styles.qtyButton}
-                  onPress={() => handleDecrement(item, optionType)}
+
+            <View style={styles.inlineRow}>
+              <View style={styles.stockRow}>
+                <Text style={styles.stockLabel}>In-Stock:</Text>
+                <Text
+                  style={[
+                    styles.stockValue,
+                    item?.options[0]?.values[0]?.quantity <= 10 && {
+                      color: Color.RED,
+                    },
+                  ]}
                 >
-                  <Text style={styles.qtyButtonText}>-</Text>
-                </TouchableOpacity>
-                <Text style={styles.qtyCount}>{item?.cart_quantity}</Text>
+                  {item?.options[0]?.values[0]?.quantity}
+                </Text>
+              </View>
+
+              <View style={styles.qtyBox}>
                 <TouchableOpacity
-                  style={styles.qtyButton}
+                  style={styles.sidePanel}
+                  onPress={() => handleDecrement(item)}
+                >
+                  <View style={styles.qtyBtnCircle}>
+                    <Text style={styles.qtyBtnText}>-</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* <Text style={styles.qtyNumber}>{item?.cart_quantity}</Text> */}
+                <TextInput
+                  style={styles.qtyInput}
+                  value={inputQty}
+                  keyboardType="numeric"
+                  maxLength={3}
+                  onChangeText={text => {
+                    const cleaned = text.replace(/[^0-9]/g, '');
+                    setInputQty(cleaned);
+                  }}
+                  onBlur={() => handleQtyBlur(inputQty, optionType)}
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.sidePanel,
+                    { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                  ]}
                   onPress={() => handleIncrement(item, optionType)}
                 >
-                  <Text style={styles.qtyButtonText}>+</Text>
+                  <View style={styles.qtyBtnCircle}>
+                    <Text style={styles.qtyBtnText}>+</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.priceContainer}>
-                <View
-                  style={[
-                    styles.priceBox,
-                    { paddingHorizontal: moderateScale(10) },
-                  ]}
-                >
-                  <Text style={styles.priceText}>{middleValue}</Text>
-                </View>
-                <View
-                  style={[
-                    styles.priceBox,
-                    { paddingHorizontal: moderateScale(10) },
-                  ]}
-                >
-                  <Text style={styles.priceText}>{secondValue}</Text>
-                </View>
-                <View
-                  style={[
-                    styles.priceBox,
-                    { paddingHorizontal: moderateScale(10) },
-                  ]}
-                >
+              {/* PRICE GROUP */}
+              <View style={styles.priceGroup}>
+                <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
-                   £{parseFloat(price).toFixed(2)}
+                    x £
+                    {parseFloat(
+                      item?.options[0]?.values[0]?.price || 0,
+                    ).toFixed(2)}
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.priceHalf}>
+                  <Text style={styles.priceText}>
+                    {(item?.mode === 1 || item?.mode === 2) && '-'} £
+                    {(
+                      parseFloat(item?.options[0]?.values[0]?.price || 0) *
+                      item?.cart_quantity
+                    ).toFixed(2)}
                   </Text>
                 </View>
               </View>
             </View>
-            <View
-              style={{
-                paddingRight: moderateScale(10),
-                marginTop: 5,
-              }}
-            >
-              <Text style={styles.inStock}>In-Stock:{item?.quantity}</Text>
+          </View>
+        </>
+      )}
+      {optionType == 'no_option' && (
+        <>
+          <View style={styles.cartRowWrapper}>
+            <View style={styles.topRow}>
+              {/* <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text> */}
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() =>
+                  navigation.navigate('DisplayItems', { itemData: item })
+                }
+              >
+                <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => removeItem(item)}>
+                <Ionicons name="trash-outline" size={22} color="gray" />
+              </TouchableOpacity>
+            </View>
+
+            {/* INLINE ROW FIXED */}
+            <View style={styles.inlineRow}>
+              {/* STOCK */}
+              <View style={styles.stockRow}>
+                <Text style={styles.stockLabel}>In-Stock:</Text>
+                <Text
+                  style={[
+                    styles.stockValue,
+                    item?.quantity <= 10 && {
+                      color: Color.RED,
+                    },
+                  ]}
+                >
+                  {item?.quantity}
+                </Text>
+              </View>
+
+              <View style={styles.qtyBox}>
+                {/* MINUS BUTTON */}
+                <TouchableOpacity
+                  style={styles.sidePanel}
+                  onPress={() => handleDecrement(item, optionType)}
+                >
+                  <View style={styles.qtyBtnCircle}>
+                    <Text style={styles.qtyBtnText}>-</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* NUMBER */}
+                {/* <Text style={styles.qtyNumber}>{item?.cart_quantity}</Text> */}
+
+                {/* PLUS BUTTON */}
+
+                <TextInput
+                  style={styles.qtyInput}
+                  value={inputQty}
+                  keyboardType="numeric"
+                  maxLength={3}
+                  onChangeText={text => {
+                    const cleaned = text.replace(/[^0-9]/g, '');
+                    setInputQty(cleaned);
+                  }}
+                  onBlur={() => handleQtyBlur(inputQty, optionType)}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.sidePanel,
+                    { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                  ]}
+                  onPress={() => handleIncrement(item, optionType)}
+                >
+                  <View style={styles.qtyBtnCircle}>
+                    <Text style={styles.qtyBtnText}>+</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* PRICE GROUP */}
+              <View style={styles.priceGroup}>
+                <View style={styles.priceHalf}>
+                  <Text style={styles.priceText}>
+                    x £{parseFloat(item?.price || 0).toFixed(2)}
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.priceHalf}>
+                  <Text style={styles.priceText}>
+                    £
+                    {(
+                      parseFloat(item?.price || 0) * item?.cart_quantity
+                    ).toFixed(2)}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
         </>
       )}
+      {optionType == 'custom' && (
+        <>
+          <View style={styles.cartRowWrapper}>
+            <View style={styles.topRow}>
+              {/* <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text> */}
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() =>
+                  navigation.navigate('DisplayItems', { itemData: item })
+                }
+              >
+                <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => removeItem(item)}>
+                <Ionicons name="trash-outline" size={22} color="gray" />
+              </TouchableOpacity>
+            </View>
+
+            {/* INLINE ROW FIXED */}
+            <View style={styles.inlineRow}>
+              {/* STOCK */}
+              <View style={styles.stockRow}>
+                <Text style={styles.stockLabel}>In-Stock:</Text>
+                <Text
+                  style={[
+                    styles.stockValue,
+                    item?.quantity <= 10 && {
+                      color: Color.RED,
+                    },
+                  ]}
+                >
+                  {item?.quantity}
+                </Text>
+              </View>
+
+              <View style={styles.qtyBox}>
+                {/* MINUS BUTTON */}
+                <TouchableOpacity
+                  style={styles.sidePanel}
+                  onPress={() => handleDecrement(item, optionType)}
+                >
+                  <View style={styles.qtyBtnCircle}>
+                    <Text style={styles.qtyBtnText}>-</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* NUMBER */}
+                {/* <Text style={styles.qtyNumber}>{item?.cart_quantity}</Text> */}
+                <TextInput
+                  style={styles.qtyInput}
+                  value={inputQty}
+                  keyboardType="numeric"
+                  maxLength={3}
+                  onChangeText={text => {
+                    const cleaned = text.replace(/[^0-9]/g, '');
+                    setInputQty(cleaned);
+                  }}
+                  onBlur={() => handleQtyBlur(inputQty, optionType)}
+                />
+
+                {/* PLUS BUTTON */}
+                <TouchableOpacity
+                  style={[
+                    styles.sidePanel,
+                    { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                  ]}
+                  onPress={() => handleIncrement(item, optionType)}
+                >
+                  <View style={styles.qtyBtnCircle}>
+                    <Text style={styles.qtyBtnText}>+</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* PRICE GROUP */}
+
+              <View style={styles.priceGroup}>
+                {/* <View style={styles.priceHalf}>
+                  <Text style={styles.priceText}>
+                    x £
+                    {parseFloat(
+                      item?.options[0]?.bespoke_factor_val || 0,
+                    ).toFixed(2)}
+                  </Text>
+                </View> */}
+
+                <View style={styles.priceHalf}>
+                  <Text style={styles.priceText}>
+                    x £{additionalOptionPrice.toFixed(2)}
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.priceHalf}>
+                  <Text style={styles.priceText}>
+                    £
+                    {(
+                      parseFloat(
+                        secondValue * item?.options?.[0]?.bespoke_factor_val ||
+                          0,
+                      ) * item?.cart_quantity
+                    ).toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </>
+      )}
+      {optionType == 'matrix' && (
+        <>
+          <View style={styles.cartRowWrapper}>
+            <View style={styles.topRow}>
+              {/* <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text> */}
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() =>
+                  navigation.navigate('DisplayItems', { itemData: item })
+                }
+              >
+                <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => removeItem(item)}>
+                <Ionicons name="trash-outline" size={22} color="gray" />
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={{ flexDirection: 'row', gap: verticalScale(10), top: -5 }}
+            >
+              <Text
+                style={{
+                  fontSize: verticalScale(14),
+                  color: '#4F4F4F',
+                  fontFamily: FONT.MEDIUM,
+                }}
+              >
+                Width (mm):{middleValue}
+              </Text>
+              <Text
+                style={{
+                  fontSize: verticalScale(14),
+                  color: '#4F4F4F',
+                  fontFamily: FONT.MEDIUM,
+                }}
+              >
+                Length (mm):{secondValue}
+              </Text>
+            </View>
+            {/* INLINE ROW FIXED */}
+            <View style={styles.inlineRow}>
+              {/* STOCK */}
+              <View style={styles.stockRow}>
+                <Text style={styles.stockLabel}>In-Stock:</Text>
+                <Text
+                  style={[
+                    styles.stockValue,
+                    item?.quantity <= 10 && {
+                      color: Color.RED,
+                    },
+                  ]}
+                >
+                  {item?.quantity}
+                </Text>
+              </View>
+
+              <View style={styles.qtyBox}>
+                {/* MINUS BUTTON */}
+                <TouchableOpacity
+                  style={styles.sidePanel}
+                  onPress={() => handleDecrement(item)}
+                >
+                  <View style={styles.qtyBtnCircle}>
+                    <Text style={styles.qtyBtnText}>-</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* NUMBER */}
+                <Text style={styles.qtyNumber}>{item?.cart_quantity}</Text>
+
+                {/* <TextInput
+                  style={styles.qtyInput}
+                  keyboardType="numeric"
+                  value={String(item?.cart_quantity)}
+                  onChangeText={text => {
+                    if (text === '') {
+                      // allow user to type empty for a moment
+                      updateCartQtyFromInput(item, '', item?.mode);
+                      return;
+                    }
+
+                    const num = Number(text);
+                    if (!isNaN(num)) {
+                      updateCartQtyFromInput(item, num, item?.mode);
+                    }
+                  }}
+                  onEndEditing={() => {
+                    if (!item?.cart_quantity || item?.cart_quantity <= 0) {
+                      updateCartQtyFromInput(item, 1, item?.mode);
+                    }
+                  }}
+                /> */}
+
+                {/* PLUS BUTTON */}
+                <TouchableOpacity
+                  style={[
+                    styles.sidePanel,
+                    { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                  ]}
+                  onPress={() => handleIncrement(item, optionType)}
+                >
+                  <View style={styles.qtyBtnCircle}>
+                    <Text style={styles.qtyBtnText}>+</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* PRICE GROUP */}
+              <View style={styles.priceGroup}>
+                <View style={styles.priceHalf}>
+                  <Text style={styles.priceText}>
+                    {/* x £
+                    {parseFloat(
+                      item?.options[0]?.values[0]?.price || 0,
+                    ).toFixed(2)} */}
+                    -
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.priceHalf}>
+                  <Text style={styles.priceText}>
+                    £{parseFloat(price).toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </>
+      )}
+      <Loader visible={loader} />
     </>
   );
 };
-const styles = ScaledSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: moderateScale(12),
-    backgroundColor: '#f8f8f8',
-  },
-  leftContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    overflow: 'hidden',
-  },
-  logo: { width: '80%', height: moderateScale(40) },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 10,
-  },
-  back: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(40),
-    borderWidth: 1,
-    borderColor: Color.GRAY2,
-    backgroundColor: Color.GRAY3,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tab: { flexDirection: 'row', alignItems: 'center', gap: moderateScale(5) },
 
+const styles = ScaledSheet.create({
   cartRowWrapper: {
-    // marginBottom: 10,
+    flex: 1,
+    paddingVertical: 5,
     justifyContent: 'center',
-    padding: moderateScale(10),
+    paddingHorizontal: moderateScale(10),
   },
+
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
-
-    flex: 1,
+    marginBottom: 8,
   },
+
   productName: {
     fontSize: 16,
     fontFamily: FONT.SEMIBOLD,
     color: Color.BLACK,
     flexShrink: 1,
   },
-  cartRow: {
+
+  inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
   },
-  qtyContainer: {
+
+  /* STOCK INLINE */
+  stockRow: {
+    // flexDirection: 'row',
+    alignItems: 'center',
+    width: '15%',
+  },
+
+  stockLabel: {
+    fontSize: 12,
+    fontFamily: FONT.MEDIUM,
+    color: '#6D6D6D',
+  },
+
+  stockValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6D6D6D',
+  },
+
+  qtyBox: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 4,
+    borderColor: '#ccc',
+    borderRadius: 5,
     overflow: 'hidden',
+    height: verticalScale(40),
+    width: verticalScale(130),
+    backgroundColor: '#fff',
   },
-  qtyButton: {
-    backgroundColor: '#e0e0e0',
-    paddingHorizontal: moderateScale(15),
-    paddingVertical: 6,
+
+  sidePanel: {
+    width: verticalScale(45),
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f2f2f2',
+    borderRightWidth: 1,
+    borderRightColor: '#ddd',
+  },
+
+  qtyBtnCircle: {
+    height: verticalScale(28),
+    width: verticalScale(28),
+    borderRadius: verticalScale(14),
+    backgroundColor: '#888',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  qtyButtonText: {
-    fontSize: 18,
+
+  qtyBtnText: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
   },
-  qtyCount: {
-    paddingHorizontal: moderateScale(20),
 
+  qtyNumber: {
+    flex: 1,
+    textAlign: 'center',
     fontSize: 14,
-    fontFamily: FONT.SEMIBOLD,
-    color: Color.GRAY4,
+    fontWeight: '600',
+    color: '#6D6D6D',
   },
-  priceContainer: {
+
+  /* PRICE BOXES */
+  priceGroup: {
     flexDirection: 'row',
-    // flex:1,
-    marginLeft: moderateScale(5),
-  },
-  priceBox: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    overflow: 'hidden',
     backgroundColor: '#fff',
-    paddingVertical: moderateScale(10),
-    paddingHorizontal: moderateScale(25),
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginLeft: moderateScale(1),
-    borderRadius: 4,
+    width: verticalScale(130),
+    height: verticalScale(40),
+
+    alignItems: 'center',
   },
+
+  priceHalf: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  divider: {
+    width: 1,
+    backgroundColor: '#ccc',
+    height: '100%',
+    // marginVertical: 5,
+  },
+
   priceText: {
-    fontSize: 14,
-    fontFamily: FONT.SEMIBOLD,
-    color: Color.GRAY4,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6D6D6D',
   },
+  qtyInput: {
+    textAlign: 'center',
 
-  miscBtn: {
-    backgroundColor: '#3D3D3D',
-    padding: 12,
+    width: verticalScale(40),
+    height: '100%',
+    justifyContent: 'center',
     alignItems: 'center',
-    margin: 10,
-    borderRadius: 5,
-  },
-  miscText: { color: '#fff', fontWeight: '600' },
 
-  totalContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: moderateScale(15),
-  },
-  totalLabel: { fontSize: 14, fontFamily: FONT.SEMIBOLD, color: Color.GRAY4 },
-  totalValue: { fontSize: 18, fontWeight: 'bold' },
-  cashBox: { alignItems: 'flex-end' },
-  cashLabel: { fontSize: 14, fontFamily: FONT.SEMIBOLD, color: Color.GRAY4 },
-  cashInputRow: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: moderateScale(5),
-    paddingHorizontal: moderateScale(10),
-    marginVertical: moderateScale(5),
-    alignItems: 'center',
-  },
-  cashSymbol: { fontSize: 16, marginRight: 5 },
-  cashInput: { fontSize: 16, width: moderateScale(60) },
-  cashInput1: { fontSize: 16, width: moderateScale(130) },
-  changeText: { fontSize: 14 },
-  changeValue: { color: 'red', fontWeight: '600' },
+    borderRightColor: '#ddd',
 
-  bottomBtn: {
-    backgroundColor: Color.GRAY3,
-    padding: moderateScale(10),
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: Color.GRAY2,
-  },
-  bottomBtnText: {
-    color: Color.WHITE,
-    fontSize: 14,
-    fontFamily: FONT.SEMIBOLD,
-  },
-  groupText: {
-    fontSize: moderateScale(14),
-    fontFamily: FONT.REGULAR,
-    color: Color.BLACK2,
-    lineHeight: moderateScale(24),
-  },
-
-  headerRow: {
-    flexDirection: 'row',
-    gap: 0,
-    paddingHorizontal: '20@s',
-  },
-  inStock: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'red',
-    textAlign: 'left',
-  },
-  inStock1: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'red',
-    textAlign: 'right',
+    color: '#6D6D6D',
   },
 });
+
 export default RenderItem;

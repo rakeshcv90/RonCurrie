@@ -11,38 +11,59 @@ import {
   Platform,
   ScrollView,
   Keyboard,
+  Alert,
 } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { moderateScale, ScaledSheet } from 'react-native-size-matters';
-import { Color, FONT, IconData } from '../Component/Image';
+import {
+  moderateScale,
+  scale,
+  ScaledSheet,
+  verticalScale,
+} from 'react-native-size-matters';
+import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useDispatch, useSelector } from 'react-redux';
 import { MMKVStorage } from '../utility/MmkvStore';
 // import { fetchCartData } from '../Redux/Slice/CartDataShowSlice';
-import { Api } from '../utility/api';
-import { deleteData, putData } from '../utility/ApiCall';
+import { Api, ImageBaseUrl } from '../utility/api';
+import { deleteData, getData, postData, putData } from '../utility/ApiCall';
 import { showToast } from '../utility/showToast';
 import CartComponent from '../Component/CartComponent';
 import RenderItem from '../Component/RenderItem';
 import { CommonActions } from '@react-navigation/native';
+import SearchComponent from './Component/SearchComponent';
+import { clearProducts } from '../Redux/Slice/ProductListSlice';
+import FastImage from 'react-native-fast-image';
+import Loader from '../Component/Loader';
+import { setSkipAutoBack } from '../Redux/Slice/CartDataShowSlice';
+import { Dropdown } from 'react-native-element-dropdown';
+import DeliveryOptionsModal from '../Component/DeliveryOptionsModal';
+import { fetchA4PrintDetails } from '../Redux/Slice/A4PrintSlice';
 
 const AddCartScreen = ({ navigation }) => {
-  const [searchActive, setSearchActive] = useState(false);
-  const logoAnim = useRef(new Animated.Value(1)).current;
-  const searchAnim = useRef(new Animated.Value(-300)).current;
-  const [title, setTitle] = useState('');
-  const [misAmount, SetMisAMount] = useState(0);
+  const [loader, setLoader] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [carDetails, setCarDetails] = useState('');
   const dispatch = useDispatch();
-
+  const [results, setResults] = useState([]);
+  const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [imageErrorMap, setImageErrorMap] = useState({});
   const { cartList, loading, error, refreshKey, skipAutoBack } = useSelector(
     state => state.cartListData,
   );
-  const [cashTendered, setCashTendered] = useState(null);
   const [miscList, setMiscList] = useState([{ description: '', price: '' }]);
-
+  const [selectedTab, setSelectedTab] = useState('Collect From Store');
   const [hasNavigatedBack, setHasNavigatedBack] = useState(false);
-
+  const [addressData, setAddressData] = useState([]);
+  const [postcode, setPostcode] = useState('MK62QD');
+  const [selectedAddress, setSelectedAddress] = useState('');
+  const [value, setValue] = useState(null);
+  const [isFocus, setIsFocus] = useState(false);
+  const [openModal, setOpenModal] = useState(false);
+  const [deliveryType, setDeliveryType] = useState(null);
   useEffect(() => {
     if (skipAutoBack) return;
     if (cartList?.length === 0 && !hasNavigatedBack) {
@@ -85,7 +106,14 @@ const AddCartScreen = ({ navigation }) => {
         if (typeof firstValue === 'string' && firstValue?.includes('#')) {
           const parts = firstValue?.split('#');
 
-          customOptionPrice = Number(parts[2]) || 0;
+          const middleValue = firstValue.split('#')[2];
+          const secondValue = firstValue.split('#')[1];
+          const totalPriceNumber =
+            (Number(secondValue) || 0) *
+            (Number(item?.options?.[0]?.bespoke_factor_val) || 0) *
+            (Number(item?.cart_quantity) || 0);
+
+          customOptionPrice = totalPriceNumber || 0;
         } else {
           const price = item?.options?.[0]?.values?.[0]?.price;
 
@@ -158,6 +186,7 @@ const AddCartScreen = ({ navigation }) => {
     }, 0);
     const total = subTotal + miscTotal;
     return total.toFixed(2);
+    // return Math.round(parseFloat(total || 0)).toFixed(2);
   };
   const handleDeleteMisc = index => {
     if (miscList.length === 1) {
@@ -172,6 +201,389 @@ const AddCartScreen = ({ navigation }) => {
       navigation.goBack();
     }
   }, [cartList, navigation]);
+
+  const handleItemPress = item => {
+    dispatch(clearProducts());
+    navigation.navigate('DisplayItems', { itemData: item });
+  };
+
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .trim();
+  };
+  const renderItem = ({ item }) => {
+    const imageUrl = item?.image ? ImageBaseUrl + item?.image : null;
+
+    const handleError = () => {
+      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+    };
+
+    const hasError = imageErrorMap[item.id] || false;
+
+    return (
+      <TouchableOpacity
+        style={styles.itemRow}
+        onPress={() => handleItemPress(item)}
+      >
+        {imageUrl && !hasError ? (
+          <FastImage
+            style={styles.itemImage}
+            source={{
+              uri: imageUrl,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        ) : (
+          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+        )}
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName}>
+            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+            £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+  const getItemCount = () => {
+    const subTotal = cartList?.reduce(
+      (sum, item) => sum + item?.cart_quantity,
+      0,
+    );
+
+    return Number(subTotal);
+  };
+
+  const onCreateOrder1 = async data => {
+    // let validations = [];
+
+    // validations = [
+    //   { field: 'customerName', message: 'Please enter customer name' },
+
+    //   { field: 'carDetails', message: 'Please enter car details' },
+    // ];
+
+    // const formData = {
+    //   customerName: customerName.trim(),
+
+    //   carDetails: carDetails.trim(),
+    // };
+
+    // for (let i = 0; i < validations.length; i++) {
+    //   const { field, message } = validations[i];
+
+    //   if (!formData[field]) {
+    //     Alert.alert('Validation Error', message);
+    //     return;
+    //   }
+    //   if (field === 'phone') {
+    //     if (formData.phone.length < 10) {
+    //       Alert.alert(
+    //         'Validation Error',
+    //         'Phone number must be at least 10 digits.',
+    //       );
+    //       return;
+    //     } else if (formData.phone.length > 15) {
+    //       Alert.alert(
+    //         'Validation Error',
+    //         'Phone number cannot be more than 15 digits.',
+    //       );
+    //       return;
+    //     }
+    //   }
+    // }
+    const hasInvalidMisc = miscList?.some(item => {
+      const hasDescription = item.description?.trim() !== '';
+      const hasPrice =
+        item.price !== null &&
+        item.price !== undefined &&
+        item.price.toString().trim() !== '';
+
+      // ❌ One filled, the other missing
+      return (hasDescription && !hasPrice) || (!hasDescription && hasPrice);
+    });
+
+    if (hasInvalidMisc) {
+      Alert.alert(
+        'Validation Error',
+        'Please enter both Description and Price for miscellaneous items.',
+      );
+      return;
+    }
+    const hasMisc = miscList?.some(
+      item =>
+        item.description?.trim() !== '' || item.price?.toString().trim() !== '',
+    );
+
+    const payload = {
+      shipping_method: 'Collection',
+      shipping_type: 'collection',
+      payment_method: 'epos_system',
+      shipping_detail_id: 0,
+      epos_customer_name: customerName,
+      // epos_customer_number: contactNumber,
+      epos_car_detail: carDetails,
+      notify: 0,
+      payment_code: '',
+      collection_push_notification: data,
+    };
+
+    if (hasMisc) {
+      payload.miscellaneous = miscList;
+    }
+
+    setLoader(true);
+
+    try {
+      const response = await postData(Api.ORDER_PLACE, payload);
+      const resData = response;
+
+      if (resData?.data?.success && resData?.data?.responseCode === 200) {
+        showToast(
+          'success',
+          'Success',
+          resData?.data?.message || 'Items added successfully.',
+        );
+
+        dispatch(setSkipAutoBack(true));
+        dispatch(fetchA4PrintDetails(resData?.data?.data?.order_id)).unwrap();
+        navigation.navigate('OrderSuccessFull', {
+          resData: resData?.data,
+        });
+      } else {
+      }
+    } catch (error) {
+      console.error('Error adding to basket:', error);
+      showToast('danger', 'Error', error.message || 'Something went wrong.');
+    } finally {
+      setLoader(false);
+    }
+  };
+  const onCreateDeliverOrder = async () => {
+    const parts = selectedAddress?.originalAddress
+      .split(',')
+      .map(item => item.trim());
+
+    let addressObj = {};
+
+    if (parts?.length === 2) {
+      addressObj = {
+        address1: parts[0],
+        city: parts[1],
+      };
+    } else if (parts?.length === 3) {
+      addressObj = {
+        company: parts[0],
+        address1: parts[1],
+        city: parts[2],
+      };
+    } else if (parts?.length === 4) {
+      addressObj = {
+        company: parts[0],
+        address1: parts[1],
+        address2: parts[2],
+        city: parts[3],
+      };
+    }
+    let validations = [];
+
+    validations = [
+      // { field: 'postcode', message: 'Please enter your postcode' },
+      // { field: 'customerName', message: 'Please enter customer name' },
+      // { field: 'address', message: 'Please enter address' },
+      { field: 'phone', message: 'Please enter your phone number' },
+    ];
+    const hasInvalidMisc = miscList?.some(item => {
+      const hasDescription = item.description?.trim() !== '';
+      const hasPrice =
+        item.price !== null &&
+        item.price !== undefined &&
+        item.price.toString().trim() !== '';
+
+      // ❌ One filled, the other missing
+      return (hasDescription && !hasPrice) || (!hasDescription && hasPrice);
+    });
+
+    if (hasInvalidMisc) {
+      Alert.alert(
+        'Validation Error',
+        'Please enter both Description and Price for miscellaneous items.',
+      );
+      return;
+    }
+    const formData = {
+      postcode: postcode.trim(),
+      customerName: customerName.trim(),
+      address: selectedAddress?.originalAddress,
+      phone: contactNumber.trim(),
+      carDetails: carDetails.trim(),
+    };
+
+    for (let i = 0; i < validations.length; i++) {
+      const { field, message } = validations[i];
+
+      // if (!formData[field]) {
+      //   Alert.alert('Validation Error', message);
+      //   return;
+      // }
+      if (field === 'phone') {
+        if (formData.phone.length < 10) {
+          Alert.alert(
+            'Validation Error',
+            'Phone number must be at least 10 digits.',
+          );
+          return;
+        } else if (formData.phone.length > 15) {
+          Alert.alert(
+            'Validation Error',
+            'Phone number cannot be more than 15 digits.',
+          );
+          return;
+        }
+      }
+    }
+
+    const hasMisc = miscList?.some(
+      item =>
+        item.description?.trim() !== '' || item.price?.toString().trim() !== '',
+    );
+
+    const payload = {
+      shipping_method: 'Delivery',
+      shipping_code: '',
+      shipping_type: 'delivery',
+      shipping_date: deliveryType?.date,
+      shipping_detail_id: deliveryType?.id,
+      epos_customer_name: customerName,
+      epos_customer_number: contactNumber,
+      epos_customer_address: selectedAddress?.originalAddress,
+      payment_method: 'epos_system',
+      shipping_company: addressObj?.company,
+      shipping_address_1: addressObj?.address1,
+      shipping_city: addressObj?.city,
+      shipping_postcode: postcode,
+      shipping_country_id: selectedAddress?.country_id,
+      shipping_zone_id: selectedAddress?.zone_id,
+      shipping_zone: selectedAddress?.zone_name,
+      shipping_country: selectedAddress?.country_name,
+      notify: 0,
+    };
+
+    if (hasMisc) {
+      payload.miscellaneous = miscList;
+    }
+
+    setLoader(true);
+
+    try {
+      const response = await postData(Api.ORDER_PLACE, payload);
+
+      const resData = response;
+
+      if (resData?.data?.success && resData?.data?.responseCode === 200) {
+        showToast(
+          'success',
+          'Success',
+          resData?.data?.message || 'Items added successfully.',
+        );
+
+        dispatch(setSkipAutoBack(true));
+
+        navigation.navigate('OrderSuccessFull', {
+          resData: resData?.data,
+        });
+      } else {
+      }
+    } catch (error) {
+      console.error('Error adding to basket:', error);
+      showToast('danger', 'Error', error.message || 'Something went wrong.');
+    } finally {
+      setLoader(false);
+    }
+  };
+  const handleFindAddress = async () => {
+    try {
+      const trimmedPostcode = postcode.trim();
+
+      if (!trimmedPostcode) {
+        Alert.alert('Validation Error', 'Please enter your postcode');
+        return; // Exit BEFORE setting loader
+      }
+
+      setLoader(true);
+      const res = await getData(
+        `${Api.FIND_ADDRESS}?postcode=${encodeURIComponent(trimmedPostcode)}`,
+      );
+
+      setLoader(false);
+      if (res?.responseCode === 200) {
+        showToast('success', 'Success!', res?.message || 'Address found');
+        const transformedData =
+          res.data?.map((address, index) => ({
+            label: address,
+            value: index.toString(),
+            originalAddress: address,
+
+            // 🔥 store all extra fields INSIDE each item
+            region: res.region,
+            country_id: res.country_id,
+            country_name: res.country_name,
+            zone_id: res.zone_id,
+            zone_name: res.zone_name,
+          })) || [];
+        setAddressData(transformedData);
+      } else {
+        setAddressData([]);
+      }
+    } catch (error) {
+      setLoader(false);
+      setAddressData([]);
+      console.log('Find Address Error:', error);
+      if (error.type === 'network') {
+        showToast('danger', 'Network Error', error.message);
+      } else if (error.type === 'response') {
+        showToast('danger', 'Login Failed', error.message);
+      } else {
+        showToast(
+          'danger',
+          'Unexpected Error',
+          error.message || 'Something went wrong',
+        );
+      }
+    }
+  };
+  const handleApply = (id, date, name, price) => {
+    setDeliveryType({
+      id: id.id,
+      date: id?.date,
+      name: id?.name,
+      price: id.price,
+    });
+
+    setOpenModal(false);
+  };
+
+  const getTotal = (price, price2) => {
+    const cleanPrice2 = Number(price2.replace('£', ''));
+    const cleanPrice = Number(price);
+    const total = cleanPrice + cleanPrice2;
+
+    return total.toFixed(2);
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -179,196 +591,589 @@ const AddCartScreen = ({ navigation }) => {
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.headerContainer}>
-          <TouchableOpacity
-            style={styles.leftContainer}
-            onPress={() => {
-              navigation.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'Home' }],
-                }),
-              );
-            }}
-          >
-            <Image
-              source={IconData.Logo}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.back}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons
-              name={'arrow-back'}
-              size={moderateScale(20)}
-              color={Color.GRAY}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.tab}>
-            <Text style={styles.groupText}>{cartList?.length} Items,</Text>
-            <Text>{cartList?.length} Groups</Text>
-          </View>
-        </View>
-        <ScrollView
-          style={{ flex: 1, marginBottom: moderateScale(20) }}
-          showsVerticalScrollIndicator={false}
-        >
+      <SearchComponent
+        onResults={setResults}
+        onLoadMoreRef={setLoadMoreFunc}
+        navigation={navigation}
+        autoFocus={true}
+      />
+      {results?.length > 0 ? (
+        <>
           <FlatList
-            data={cartList}
-            keyExtractor={(item, index) => String(item.cart_id ?? index)}
-            renderItem={({ item }) => (
-              <RenderItem item={item} navigation={navigation} />
-            )}
+            data={results}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item, index) =>
+              `${item.id || item.product_id || index}`
+            }
+            renderItem={renderItem}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: moderateScale(120),
+            }}
+            //  keyExtractor={(item, index) => index.toString()}
+            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore && (
+                <Text style={{ textAlign: 'center' }}>Loading...</Text>
+              )
+            }
           />
-
-          {miscList?.map((item, index) => (
-            <View
-              key={index}
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: 10,
-                paddingHorizontal: moderateScale(10),
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.totalLabel}>TITLE</Text>
-                <View style={styles.cashBox}>
-                  <View style={styles.cashInputRow}>
-                    <TextInput
-                      style={styles.cashInput1}
-                      placeholder="Enter title"
-                      value={item.description}
-                      onChangeText={text =>
-                        handleChange(index, 'description', text)
-                      }
-                    />
-                  </View>
-                </View>
-              </View>
-              <View>
-                <Text style={styles.cashLabel}>AMOUNT</Text>
-                <View style={styles.cashBox}>
-                  <View style={styles.cashInputRow}>
-                    <Text style={styles.cashSymbol}>£</Text>
-                    <TextInput
-                      style={styles.cashInput1}
-                      placeholder="0.00"
-                      keyboardType="numeric"
-                      value={item.price}
-                      onChangeText={text => handleChange(index, 'price', text)}
-                    />
-                  </View>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={{ marginTop: moderateScale(20), zIndex: 10 }}
-                onPress={() => handleDeleteMisc(index)}
-              >
-                <Ionicons name="trash-outline" size={20} color="gray" />
-              </TouchableOpacity>
-            </View>
-          ))}
-          <TouchableOpacity style={styles.miscBtn} onPress={handleAddMisc}>
-            <Text style={styles.miscText}>Add Miscellaneous Charges</Text>
-          </TouchableOpacity>
-          <View style={styles.totalContainer}>
-            <View>
-              <Text style={styles.totalLabel}>TOTAL</Text>
-              <Text style={styles.totalValue}>
-                {Number(getTotalPrice()) < 0
-                  ? `- £ ${Math.abs(Number(getTotalPrice())).toFixed(2)}`
-                  : `£ ${Number(getTotalPrice()).toFixed(2)}`}
-              </Text>
-            </View>
-            <View style={styles.cashBox}>
-              <Text style={styles.cashLabel}>CASH TENDERED</Text>
-              <View style={styles.cashInputRow}>
-                <Text style={styles.cashSymbol}>£</Text>
-                <TextInput
-                  style={styles.cashInput}
-                  keyboardType="numeric"
-                  value={cashTendered}
-                  placeholder="0.00"
-                  onChangeText={setCashTendered}
-                />
-              </View>
-              {cashTendered && (
-                <Text style={styles.changeText}>
-                  Change To Give:{' '}
-                  <Text style={styles.changeValue}>
-                    £
-                    {(
-                      parseFloat(cashTendered || 0) -
-                      parseFloat(getTotalPrice() || 0)
-                    ).toFixed(2)}
-                  </Text>
-                </Text>
-              )}
-            </View>
-          </View>
-        </ScrollView>
-        <View style={styles.bottomBtn}>
-          <TouchableOpacity
-            onPress={() => {
-              Keyboard.dismiss();
-
-              setTimeout(() => {
-                navigation.navigate('CustomerDetails', { addCost: miscList });
-              }, 100);
-            }}
-            style={{
-              width: '50%',
-              height: moderateScale(40),
-              backgroundColor: Color.RED,
-              justifyContent: 'center',
-              alignItems: 'center',
-              alignSelf: 'flex-end',
-              borderRadius: 4,
-            }}
+        </>
+      ) : (
+        <>
+          <KeyboardAvoidingView
+            style={{ flex: 1, marginVertical: verticalScale(15) }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
-            <Text style={styles.bottomBtnText}>Customer Information</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+            <View style={styles.header}>
+              <TouchableOpacity
+                style={styles.back}
+                onPress={() => navigation.goBack()}
+              >
+                <Ionicons
+                  name={'arrow-back'}
+                  size={moderateScale(20)}
+                  color={Color.GRAY}
+                />
+              </TouchableOpacity>
+
+              <View style={styles.tab}>
+                <Text style={styles.groupText}>{getItemCount()} Items,</Text>
+                <Text style={styles.groupText}> {cartList?.length} Groups</Text>
+              </View>
+            </View>
+            <ScrollView
+              style={{ flex: 1, marginBottom: moderateScale(20) }}
+              contentContainerStyle={{ paddingBottom: moderateScale(200) }}
+              showsVerticalScrollIndicator={false}
+            >
+              <FlatList
+                data={cartList}
+                keyExtractor={(item, index) => String(item.cart_id ?? index)}
+                renderItem={({ item }) => (
+                  <RenderItem item={item} navigation={navigation} />
+                )}
+              />
+
+              {miscList?.map((item, index) => (
+                <View
+                  key={index}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 10,
+                    paddingHorizontal: moderateScale(10),
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.totalLabel}>TITLE</Text>
+
+                    <View style={styles.cashInputRow}>
+                      <TextInput
+                        style={styles.cashInput1}
+                        placeholder="Enter title"
+                        placeholderTextColor={'#000'}
+                        value={item.description}
+                        onChangeText={text =>
+                          handleChange(index, 'description', text)
+                        }
+                      />
+                      {/* </View> */}
+                    </View>
+                  </View>
+                  <View>
+                    <Text style={styles.cashLabel}>AMOUNT</Text>
+                    <View style={styles.cashBox}>
+                      <View style={styles.cashInputRow}>
+                        <Text style={styles.cashSymbol}>£</Text>
+                        <TextInput
+                          style={styles.cashInput1}
+                          placeholder="0.00"
+                          keyboardType="numeric"
+                          placeholderTextColor={'#000'}
+                          value={item.price}
+                          onChangeText={text =>
+                            handleChange(index, 'price', text)
+                          }
+                        />
+                      </View>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={{ marginTop: moderateScale(20), zIndex: 10 }}
+                    onPress={() => handleDeleteMisc(index)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="gray" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity style={styles.miscBtn} onPress={handleAddMisc}>
+                <Text style={styles.miscText}>Add Miscellaneous Charges</Text>
+              </TouchableOpacity>
+
+              <View style={styles.tabHeader}>
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    selectedTab === 'Collect From Store' && styles.selectedTab,
+                  ]}
+                  onPress={() => {
+                    setSelectedTab('Collect From Store'), setDeliveryType(null);
+                  }}
+                >
+                  <Image
+                    source={IconData.HOME}
+                    style={{ width: 20, height: 20 }}
+                  />
+
+                  <Text style={styles.textStyle}>Collect From Store</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    selectedTab === 'Get Delivery' && styles.selectedTab,
+                  ]}
+                  onPress={() => setSelectedTab('Get Delivery')}
+                >
+                  <Image
+                    source={IconData.CAR}
+                    style={{ width: 20, height: 20 }}
+                  />
+                  <Text style={styles.textStyle}>Delivery</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ padding: scale(10) }}>
+                {selectedTab === 'Get Delivery' ? (
+                  <>
+                    <View>
+                      <Text style={styles.sectionTitle}>Delivery</Text>
+                      <Text style={styles.sectionDesc}>
+                        Enter your destination to get a delivery estimate.
+                      </Text>
+                      <Text style={styles.label}>POST CODE *</Text>
+                      <View style={styles.rowAddress}>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="NG14 5HN"
+                          placeholderTextColor="#999"
+                          value={postcode}
+                          onChangeText={setPostcode}
+                          keyboardType="default"
+                          autoCapitalize="characters"
+                        />
+
+                        <TouchableOpacity
+                          style={styles.findBtn}
+                          onPress={() => handleFindAddress()}
+                        >
+                          <Text style={styles.findBtnText}>Find Address</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={styles.container}>
+                        <Dropdown
+                          style={styles.input2}
+                          placeholderStyle={styles.placeholderStyle}
+                          selectedTextStyle={styles.selectedTextStyle}
+                          inputSearchStyle={styles.inputSearchStyle}
+                          iconStyle={styles.iconStyle}
+                          data={addressData}
+                          search
+                          maxHeight={300}
+                          labelField="label"
+                          valueField="value"
+                          placeholder={'Select item'}
+                          searchPlaceholder="Search..."
+                          value={value}
+                          onFocus={() => setIsFocus(true)}
+                          onBlur={() => setIsFocus(false)}
+                          onChange={item => {
+                            setValue(item.value);
+
+                            setSelectedAddress(item);
+                            setIsFocus(false);
+                          }}
+                        />
+                      </View>
+                      <TouchableOpacity
+                        style={{
+                          width: '100%',
+                          height: moderateScale(48),
+                          backgroundColor: Color.BLACK3,
+                          borderRadius: moderateScale(4),
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                        onPress={() => {
+                          const value =
+                            selectedAddress?.label || selectedAddress; // if it's an object with label
+
+                          if (
+                            !value ||
+                            (typeof value === 'string' && !value.trim())
+                          ) {
+                            Alert.alert(
+                              'Validation Error',
+                              'Please select address first',
+                            );
+                          } else {
+                            setOpenModal(true);
+                          }
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: Color.WHITE,
+                            fontFamily: FONT.SEMIBOLD,
+                            fontSize: 14,
+                            lineHeight: 24,
+                          }}
+                        >
+                          Delivery Option
+                        </Text>
+                      </TouchableOpacity>
+                      {deliveryType != null && (
+                        <>
+                          <View
+                            style={{
+                              width: '100%',
+                              height: moderateScale(116),
+                              backgroundColor: Color.GRAY3,
+                              borderRadius: moderateScale(4),
+                              alignItems: 'center',
+                              marginVertical: moderateScale(16),
+                            }}
+                          >
+                            <View
+                              style={{
+                                width: '100%',
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                paddingHorizontal: 10,
+                                marginTop: 10,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: Color.GRAY,
+                                  fontFamily: FONT.BOLD,
+                                  fontSize: 16,
+                                  lineHeight: 24,
+                                }}
+                              >
+                                Sub-Total:
+                              </Text>
+
+                              <Text
+                                style={{
+                                  color: Color.BLACK,
+                                  fontFamily: FONT.BOLD,
+                                  fontSize: 16,
+                                  lineHeight: 24,
+                                }}
+                              >
+                                £{getTotalPrice()}
+                              </Text>
+                            </View>
+                            <View
+                              style={{
+                                width: '100%',
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                paddingHorizontal: 10,
+                              }}
+                            >
+                              <View style={{ width: 200 }}>
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    color: Color.GRAY,
+                                    fontFamily: FONT.BOLD,
+                                    fontSize: 16,
+
+                                    lineHeight: 24,
+                                  }}
+                                >
+                                  Local Date {deliveryType?.name}:
+                                </Text>
+                              </View>
+
+                              <Text
+                                style={{
+                                  color: Color.BLACK,
+                                  fontFamily: FONT.BOLD,
+                                  fontSize: 16,
+                                  lineHeight: 24,
+                                }}
+                              >
+                                {deliveryType?.price}
+                              </Text>
+                            </View>
+                            <View
+                              style={{
+                                width: '100%',
+                                height: 1,
+                                backgroundColor: Color.GRAY5,
+                                marginTop: 10,
+                              }}
+                            />
+                            <View
+                              style={{
+                                width: '100%',
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                paddingHorizontal: 10,
+                                alignItems: 'center',
+                                marginTop: 10,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: Color.GRAY,
+                                  fontFamily: FONT.BOLD,
+                                  fontSize: 16,
+                                  lineHeight: 24,
+                                }}
+                              >
+                                Preferred Date:
+                              </Text>
+                              <Text
+                                style={{
+                                  color: Color.BLACK,
+                                  fontFamily: FONT.BOLD,
+                                  fontSize: 16,
+                                  lineHeight: 24,
+                                }}
+                              >
+                                {deliveryType?.date}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.totalContainer}>
+                            <Text style={styles.totalLabel}>TOTAL</Text>
+                            <Text style={styles.totalValue}>
+                              £{getTotal(getTotalPrice(), deliveryType?.price)}
+                            </Text>
+                          </View>
+
+                          <Text style={styles.sectionTitle}>
+                            Customer Information
+                          </Text>
+
+                          <Text style={styles.label}>CUSTOMER NAME</Text>
+                          <TextInput
+                            style={styles.input2}
+                            placeholder="Enter Name"
+                            value={customerName}
+                            onChangeText={setCustomerName}
+                          />
+
+                          <Text style={styles.label}>
+                            CUSTOMER DELIVERY ADDRESS
+                          </Text>
+                          <TextInput
+                            style={[styles.input2, styles.multilineInput]}
+                            placeholder="Delivery Address"
+                            value={selectedAddress?.originalAddress}
+                            multiline={true}
+                            textAlignVertical="top"
+                            onChangeText={text =>
+                              setSelectedAddress(prev => ({
+                                ...prev,
+                                originalAddress: text,
+                              }))
+                            }
+                          />
+
+                          <Text style={styles.label}>
+                            CUSTOMER CONTACT NUMBER
+                          </Text>
+                          <TextInput
+                            style={styles.input2}
+                            placeholder="Enter Contact Number"
+                            value={contactNumber}
+                            onChangeText={setContactNumber}
+                            keyboardType="phone-pad"
+                          />
+                        </>
+                      )}
+                    </View>
+                  </>
+                ) : (
+                  <View>
+                    <Text style={styles.sectionTitle}>Customer Details</Text>
+                    <Text style={styles.label}>CUSTOMER NAME</Text>
+                    <TextInput
+                      style={styles.input2}
+                      placeholder="Enter Name"
+                      value={customerName}
+                      onChangeText={setCustomerName}
+                    />
+
+                    <Text style={styles.label}>CAR DETAILS</Text>
+                    <TextInput
+                      style={styles.input2}
+                      placeholder="Enter car details"
+                      value={carDetails}
+                      onChangeText={setCarDetails}
+                    />
+
+                    <>
+                      <View
+                        style={{
+                          width: '100%',
+
+                          borderRadius: moderateScale(4),
+                          alignItems: 'center',
+                          paddingHorizontal: verticalScale(10),
+                          // padding: 10,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: '100%',
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: Color.GRAY,
+                              fontFamily: FONT.BOLD,
+                              fontSize: 16,
+                              lineHeight: 24,
+                            }}
+                          >
+                            Total:
+                          </Text>
+                          <Text
+                            style={{
+                              color: Color.BLACK,
+                              fontFamily: FONT.BOLD,
+                              fontSize: 16,
+                              lineHeight: 24,
+                            }}
+                          >
+                            £{getTotalPrice()}
+                          </Text>
+                        </View>
+                      </View>
+                    </>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+            <View style={{ top: verticalScale(10) }}>
+              <CartComponent />
+            </View>
+
+            {selectedTab == 'Get Delivery' && deliveryType != null && (
+              <View style={styles.bottomBtn}>
+                <TouchableOpacity
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    onCreateDeliverOrder();
+                  }}
+                  style={{
+                    width: '30%',
+
+                    height: moderateScale(40),
+                    backgroundColor: Color.RED,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    alignSelf: 'flex-end',
+                    borderRadius: 4,
+                  }}
+                >
+                  <Text style={styles.bottomBtnText}>Create Order</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {selectedTab !== 'Get Delivery' && deliveryType == null && (
+              <View
+                style={[
+                  styles.bottomBtn,
+                  {
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    paddingHorizontal: moderateScale(10),
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    Keyboard.dismiss();
+
+                    onCreateOrder1(1);
+                  }}
+                  style={{
+                    width: '65%',
+                    height: moderateScale(40),
+                    backgroundColor: Color.RED,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    alignSelf: 'flex-end',
+                    borderRadius: 4,
+                  }}
+                >
+                  <Text style={styles.bottomBtnText}>
+                    Create Order and push through notification system
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    Keyboard.dismiss();
+
+                    onCreateOrder1(0);
+                  }}
+                  style={{
+                    width: '30%',
+
+                    height: moderateScale(40),
+                    backgroundColor: Color.RED,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    alignSelf: 'flex-end',
+                    borderRadius: 4,
+                  }}
+                >
+                  <Text style={styles.bottomBtnText}>Create Order</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </KeyboardAvoidingView>
+
+          {openModal && (
+            <DeliveryOptionsModal
+              visible={openModal}
+              onClose={() => setOpenModal(false)}
+              onApply={handleApply}
+              cartData={cartList}
+              addressData={selectedAddress}
+              areaPin={postcode}
+            />
+          )}
+        </>
+      )}
+
+      <Loader visible={loader} />
     </SafeAreaView>
   );
 };
 
 const styles = ScaledSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: moderateScale(12),
-    backgroundColor: '#f8f8f8',
-  },
-  leftContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    overflow: 'hidden',
-  },
-  logo: { width: '80%', height: moderateScale(40) },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 10,
+    paddingHorizontal: verticalScale(10),
+    marginTop: -10,
   },
   back: {
     width: moderateScale(40),
@@ -381,90 +1186,15 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
   },
   tab: { flexDirection: 'row', alignItems: 'center', gap: moderateScale(5) },
-
-  cartRowWrapper: {
-    // marginBottom: 10,
-    justifyContent: 'center',
-    padding: moderateScale(10),
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  productName: {
-    fontSize: 16,
-    fontFamily: FONT.SEMIBOLD,
-    color: Color.BLACK,
-  },
-  cartRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  qtyContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  qtyButton: {
-    backgroundColor: '#e0e0e0',
-    paddingHorizontal: moderateScale(15),
-    paddingVertical: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  qtyButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  qtyCount: {
-    paddingHorizontal: moderateScale(20),
-
-    fontSize: 14,
-    fontFamily: FONT.SEMIBOLD,
-    color: Color.GRAY4,
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    // flex:1,
-    marginLeft: moderateScale(5),
-  },
-  priceBox: {
-    backgroundColor: '#fff',
-    paddingVertical: moderateScale(10),
-    paddingHorizontal: moderateScale(25),
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginLeft: moderateScale(1),
-    borderRadius: 4,
-  },
-  priceText: {
-    fontSize: 14,
-    fontFamily: FONT.SEMIBOLD,
-    color: Color.GRAY4,
-  },
-
   miscBtn: {
     backgroundColor: '#3D3D3D',
-    padding: 12,
+    padding: verticalScale(12),
     alignItems: 'center',
     margin: 10,
     borderRadius: 5,
   },
   miscText: { color: '#fff', fontWeight: '600' },
-
-  totalContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: moderateScale(15),
-  },
   totalLabel: { fontSize: 14, fontFamily: FONT.SEMIBOLD, color: Color.GRAY4 },
-  totalValue: { fontSize: 18, fontWeight: 'bold' },
   cashBox: { alignItems: 'flex-end' },
   cashLabel: { fontSize: 14, fontFamily: FONT.SEMIBOLD, color: Color.GRAY4 },
   cashInputRow: {
@@ -477,21 +1207,19 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
   },
   cashSymbol: { fontSize: 16, marginRight: 5 },
-  cashInput: { fontSize: 16, width: moderateScale(60) },
   cashInput1: { fontSize: 16, width: moderateScale(130) },
-  changeText: { fontSize: 14 },
-  changeValue: { color: 'red', fontWeight: '600' },
-
   bottomBtn: {
     backgroundColor: Color.GRAY3,
-    padding: moderateScale(10),
+    padding: moderateScale(5),
     alignItems: 'center',
     borderTopWidth: 1,
+    //  top:verticalScale(35),
     borderTopColor: Color.GRAY2,
   },
   bottomBtnText: {
     color: Color.WHITE,
     fontSize: 14,
+    textAlign: 'center',
     fontFamily: FONT.SEMIBOLD,
   },
   groupText: {
@@ -500,24 +1228,130 @@ const styles = ScaledSheet.create({
     color: Color.BLACK2,
     lineHeight: moderateScale(24),
   },
-
-  headerRow: {
+  itemRow: {
     flexDirection: 'row',
-    gap: 0,
-    paddingHorizontal: '20@s',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
   },
-  inStock: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'red',
-    textAlign: 'left',
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
   },
-  inStock1: {
-    fontSize: 14,
+  itemName: {
+    fontSize: moderateScale(14),
     fontWeight: '600',
-    color: 'red',
-    textAlign: 'right',
+  },
+  itemPrice: {
+    fontSize: moderateScale(13),
+    color: '#555',
+  },
+
+  tabHeader: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    borderRadius: scale(40),
+    borderWidth: 1,
+    borderColor: Color.GRAY2,
+    backgroundColor: Color.BLACK,
+    padding: verticalScale(2),
+    alignItems: 'center',
+  },
+  tabButton: {
+    paddingHorizontal: scale(12), // reduce horizontal padding
+    height: verticalScale(35),
+    borderRadius: scale(40),
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6, // smaller gap
+    alignSelf: 'flex-start',
+  },
+  selectedTab: {
+    backgroundColor: Color.RED,
+  },
+  textStyle: {
+    fontSize: moderateScale(13),
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.WHITE,
+  },
+
+  sectionTitle: {
+    fontSize: moderateScale(20),
+    fontFamily: FONT.EXTRABOLD,
+    color: Color.RED,
+
+    marginBottom: verticalScale(5),
+  },
+  label: {
+    fontSize: moderateScale(14),
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY4,
+  },
+  input2: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: moderateScale(6),
+    height: moderateScale(45),
+    fontSize: moderateScale(14),
+    width: '100%',
+    paddingHorizontal: 10,
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.BLACK2,
+    marginTop: verticalScale(5),
+    marginBottom: verticalScale(5),
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: moderateScale(6),
+    height: moderateScale(45),
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.BLACK2,
+    paddingHorizontal: 10,
+    fontSize: moderateScale(14),
+    width: '60%',
+  },
+  sectionTitle: {
+    fontSize: moderateScale(20),
+    fontFamily: FONT.EXTRABOLD,
+    color: Color.RED,
+
+    marginBottom: verticalScale(5),
+  },
+  rowAddress: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: verticalScale(10),
+    marginBottom: verticalScale(10),
+  },
+  findBtn: {
+    backgroundColor: '#3D3D3D',
+    height: moderateScale(45),
+    width: '35%',
+    borderRadius: moderateScale(6),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  findBtnText: {
+    color: '#fff',
+    fontSize: moderateScale(12),
+    fontFamily: FONT.BOLD,
+  },
+  totalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: moderateScale(10),
+    top: -10,
+  },
+  totalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 
-export default AddCartScreen;
+export default React.memo(AddCartScreen);
