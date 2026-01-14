@@ -78,7 +78,7 @@ const OrderSuccessFull = ({ navigation, route }) => {
       hideSub.remove();
     };
   }, []);
-console.log("a4PrintDetails",isKeyboardOpen)
+  console.log('a4PrintDetails', isKeyboardOpen);
   useFocusEffect(
     React.useCallback(() => {
       const handleBackAction = () => {
@@ -1215,7 +1215,175 @@ console.log("a4PrintDetails",isKeyboardOpen)
   </html>
   `;
   };
-  const generate80mmInvoice = async () => {
+  //   const generate80mmInvoice = async () => {
+  //     const totalsMap = Object.fromEntries(
+  //       (a4PrintDetails?.totals || []).map(item => [
+  //         item.code,
+  //         Number(item.value || 0).toFixed(2),
+  //       ]),
+  //     );
+
+  //     return `
+  // <!DOCTYPE html>
+  // <html>
+  // <head>
+  // <meta charset="UTF-8" />
+
+  // <style>
+  //   @page {
+  //     size: 80mm auto;
+  //     margin: 0;
+  //   }
+
+  //   body {
+  //     margin: 0;
+  //     padding: 6px;
+  //     width: 100% !important;
+  //     font-family: Arial, Helvetica, sans-serif;
+  //     font-size: 16px;               /* ⬆️ 3x readable */
+  //     font-weight: 600;              /* ⬆️ stronger text */
+  //     color: #000;
+  //   }
+
+  //   .order-id {
+  //     font-size: 16px;
+  //     font-weight: 900;
+  //     margin-top: 10px;
+  //     margin-bottom: 4px;
+  //   }
+
+  //   .company-title {
+  //     font-size: 23px;               /* ⬆️ BIG & BOLD */
+  //     font-weight: 900;
+  //     text-align: left;
+  //     line-height: 1.2;
+  //     margin-top: 4px;
+  //   }
+
+  //   .company-title .red { color: #b22222; }
+  //   .company-title .black { color: #000; }
+
+  //   .company-details {
+  //     font-size: 16px;
+  //     font-weight: 700;
+  //     margin-bottom: 6px;
+  //   }
+
+  //   .bold-label {
+  //     font-weight: 900;
+  //     margin: 6px 0;
+  //     font-size: 14px;
+  //   }
+
+  //   table {
+  //     width: calc(100% - 10px);
+  //     border-collapse: collapse;
+  //     margin: 6px 0;
+  //   }
+
+  //   th, td {
+  //     border: 1px solid #e6e6e6;
+  //     padding: 6px;                 /* ⬆️ spacing */
+  //     font-size: 16px;
+  //     font-weight: 700;
+  //   }
+
+  //   th {
+  //     font-weight: 900;
+  //     background: #fff;
+  //   }
+
+  //   .qty, .price, .total {
+  //     text-align: center;
+  //     font-weight: 900;
+  //   }
+
+  //   .summary-row td {
+  //     font-weight: 900;
+  //     text-align: right;
+  //     padding: 6px;
+  //     font-size: 14px;
+  //   }
+  // </style>
+  // </head>
+
+  // <body>
+
+  //   <div class="order-id">Order Id: ${a4PrintDetails?.order_id}</div>
+
+  //   <div class="company-title">
+  //     <span class="red">Ron Currie & Sons</span>
+  //     <span class="black"> Ltd</span>
+  //   </div>
+
+  //   <div class="company-details">
+  //     Tel: ${a4PrintDetails?.settings?.config_telephone}<br>
+  //     VAT: ${companyDetails?.companyVat}
+  //   </div>
+
+  //   <div class="bold-label">
+  //     Date Added: ${
+  //       a4PrintDetails?.shipping_method === 'Delivery'
+  //         ? a4PrintDetails?.order_date
+  //         : a4PrintDetails?.date_added
+  //     }
+  //   </div>
+
+  //   <table>
+  //     <tr>
+  //       <th>Product</th>
+  //       <th>Qty</th>
+  //       <th>Price</th>
+  //       <th>Total</th>
+  //     </tr>
+
+  //     ${a4PrintDetails?.products
+  //       ?.map(
+  //         product => `
+  //         <tr>
+  //           <td>
+  //             ${product?.name}
+  //             ${
+  //               product?.options
+  //                 ? `<div style="font-size:12px;font-weight:700;">- ${product.options.name}: ${product.options.value}</div>`
+  //                 : ''
+  //             }
+  //           </td>
+  //           <td class="qty">${product?.quantity}</td>
+  //           <td class="price">£${Number(product?.price).toFixed(2)}</td>
+  //           <td class="total">£${Number(product?.total).toFixed(2)}</td>
+  //         </tr>
+  //       `,
+  //       )
+  //       .join('')}
+
+  //     <tr class="summary-row">
+  //       <td colspan="3">Groups</td>
+  //       <td style="text-align:left;">${a4PrintDetails?.products?.length}</td>
+  //     </tr>
+
+  //     <tr class="summary-row">
+  //       <td colspan="3">Inc VAT Sub-Total</td>
+  //       <td>£${totalsMap['sub_total']}</td>
+  //     </tr>
+
+  //     <tr class="summary-row">
+  //       <td colspan="3">Total (VAT £${totalsMap['tax']})</td>
+  //       <td>£${totalsMap['total']}</td>
+  //     </tr>
+  //   </table>
+
+  // </body>
+  // </html>
+  //   `;
+  //   };
+
+  const generate80mmInvoice = () => {
+    // Create totals map (same as PHP)
+    // const totalsMap = {};
+    // (a4PrintDetails?.totals || []).forEach(item => {
+    //   totalsMap[item.code] = Number(item.value || 0).toFixed(2);
+    // });
     const totalsMap = Object.fromEntries(
       (a4PrintDetails?.totals || []).map(item => [
         item.code,
@@ -1223,159 +1391,130 @@ console.log("a4PrintDetails",isKeyboardOpen)
       ]),
     );
 
+    // Products HTML
+    const productsHtml = (a4PrintDetails?.products || [])
+      .map(product => {
+        return `
+        <tr>
+          <td>
+            ${product.name}
+            ${
+              product.options
+                ? `<div style="font-size:12px;font-weight:700;">
+                    - ${product.options.name}: ${product.options.value}
+                   </div>`
+                : ''
+            }
+          </td>
+          <td class="qty">${product.quantity}</td>
+          <td class="price">£${Number(product.price).toFixed(2)}</td>
+          <td class="total">£${Number(product.total).toFixed(2)}</td>
+        </tr>
+      `;
+      })
+      .join('');
+
+    // Date logic
+    const dateAdded =
+      a4PrintDetails?.shipping_method === 'Delivery'
+        ? a4PrintDetails?.order_date
+        : a4PrintDetails?.date_added;
+
+    // Return HTML
     return `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8" />
-
 <style>
-  @page {
-    size: 80mm auto;
-    margin: 0;
-  }
+@page { margin: 0; }
 
-  body {
-    margin: 0;
-    padding: 6px;
-    width: 100% !important;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 16px;               /* ⬆️ 3x readable */
-    font-weight: 600;              /* ⬆️ stronger text */
-    color: #000;
-  }
+html, body {
+  width: 80mm;
+  margin: 0;
+  padding: 0;
+}
 
-  .order-id {
-    font-size: 16px;
-    font-weight: 900;
-    margin-top: 10px;
-    margin-bottom: 4px;
-  }
+body {
+  padding: 6px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+}
 
-  .company-title {
-    font-size: 23px;               /* ⬆️ BIG & BOLD */
-    font-weight: 900;
-    text-align: left;
-    line-height: 1.2;
-    margin-top: 4px;
-  }
+.order-id { font-size: 16px; font-weight: 900; margin-top: 10px; }
+.company-title { font-size: 23px; font-weight: 900; line-height: 1.2; }
+.company-title .red { color: #b22222; }
+.company-title .black { color: #000; }
+.company-details { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.bold-label { font-weight: 900; margin: 6px 0; font-size: 14px; }
 
-  .company-title .red { color: #b22222; }
-  .company-title .black { color: #000; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0;
+}
 
-  .company-details {
-    font-size: 16px;
-    font-weight: 700;
-    margin-bottom: 6px;
-  }
+th, td {
+  border: 1px solid #e6e6e6;
+  padding: 6px;
+  font-size: 16px;
+  font-weight: 700;
+}
 
-  .bold-label {
-    font-weight: 900;
-    margin: 6px 0;
-    font-size: 14px;
-  }
-
-  table {
-    width: calc(100% - 10px);
-    border-collapse: collapse;
-    margin: 6px 0;
-  }
-
-  th, td {
-    border: 1px solid #e6e6e6;
-    padding: 6px;                 /* ⬆️ spacing */
-    font-size: 16px;
-    font-weight: 700;
-  }
-
-  th {
-    font-weight: 900;
-    background: #fff;
-  }
-
-  .qty, .price, .total {
-    text-align: center;
-    font-weight: 900;
-  }
-
-  .summary-row td {
-    font-weight: 900;
-    text-align: right;
-    padding: 6px;
-    font-size: 14px;
-  }
+th { font-weight: 900; }
+.qty, .price, .total { text-align: center; font-weight: 900; }
+.summary-row td { font-weight: 900; text-align: right; font-size: 14px; }
 </style>
 </head>
 
 <body>
 
-  <div class="order-id">Order Id: ${a4PrintDetails?.order_id}</div>
+<div class="order-id">Order Id: ${a4PrintDetails?.order_id}</div>
 
-  <div class="company-title">
-    <span class="red">Ron Currie & Sons</span>
-    <span class="black"> Ltd</span>
-  </div>
+<div class="company-title">
+  <span class="red">Ron Currie & Sons</span>
+  <span class="black"> Ltd</span>
+</div>
 
-  <div class="company-details">
-    Tel: ${a4PrintDetails?.settings?.config_telephone}<br>
-    VAT: ${companyDetails?.companyVat}
-  </div>
+<div class="company-details">
+  Tel: ${a4PrintDetails?.settings?.config_telephone}<br>
+  VAT: ${companyDetails?.companyVat}
+</div>
 
-  <div class="bold-label">
-    Date Added: ${
-      a4PrintDetails?.shipping_method === 'Delivery'
-        ? a4PrintDetails?.order_date
-        : a4PrintDetails?.date_added
-    }
-  </div>
+<div class="bold-label">Date Added: ${dateAdded}</div>
 
-  <table>
-    <tr>
-      <th>Product</th>
-      <th>Qty</th>
-      <th>Price</th>
-      <th>Total</th>
-    </tr>
+<table>
+<tr>
+  <th>Product</th>
+  <th>Qty</th>
+  <th>Price</th>
+  <th>Total</th>
+</tr>
 
-    ${a4PrintDetails?.products
-      ?.map(
-        product => `
-        <tr>
-          <td>
-            ${product?.name}
-            ${
-              product?.options
-                ? `<div style="font-size:12px;font-weight:700;">- ${product.options.name}: ${product.options.value}</div>`
-                : ''
-            }
-          </td>
-          <td class="qty">${product?.quantity}</td>
-          <td class="price">£${Number(product?.price).toFixed(2)}</td>
-          <td class="total">£${Number(product?.total).toFixed(2)}</td>
-        </tr>
-      `,
-      )
-      .join('')}
+${productsHtml}
 
-    <tr class="summary-row">
-      <td colspan="3">Groups</td>
-      <td style="text-align:left;">${a4PrintDetails?.products?.length}</td>
-    </tr>
+<tr class="summary-row">
+  <td colspan="3">Groups</td>
+  <td style="text-align:left;">${a4PrintDetails?.products?.length || 0}</td>
+</tr>
 
-    <tr class="summary-row">
-      <td colspan="3">Inc VAT Sub-Total</td>
-      <td>£${totalsMap['sub_total']}</td>
-    </tr>
+<tr class="summary-row">
+  <td colspan="3">Inc VAT Sub-Total</td>
+  <td>£${totalsMap.sub_total || '0.00'}</td>
+</tr>
 
-    <tr class="summary-row">
-      <td colspan="3">Total (VAT £${totalsMap['tax']})</td>
-      <td>£${totalsMap['total']}</td>
-    </tr>
-  </table>
+<tr class="summary-row">
+  <td colspan="3">Total (VAT £${totalsMap.tax || '0.00'})</td>
+  <td>£${totalsMap.total || '0.00'}</td>
+</tr>
+
+</table>
 
 </body>
 </html>
-  `;
+`;
   };
   const printWithStarPassPRNT = async html => {
     try {
@@ -1624,7 +1763,9 @@ console.log("a4PrintDetails",isKeyboardOpen)
             </View>
           </View>
 
-          <View style={[styles.actionRow,{flex:isKeyboardOpen?0.15:0.1}]}>
+          <View
+            style={[styles.actionRow, { flex: isKeyboardOpen ? 0.15 : 0.1 }]}
+          >
             <TouchableOpacity
               style={styles.createOrderBtn}
               onPress={() => {
@@ -1670,7 +1811,6 @@ const styles = ScaledSheet.create({
   },
   logo: { width: '80%', height: moderateScale(40) },
   actionRow: {
-  
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
