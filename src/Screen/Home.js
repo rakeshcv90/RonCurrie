@@ -25,7 +25,7 @@ import Loader from '../Component/Loader';
 import { showToast } from '../utility/showToast';
 import { usePermissions } from '../Component/usePermissions';
 import CartComponent from '../Component/CartComponent';
-import { Color, FONT } from '../Component/Image';
+import { Color, FONT, ImageData } from '../Component/Image';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import { ImageBaseUrl } from '../utility/api';
 
@@ -55,14 +55,14 @@ const Home = ({ navigation }) => {
   const [expanded, setExpanded] = useState(0);
   const [category, setCategory] = useState(false);
   const [userData, setUserData] = useState(null);
-    useEffect(() => {
-      const fetchUserData = async () => {
-        const data = await MMKVStorage.getItem('User_Data');
-        setUserData(data);
-      };
-  
-      fetchUserData();
-    }, []);
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const data = await MMKVStorage.getItem('User_Data');
+      setUserData(data);
+    };
+
+    fetchUserData();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -129,14 +129,19 @@ const Home = ({ navigation }) => {
             style={styles.itemImage}
             source={{
               uri: imageUrl,
-          priority: FastImage.priority.high,
+              priority: FastImage.priority.high,
               cache: FastImage.cacheControl.immutable,
             }}
             resizeMode={FastImage.resizeMode.cover}
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -157,7 +162,7 @@ const Home = ({ navigation }) => {
       // Re-fetch your products or any data
       await dispatch(fetchProducts()).unwrap();
 
-       dispatch(fetchCartData(userData.customer_id));
+      dispatch(fetchCartData(userData.customer_id));
     } catch (error) {
       showToast('danger', 'Error', error.message || 'Something went wrong');
     }
@@ -300,7 +305,7 @@ const Home = ({ navigation }) => {
               <View
                 style={{
                   width: '100%',
-                  height: 40,
+                  height: verticalScale(35),
                   backgroundColor: 'black',
                   marginTop: 10,
                   flexDirection: 'row',
@@ -313,6 +318,7 @@ const Home = ({ navigation }) => {
                   style={{
                     fontSize: verticalScale(18),
                     color: 'white',
+
                     fontFamily: FONT.BOLD,
                   }}
                 >

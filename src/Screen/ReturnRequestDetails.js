@@ -6,10 +6,11 @@ import {
   ScrollView,
   StatusBar,
   Image,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScaledSheet, moderateScale } from 'react-native-size-matters';
-import { Color, IconData } from '../Component/Image';
+import { Color, IconData, ImageData } from '../Component/Image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
 
@@ -20,6 +21,10 @@ import {
   clearReturnDisplayProducts,
   fetchOrderReturnDisplay,
 } from '../Redux/Slice/OrderReturnDisplaySlice';
+import SearchComponent from './Component/SearchComponent';
+import { ImageBaseUrl } from '../utility/api';
+import FastImage from 'react-native-fast-image';
+import { clearProducts } from '../Redux/Slice/ProductListSlice';
 
 const ReturnRequestDetails = ({ navigation, route }) => {
   const order_id = route?.params?.orderItem;
@@ -29,7 +34,10 @@ const ReturnRequestDetails = ({ navigation, route }) => {
   const { orderReturnDisplay, loading, error } = useSelector(
     state => state.returnDetails,
   );
-
+  const [results, setResults] = useState([]);
+  const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [imageErrorMap, setImageErrorMap] = useState({});
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
@@ -61,6 +69,70 @@ const ReturnRequestDetails = ({ navigation, route }) => {
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
+
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .trim();
+  };
+
+  const handleItemPress = item => {
+    dispatch(clearProducts());
+    navigation.navigate('DisplayItems', { itemData: item });
+  };
+
+  const renderItem = ({ item }) => {
+    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+    const handleError = () => {
+      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+    };
+
+    const hasError = imageErrorMap[item.id] || false;
+
+    return (
+      <TouchableOpacity
+        style={styles.itemRow}
+        onPress={() => handleItemPress(item)}
+      >
+        {imageUrl && !hasError ? (
+          <FastImage
+            style={styles.itemImage}
+            source={{
+              uri: imageUrl,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        ) : (
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        )}
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName}>
+            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+            £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -68,157 +140,172 @@ const ReturnRequestDetails = ({ navigation, route }) => {
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.back}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons
-            name={'arrow-back'}
-            size={moderateScale(20)}
-            color={Color.GRAY}
+      <SearchComponent
+        onResults={setResults}
+        onLoadMoreRef={setLoadMoreFunc}
+        navigation={navigation}
+        autoFocus={true}
+      />
+      {results?.length > 0 ? (
+        <>
+          <FlatList
+            data={results}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item, index) =>
+              `${item.id || item.product_id || index}`
+            }
+            renderItem={renderItem}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: moderateScale(120),
+            }}
+            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore && (
+                <Text style={{ textAlign: 'center' }}>Loading...</Text>
+              )
+            }
           />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.leftContainer}
-          onPress={() => {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Home' }], // 👈 this becomes the new root
-              }),
-            );
-          }}
+        </>
+      ) : (
+        <ScrollView
+          style={styles.container1}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: moderateScale(40) }}
         >
-          <Image
-            source={IconData.Logo}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-      </View>
-      <ScrollView
-        style={styles.container1}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.pageTitle}>Return Information</Text>
+          <Text style={styles.pageTitle}>Return Information</Text>
 
-        <Text style={styles.sectionTitle}>Return Details</Text>
+          <Text style={styles.sectionTitle}>Return Details</Text>
 
-        <View
-          style={[
-            styles.tableBox,
-            { borderRadius: '6@s', backgroundColor: '#FAFAFA' },
-          ]}
-        >
-          <View style={styles.row}>
-            <Text style={styles.label}>Return ID:</Text>
-            <Text style={styles.value}>#{orderReturnDisplay?.return_id}</Text>
+          <View
+            style={[
+              styles.tableBox,
+              { borderRadius: '6@s', backgroundColor: '#FAFAFA' },
+            ]}
+          >
+            <View style={styles.row}>
+              <Text style={styles.label}>Return ID:</Text>
+              <Text style={styles.value}>#{orderReturnDisplay?.return_id}</Text>
+            </View>
+
+            <View style={styles.row}>
+              <Text style={styles.label}>Date Added:</Text>
+              <Text style={styles.value}>
+                {formatDate(orderReturnDisplay?.date_added)}
+              </Text>
+            </View>
+
+            <View style={styles.row}>
+              <Text style={styles.label}>Order ID:</Text>
+              <Text style={styles.value}>{orderReturnDisplay?.order_id}</Text>
+            </View>
+
+            <View style={[styles.row, { borderBottomWidth: 0 }]}>
+              <Text style={styles.label}>Order Date:</Text>
+              <Text style={styles.value}>
+                {' '}
+                {formatDate(orderReturnDisplay?.date_ordered)}
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Date Added:</Text>
-            <Text style={styles.value}>
-              {formatDate(orderReturnDisplay?.date_added)}
-            </Text>
+          <Text style={styles.sectionTitle}>
+            Product Information & Reason for Return
+          </Text>
+
+          <View style={styles.tableHeader}>
+            <Text style={[styles.headerText, { flex: 2 }]}>Product Name</Text>
+            <Text style={[styles.headerText, { flex: 1 }]}>Model</Text>
+            <Text style={[styles.headerText, { flex: 1 }]}>Quantity</Text>
           </View>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Order ID:</Text>
-            <Text style={styles.value}>{orderReturnDisplay?.order_id}</Text>
+          <View style={styles.tableBox}>
+            <View style={[styles.row1]}>
+              <Text style={[styles.value, { flex: 2 }]}>
+                {orderReturnDisplay?.product}
+              </Text>
+              <Text style={[styles.value, { flex: 1 }]}>
+                {orderReturnDisplay?.model}
+              </Text>
+              <Text style={[styles.value, { flex: 1 }]}>
+                {orderReturnDisplay?.quantity}
+              </Text>
+            </View>
           </View>
 
-          <View style={[styles.row, { borderBottomWidth: 0 }]}>
-            <Text style={styles.label}>Order Date:</Text>
-            <Text style={styles.value}>
-              {' '}
-              {formatDate(orderReturnDisplay?.date_ordered)}
-            </Text>
+          <View style={styles.tableHeader}>
+            <Text style={[styles.headerText, { flex: 2 }]}>Reason</Text>
+            <Text style={[styles.headerText, { flex: 1 }]}>Opened</Text>
+            <Text style={[styles.headerText, { flex: 1 }]}>Action</Text>
           </View>
-        </View>
 
-        <Text style={styles.sectionTitle}>
-          Product Information & Reason for Return
-        </Text>
-
-        <View style={styles.tableHeader}>
-          <Text style={[styles.headerText, { flex: 2 }]}>Product Name</Text>
-          <Text style={[styles.headerText, { flex: 1 }]}>Model</Text>
-          <Text style={[styles.headerText, { flex: 1 }]}>Quantity</Text>
-        </View>
-
-        <View style={styles.tableBox}>
-          <View style={[styles.row1]}>
-            <Text style={[styles.value, { flex: 2 }]}>
-              {orderReturnDisplay?.product}
-            </Text>
-            <Text style={[styles.value, { flex: 1 }]}>
-              {orderReturnDisplay?.model}
-            </Text>
-            <Text style={[styles.value, { flex: 1 }]}>
-              {orderReturnDisplay?.quantity}
-            </Text>
+          <View style={styles.tableBox}>
+            <View style={[styles.row1]}>
+              <Text style={[styles.value, { flex: 2 }]}>
+                {orderReturnDisplay?.return_reason?.name}
+              </Text>
+              <Text style={[styles.value, { flex: 1 }]}>
+                {' '}
+                {orderReturnDisplay?.opened == 1 ? 'Yes' : 'No'}
+              </Text>
+              <Text style={[styles.value, { flex: 1 }]}>
+                {orderReturnDisplay?.return_action === null
+                  ? ''
+                  : orderReturnDisplay?.return_action?.name}
+              </Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.tableHeader}>
-          <Text style={[styles.headerText, { flex: 2 }]}>Reason</Text>
-          <Text style={[styles.headerText, { flex: 1 }]}>Opened</Text>
-          <Text style={[styles.headerText, { flex: 1 }]}>Action</Text>
-        </View>
+          <Text style={styles.sectionTitle}>Order History</Text>
 
-        <View style={styles.tableBox}>
-          <View style={[styles.row1]}>
-            <Text style={[styles.value, { flex: 2 }]}>
-              {orderReturnDisplay?.return_reason?.name}
-            </Text>
-            <Text style={[styles.value, { flex: 1 }]}>
-              {' '}
-              {orderReturnDisplay?.opened == 0 ? 'Yes' : 'No'}
-            </Text>
-            <Text style={[styles.value, { flex: 1 }]}>
-              {orderReturnDisplay?.return_action === null
-                ? ''
-                : orderReturnDisplay?.return_action?.name}
-            </Text>
+          <View style={styles.tableHeader}>
+            <Text style={[styles.headerText, { flex: 1 }]}>Date Added</Text>
+            <Text style={[styles.headerText, { flex: 1 }]}>Order Status</Text>
+            <Text style={[styles.headerText, { flex: 1 }]}>Comment</Text>
           </View>
-        </View>
 
-        <Text style={styles.sectionTitle}>Order History</Text>
+          <View style={styles.tableBox}>
+            <View style={[styles.row1]}>
+              {orderReturnDisplay?.histories?.length > 0 ? (
+                orderReturnDisplay.histories.map((item, index) => (
+                  <View style={styles.row} key={index}>
+                    <Text style={[styles.value, { flex: 1 }]}>
+                      {formatDate(item?.date_added) || '-'}
+                    </Text>
 
-        <View style={styles.tableHeader}>
-          <Text style={[styles.headerText, { flex: 1 }]}>Date Added</Text>
-          <Text style={[styles.headerText, { flex: 1 }]}>Order Status</Text>
-          <Text style={[styles.headerText, { flex: 1 }]}>Comment</Text>
-        </View>
+                    <Text style={[styles.value, { flex: 1 }]}>
+                      {item?.status}
+                    </Text>
 
-        <View style={styles.tableBox}>
-          <View style={[styles.row1]}>
-            {orderReturnDisplay?.histories?.length > 0 ? (
-              orderReturnDisplay.histories.map((item, index) => (
-                <View style={styles.row} key={index}>
-                  <Text style={[styles.value, { flex: 1 }]}>
-                    {formatDate(item?.date_added) || '-'}
-                  </Text>
-
-                  <Text style={[styles.value, { flex: 1 }]}>
-                    {item?.status}
-                  </Text>
-
-                  <Text style={[styles.value, { flex: 1 }]}>
-                    {item?.comment || '-'}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.value}>No history found</Text>
-            )}
+                    <Text style={[styles.value, { flex: 1 }]}>
+                      {item?.comment || '-'}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.value}>No history found</Text>
+              )}
+            </View>
           </View>
-        </View>
-      </ScrollView>
+          <TouchableOpacity
+            onPress={() => navigation.replace('AccountProfile')}
+            style={{
+              marginBottom: 20,
+              width: 100,
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: 40,
+              alignSelf: 'flex-end',
+              backgroundColor: Color.RED,
+              borderRadius: 5,
+              padding: 10,
+            }}
+          >
+            <Text style={{ color: '#fff' }}>Continue</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -244,8 +331,8 @@ const styles = ScaledSheet.create({
     overflow: 'hidden',
   },
   logo: { width: '80%', height: moderateScale(40) },
-  back:{
-        width: moderateScale(40),
+  back: {
+    width: moderateScale(40),
     height: moderateScale(40),
     borderRadius: moderateScale(40),
     borderWidth: 1,
@@ -339,6 +426,26 @@ const styles = ScaledSheet.create({
     fontSize: '15@s',
     color: '#fff',
     fontWeight: '700',
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
+  },
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  itemPrice: {
+    fontSize: moderateScale(13),
+    color: '#555',
   },
 });
 

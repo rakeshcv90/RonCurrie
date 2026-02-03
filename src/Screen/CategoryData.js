@@ -76,7 +76,12 @@ const CategoryData = ({ route }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -118,11 +123,12 @@ const CategoryData = ({ route }) => {
               }
             />
           ) : (
-            <Ionicons
-              name="images"
-              size={moderateScale(60)}
-              color={Color.GRAY}
-            />
+           <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
           )}
         </View>
         <View style={{ width: '100%', backgroundColor: '#F5F5F5',padding:2 }}>

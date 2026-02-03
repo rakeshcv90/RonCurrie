@@ -20,7 +20,7 @@ import {
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import { Color, FONT } from '../../Component/Image';
+import { Color, FONT, ImageData } from '../../Component/Image';
 import CartComponent from '../../Component/CartComponent';
 
 const WebScreen = ({ route, navigation }) => {
@@ -76,7 +76,12 @@ const WebScreen = ({ route, navigation }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -90,7 +95,7 @@ const WebScreen = ({ route, navigation }) => {
       </TouchableOpacity>
     );
   };
-const injectedJS = `
+  const injectedJS = `
 (function() {
   // Remove logo images
   const logos = document.querySelectorAll("img[alt*='Ron'], img[src*='logo'], img[style*='1954']");
@@ -173,8 +178,8 @@ true;
 
               alignItems: 'center',
               gap: moderateScale(10),
-              padding:verticalScale(10),
-              marginBottom:verticalScale(20)
+              padding: verticalScale(10),
+              marginBottom: verticalScale(20),
             }}
           >
             <TouchableOpacity

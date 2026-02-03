@@ -23,7 +23,7 @@ import {
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import { Color, FONT } from '../../Component/Image';
+import { Color, FONT, ImageData } from '../../Component/Image';
 import SearchComponent from '../Component/SearchComponent';
 
 import RenderHTML from 'react-native-render-html';
@@ -87,7 +87,12 @@ const CategoryList2 = ({ route, navigation }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>

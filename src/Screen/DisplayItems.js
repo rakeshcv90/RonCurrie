@@ -137,7 +137,7 @@ const DisplayItems = ({ navigation, route }) => {
         const length = Number(customLength) || 1;
         const price = (length * bespokeFactor * qty).toFixed(2);
         const price2 = (length * bespokeFactor).toFixed(2);
-         
+
         return { ...prev, custom: { qty, length, price, price2 } };
       } else if (index === 'single') {
         // const qty = Math.min((prev.single?.qty || 0) + 1, stock);
@@ -168,7 +168,6 @@ const DisplayItems = ({ navigation, route }) => {
         const price = (length * bespokeFactor * qty).toFixed(2);
         const price2 = (length * bespokeFactor).toFixed(2);
 
-       
         return { ...prev, custom: { qty, length, price, price2 } };
       } else if (index === 'single') {
         const qty = Math.max((prev.single?.qty || 0) - 1, 0);
@@ -189,10 +188,10 @@ const DisplayItems = ({ navigation, route }) => {
     setRowQuantities(prev => {
       const qty = prev.custom?.qty || 1;
       const price = (lengthNum * bespokeFactor * qty).toFixed(2);
-          const price2 = (lengthNum * bespokeFactor).toFixed(2);
+      const price2 = (lengthNum * bespokeFactor).toFixed(2);
       return {
         ...prev,
-        custom: { qty, length: lengthNum, price,price2 },
+        custom: { qty, length: lengthNum, price, price2 },
       };
     });
   };
@@ -250,7 +249,7 @@ const DisplayItems = ({ navigation, route }) => {
 
     const length = Number(customLength) || 1;
     const price = (length * bespokeFactor * qty).toFixed(2);
-     const price2 = (length * bespokeFactor).toFixed(2);
+    const price2 = (length * bespokeFactor).toFixed(2);
 
     setRowQuantities(prev => ({
       ...prev,
@@ -496,7 +495,12 @@ const DisplayItems = ({ navigation, route }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -768,7 +772,6 @@ const DisplayItems = ({ navigation, route }) => {
                                   index % 2 !== 0 && styles.greyRow,
                                 ]}
                               >
-                              
                                 <View style={styles.sizeCell}>
                                   <Text
                                     style={styles.cellText}
@@ -780,14 +783,12 @@ const DisplayItems = ({ navigation, route }) => {
                                   </Text>
                                 </View>
 
-                        
                                 <View style={styles.priceCell}>
                                   <Text style={styles.cellText}>
                                     £{parseFloat(item?.price).toFixed(2)}
                                   </Text>
                                 </View>
 
-                           
                                 <View style={styles.stockCell}>
                                   <Text
                                     style={[
@@ -801,7 +802,6 @@ const DisplayItems = ({ navigation, route }) => {
                                   </Text>
                                 </View>
 
-                           
                                 <View style={styles.iconCell}>
                                   <TouchableOpacity
                                     disabled={isDisabled}
@@ -835,7 +835,6 @@ const DisplayItems = ({ navigation, route }) => {
                                   )}
                                 </View>
 
-                        
                                 <View style={styles.iconCell}>
                                   <TouchableOpacity
                                     disabled={isDisabled}
@@ -984,111 +983,6 @@ const DisplayItems = ({ navigation, route }) => {
                         </View>
                       </>
                     )}
-                    {/* 
-                    {productsList?.options?.[0]?.display == 1 &&
-                      productsList?.options?.[0]?.bespoke_value_req_epos ==
-                        1 && (
-                        <View
-                          style={[
-                            styles.tableContainer,
-                            { top: verticalScale(-10) },
-                          ]}
-                        >
-                          <View
-                            style={[
-                              styles.tableRow,
-                              styles.greyRow,
-                              { backgroundColor: '#fff' },
-                            ]}
-                          >
-                           
-                            <View style={styles.cell}>
-                              <TextInput
-                                style={[styles.qtyInput, { width: '100%' }]}
-                                placeholder="Length"
-                                value={customLength}
-                                // onChangeText={handleCustomLengthChange}
-                                onChangeText={val =>
-                                  handleCustomLengthChange(
-                                    val,
-                                    productsList?.quantity,
-                                  )
-                                }
-                                keyboardType="numeric"
-                                placeholderTextColor="#aaa"
-                              />
-                            </View>
-
-                          
-                            <View style={styles.cell}>
-                              <Text style={[styles.cellText, styles.priceLink]}>
-                                £
-                                {productsList?.options?.[0]?.bespoke_factor_val}
-                              </Text>
-                            </View>
-
-                            <View style={styles.cell}>
-                              <Text style={[styles.stockText, styles.blackQty]}>
-                                £
-                                {rowQuantities?.custom?.price ??
-                                  bespokeFactor.toFixed(2)}
-                              </Text>
-                            </View>
-
-                      
-                            <View style={styles.iconCell}>
-                              <TouchableOpacity
-                                style={[
-                                  styles.iconContainer,
-                                  styles.iconActive,
-                                ]}
-                                onPress={() => handleDecrease('custom')}
-                              >
-                                <Text style={styles.iconSymbol}>−</Text>
-                              </TouchableOpacity>
-                            </View>
-
-                          
-                            <View style={styles.cell}>
-                              <View style={styles.qtyCell}>
-                                <TextInput
-                                  style={styles.qtyInput}
-                                  keyboardType="numeric"
-                                  value={(
-                                    rowQuantities.custom?.qty ?? 0
-                                  ).toString()}
-                                  onChangeText={text =>
-                                    handleCustomTyping(
-                                      text,
-                                      bespokeFactor,
-                                      customLength,
-                                    )
-                                  }
-                                  onEndEditing={() =>
-                                    handleCustomFinal(
-                                      bespokeFactor,
-                                      customLength,
-                                    )
-                                  }
-                                />
-                              </View>
-                            </View>
-
-                         
-                            <View style={styles.iconCell}>
-                              <TouchableOpacity
-                                style={[
-                                  styles.iconContainer,
-                                  styles.iconActive,
-                                ]}
-                                onPress={() => handleIncrease('custom')}
-                              >
-                                <Text style={styles.iconSymbol}>+</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        </View>
-                      )} */}
 
                     {productsList?.options?.[0]?.display == 1 &&
                       productsList?.options?.[0]?.bespoke_value_req_epos ==
@@ -1109,7 +1003,7 @@ const DisplayItems = ({ navigation, route }) => {
                             {/* LENGTH */}
                             <View style={styles.sizeCell}>
                               <TextInput
-                                style={styles.qtyInput}
+                                style={[styles.qtyInput, { width: '100%' ,textAlign: 'left'}]}
                                 placeholder="Length"
                                 value={customLength}
                                 onChangeText={val =>
@@ -1127,16 +1021,19 @@ const DisplayItems = ({ navigation, route }) => {
                             <View style={styles.priceCell}>
                               <Text style={[styles.cellText, styles.priceLink]}>
                                 £
-                                {productsList?.options?.[0]?.bespoke_factor_val}
+                                {customLength === ''
+                                  ? '0.00'
+                                  : rowQuantities?.custom?.price ??
+                                    bespokeFactor.toFixed(2)}
+                                {/* {rowQuantities?.custom?.price ??
+                                  bespokeFactor.toFixed(2)} */}
                               </Text>
                             </View>
 
                             {/* STOCK / CALCULATED PRICE */}
                             <View style={styles.stockCell}>
                               <Text style={[styles.stockText, styles.blackQty]}>
-                                £
-                                {rowQuantities?.custom?.price ??
-                                  bespokeFactor.toFixed(2)}
+                                -
                               </Text>
                             </View>
 
@@ -1161,16 +1058,40 @@ const DisplayItems = ({ navigation, route }) => {
                                 value={(
                                   rowQuantities.custom?.qty ?? 0
                                 ).toString()}
-                                onChangeText={text =>
-                                  handleCustomTyping(
-                                    text,
-                                    bespokeFactor,
-                                    customLength,
-                                  )
-                                }
-                                onEndEditing={() =>
-                                  handleCustomFinal(bespokeFactor, customLength)
-                                }
+                                // onChangeText={text =>
+                                //   handleCustomTyping(
+                                //     text,
+                                //     bespokeFactor,
+                                //     customLength,
+                                //   )
+                                // }
+                                // onEndEditing={() =>
+                                //   handleCustomFinal(bespokeFactor, customLength)
+                                // }
+
+                                onChangeText={text => {
+                                  if (customLength !== '') {
+                                    handleCustomTyping(
+                                      text,
+                                      bespokeFactor,
+                                      customLength,
+                                    );
+                                  } else {
+                                    showToast(
+                                      'danger',
+                                      'No items selected',
+                                      'Please enter length for custom item',
+                                    );
+                                  }
+                                }}
+                                onEndEditing={() => {
+                                  if (customLength !== '') {
+                                    handleCustomFinal(
+                                      bespokeFactor,
+                                      customLength,
+                                    );
+                                  }
+                                }}
                               />
                             </View>
 
@@ -1181,7 +1102,17 @@ const DisplayItems = ({ navigation, route }) => {
                                   styles.iconContainer,
                                   styles.iconActive,
                                 ]}
-                                onPress={() => handleIncrease('custom')}
+                                onPress={() => {
+                                  if (customLength !== '') {
+                                    handleIncrease('custom');
+                                  } else {
+                                    showToast(
+                                      'danger',
+                                      'No items selected',
+                                      'Please enter length for custom item',
+                                    );
+                                  }
+                                }}
                               >
                                 <Text style={styles.iconSymbol}>+</Text>
                               </TouchableOpacity>
@@ -1192,11 +1123,10 @@ const DisplayItems = ({ navigation, route }) => {
                   </>
                 ) : (
                   <>
-                
                     <View style={styles.container1}>
                       <View style={styles.labelRow}>
                         <Text style={styles.redLabel}>Width (mm)</Text>
-                        <Text style={styles.redLabel}>Length (mm)</Text>
+                        <Text style={styles.redLabel}>Height(mm)</Text>
                       </View>
 
                       <View style={styles.bigBoxRow}>

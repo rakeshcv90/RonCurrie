@@ -172,14 +172,19 @@ const OrderHistory = ({ navigation }) => {
             style={styles.itemImage}
             source={{
               uri: imageUrl,
-            priority: FastImage.priority.high,
+              priority: FastImage.priority.high,
               cache: FastImage.cacheControl.immutable,
             }}
             resizeMode={FastImage.resizeMode.cover}
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -204,7 +209,7 @@ const OrderHistory = ({ navigation }) => {
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
-         autoFocus={true}
+        autoFocus={true}
       />
       {results?.length > 0 ? (
         <>
@@ -354,10 +359,9 @@ const OrderHistory = ({ navigation }) => {
 
           {orderList?.length <= 0 ||
             (loader && <Loader visible={loading || loader} />)}
-               <CartComponent />
+          <CartComponent />
         </>
       )}
-
     </SafeAreaView>
   );
 };

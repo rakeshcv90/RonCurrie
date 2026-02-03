@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScaledSheet, moderateScale } from 'react-native-size-matters';
-import { Color, FONT, IconData } from '../Component/Image';
+import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { CommonActions } from '@react-navigation/native';
 import { MMKVStorage } from '../utility/MmkvStore';
@@ -145,7 +145,12 @@ const EditInfotmation = ({ navigation }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>

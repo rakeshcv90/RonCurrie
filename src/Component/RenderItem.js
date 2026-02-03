@@ -362,6 +362,7 @@ const RenderItem = ({ item, navigation }) => {
                 }
               >
                 <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text>
+                
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => removeItem(item)}>
@@ -376,7 +377,7 @@ const RenderItem = ({ item, navigation }) => {
                   style={[
                     styles.stockValue,
                     item?.options[0]?.values[0]?.quantity <= 10 && {
-                      color: Color.RED,
+                      color: Color.RED2,
                     },
                   ]}
                 >
@@ -434,8 +435,18 @@ const RenderItem = ({ item, navigation }) => {
                 <View style={styles.divider} />
 
                 <View style={styles.priceHalf}>
-                  <Text style={styles.priceText}>
-                    {(item?.mode === 1 || item?.mode === 2) && '-'} £
+                  <Text
+                    style={[
+                      styles.priceText,
+                      {
+                        color:
+                          item?.mode === 1 || item?.mode === 2
+                            ? Color.RED2
+                            : Color.BLACK,
+                      },
+                    ]}
+                  >
+                    £ {(item?.mode === 1 || item?.mode === 2) && '-'}
                     {(
                       parseFloat(item?.options[0]?.values[0]?.price || 0) *
                       item?.cart_quantity
@@ -451,7 +462,6 @@ const RenderItem = ({ item, navigation }) => {
         <>
           <View style={styles.cartRowWrapper}>
             <View style={styles.topRow}>
-              {/* <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text> */}
               <TouchableOpacity
                 style={{ flex: 1 }}
                 onPress={() =>
@@ -532,10 +542,29 @@ const RenderItem = ({ item, navigation }) => {
                 </View>
 
                 <View style={styles.divider} />
-
+                {/* 
                 <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
                     £
+                    {(
+                      parseFloat(item?.price || 0) * item?.cart_quantity
+                    ).toFixed(2)}
+                  </Text>
+                </View> */}
+
+                <View style={styles.priceHalf}>
+                  <Text
+                    style={[
+                      styles.priceText,
+                      {
+                        color:
+                          item?.mode === 1 || item?.mode === 2
+                            ? Color.RED2
+                            : Color.BLACK,
+                      },
+                    ]}
+                  >
+                    £ {(item?.mode === 1 || item?.mode === 2) && '-'}
                     {(
                       parseFloat(item?.price || 0) * item?.cart_quantity
                     ).toFixed(2)}
@@ -641,9 +670,31 @@ const RenderItem = ({ item, navigation }) => {
 
                 <View style={styles.divider} />
 
-                <View style={styles.priceHalf}>
+                {/* <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
                     £
+                    {(
+                      parseFloat(
+                        secondValue * item?.options?.[0]?.bespoke_factor_val ||
+                          0,
+                      ) * item?.cart_quantity
+                    ).toFixed(2)}
+                  </Text>
+                </View> */}
+
+                <View style={styles.priceHalf}>
+                  <Text
+                    style={[
+                      styles.priceText,
+                      {
+                        color:
+                          item?.mode === 1 || item?.mode === 2
+                            ? Color.RED2
+                            : Color.BLACK,
+                      },
+                    ]}
+                  >
+                    £ {(item?.mode === 1 || item?.mode === 2) && '-'}
                     {(
                       parseFloat(
                         secondValue * item?.options?.[0]?.bespoke_factor_val ||
@@ -695,7 +746,7 @@ const RenderItem = ({ item, navigation }) => {
                   fontFamily: FONT.MEDIUM,
                 }}
               >
-                Length (mm):{secondValue}
+                Height (mm):{secondValue}
               </Text>
             </View>
             {/* INLINE ROW FIXED */}
@@ -780,9 +831,26 @@ const RenderItem = ({ item, navigation }) => {
 
                 <View style={styles.divider} />
 
-                <View style={styles.priceHalf}>
+                {/* <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
                     £{parseFloat(price).toFixed(2)}
+                  </Text>
+                </View> */}
+
+                <View style={styles.priceHalf}>
+                  <Text
+                    style={[
+                      styles.priceText,
+                      {
+                        color:
+                          item?.mode === 1 || item?.mode === 2
+                            ? Color.RED2
+                            : Color.BLACK,
+                      },
+                    ]}
+                  >
+                    £ {(item?.mode === 1 || item?.mode === 2) && '-'}
+                    {parseFloat(price).toFixed(2)}
                   </Text>
                 </View>
               </View>

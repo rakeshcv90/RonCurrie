@@ -25,7 +25,7 @@ import {
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import { Color, FONT } from '../../Component/Image';
+import { Color, FONT, ImageData } from '../../Component/Image';
 import SearchComponent from '../Component/SearchComponent';
 import RenderHTML from 'react-native-render-html';
 import { useWindowDimensions, Linking } from 'react-native';
@@ -89,7 +89,12 @@ const CategoryPage = ({ route, navigation }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -199,7 +204,7 @@ const CategoryPage = ({ route, navigation }) => {
             tagsStyles={{
               p: {
                 marginBottom: 10,
-                fontSize: 14,   
+                fontSize: 14,
                 fontWeight: '500',
                 lineHeight: 20,
                 color: '#333',

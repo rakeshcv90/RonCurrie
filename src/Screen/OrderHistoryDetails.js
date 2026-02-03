@@ -13,7 +13,7 @@ import {
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import { Color, FONT, IconData } from '../Component/Image';
+import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -143,7 +143,7 @@ const OrderHistoryDetails = ({ navigation, route }) => {
     if (allEmpty) return '--------';
 
     // Format actual address
-    return `${firstname} ${lastname}, ${company}, ${address_1} ${address_2}, ${city} ${postcode}, ${zone} ${country}`;
+    return `${firstname} ${lastname}, ${company},${address_1} ${address_2}, ${city} ${postcode}, ${zone} ${country}`;
   };
 
   const handleItemPress = item => {
@@ -182,14 +182,19 @@ const OrderHistoryDetails = ({ navigation, route }) => {
             style={styles.itemImage}
             source={{
               uri: imageUrl,
-            priority: FastImage.priority.high,
+              priority: FastImage.priority.high,
               cache: FastImage.cacheControl.immutable,
             }}
             resizeMode={FastImage.resizeMode.cover}
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -203,6 +208,19 @@ const OrderHistoryDetails = ({ navigation, route }) => {
       </TouchableOpacity>
     );
   };
+
+  const formatDateDDMMYYYY = dateString => {
+    if (!dateString) return '';
+
+    const date = new Date(dateString);
+    if (isNaN(date)) return '';
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+
+    return `${day}-${month}-${year}`;
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -211,30 +229,11 @@ const OrderHistoryDetails = ({ navigation, route }) => {
         barStyle="dark-content"
       />
 
-      {/* <View style={styles.headerContainer}>
-        <TouchableOpacity
-          style={styles.leftContainer}
-          onPress={() => {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Home' }], // 👈 this becomes the new root
-              }),
-            );
-          }}
-        >
-          <Image
-            source={IconData.Logo}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-      </View> */}
       <SearchComponent
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
-         autoFocus={true}
+        autoFocus={true}
       />
 
       {results?.length > 0 ? (
@@ -274,11 +273,6 @@ const OrderHistoryDetails = ({ navigation, route }) => {
             </TouchableOpacity>
 
             <View style={styles.buttonRow}>
-              {/* <TouchableOpacity style={styles.resetBtn} activeOpacity={0.7} onPress={()=>{
-            setDownloadVisible(true)
-          }}>
-            <Text style={styles.btnText}>Download PDF</Text>
-          </TouchableOpacity> */}
               <TouchableOpacity
                 style={styles.orderBtn}
                 activeOpacity={0.7}
@@ -300,7 +294,9 @@ const OrderHistoryDetails = ({ navigation, route }) => {
                 Order ID -{' '}
                 <Text style={styles.orderIdRed}>#{order_id?.order_id}</Text>
               </Text>
-              <Text style={styles.orderText}>Date: {order_id?.date_added}</Text>
+              <Text style={styles.orderText}>
+                Date: {formatDateDDMMYYYY(order_id?.date_added)}
+              </Text>
               <Text style={styles.orderText}>
                 Payment Method: {orderDisplay?.payment_method}
               </Text>
@@ -325,27 +321,33 @@ const OrderHistoryDetails = ({ navigation, route }) => {
                   <View>
                     <View style={styles.itemRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.itemTitle}>{decodeHtml(item?.name)}</Text>
+                        <Text style={styles.itemTitle}>
+                          {decodeHtml(item?.name)}
+                        </Text>
                         <Text style={styles.itemModel}>
                           Model:{' '}
                           <Text style={styles.modelRed}>{item?.model}</Text>
                         </Text>
 
-                        {item?.option &&
-                          Object.keys(item.option).length > 0 && (
+                        {Array.isArray(item?.options) &&
+                          item.options.length > 0 && (
                             <>
-                              <Text style={styles.itemModel}>
-                                Name:{' '}
-                                <Text style={styles.modelRed}>
-                                  {item?.option?.name}
-                                </Text>
-                              </Text>
-                              <Text style={styles.itemModel}>
-                                Value:{' '}
-                                <Text style={styles.modelRed}>
-                                  {item?.option?.value}
-                                </Text>
-                              </Text>
+                              {item.options.map((opt, idx) => (
+                                <View key={idx} style={styles.optionRow}>
+                                  <Text style={styles.itemModel}>
+                                    Name:{' '}
+                                    <Text style={styles.modelRed}>
+                                      {opt.name}
+                                    </Text>
+                                  </Text>
+                                  <Text style={styles.itemModel}>
+                                    Value:{' '}
+                                    <Text style={styles.modelRed}>
+                                      {opt.value}
+                                    </Text>
+                                  </Text>
+                                </View>
+                              ))}
                             </>
                           )}
                       </View>
@@ -367,10 +369,6 @@ const OrderHistoryDetails = ({ navigation, route }) => {
                         style={styles.iconBtn}
                         onPress={() => {
                           setReturnVisible(true);
-                          // navigation.navigate('ReturnScreen', {
-                          //   orderData: item,
-                          //   productData: orderDisplay,
-                          // });
                         }}
                       >
                         <Image

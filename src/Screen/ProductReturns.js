@@ -19,6 +19,9 @@ import FastImage from 'react-native-fast-image';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchReturnOrderList } from '../Redux/Slice/ReturnOrderListSlice';
 import { showToast } from '../utility/showToast';
+import SearchComponent from './Component/SearchComponent';
+import { ImageBaseUrl } from '../utility/api';
+import { clearProducts } from '../Redux/Slice/ProductListSlice';
 
 const ProductReturns = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -28,143 +31,12 @@ const ProductReturns = ({ navigation }) => {
   const { returnOrderList, loading, hasMore } = useSelector(
     state => state.returnlisorder,
   );
-
+  const [results, setResults] = useState([]);
+  const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [imageErrorMap, setImageErrorMap] = useState({});
   const [lastFetched, setLastFetched] = useState(null);
-  const [loader, setLoader] = useState(false);
-  const sampleData = [
-    { return_id: 566, status: 'Pending', date: '06/11/2025', comment: '' },
-    {
-      return_id: 559,
-      status: 'Pending',
-      date: '21/10/2025',
-      comment: 'D d d d ggg',
-    },
-    {
-      return_id: 558,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'Teshnj',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 557,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-    {
-      return_id: 55733,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    }, {
-      return_id: 55788,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-     {
-      return_id: 55733,
-      status: 'Pending',
-      date: '17/10/2025',
-      comment: 'X x. X x',
-    },
-  ];
+  console.log('returnOrderList', returnOrderList);
 
   const loadData = async (pageNumber = 1) => {
     try {
@@ -202,13 +74,77 @@ const ProductReturns = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-};
+  const formatDate = dateString => {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const decodeHtml = text => {
+    if (!text) return '';
+    return text
+      .replace(/&quot;/g, '')
+      .replace(/&apos;/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/["']/g, '')
+      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+      .trim();
+  };
+
+  const handleItemPress = item => {
+    dispatch(clearProducts());
+    navigation.navigate('DisplayItems', { itemData: item });
+  };
+
+  const renderItem = ({ item }) => {
+    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+    const handleError = () => {
+      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+    };
+
+    const hasError = imageErrorMap[item.id] || false;
+
+    return (
+      <TouchableOpacity
+        style={styles.itemRow}
+        onPress={() => handleItemPress(item)}
+      >
+        {imageUrl && !hasError ? (
+          <FastImage
+            style={styles.itemImage}
+            source={{
+              uri: imageUrl,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        ) : (
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
+        )}
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName}>
+            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+            £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -217,7 +153,14 @@ const ProductReturns = ({ navigation }) => {
         barStyle="dark-content"
       />
 
-      <View style={styles.headerContainer}>
+      <SearchComponent
+        onResults={setResults}
+        onLoadMoreRef={setLoadMoreFunc}
+        navigation={navigation}
+        autoFocus={true}
+      />
+
+      {/* <View style={styles.headerContainer}>
         <TouchableOpacity
           activeOpacity={0.7}
           style={styles.back}
@@ -247,96 +190,157 @@ const ProductReturns = ({ navigation }) => {
             resizeMode="contain"
           />
         </TouchableOpacity>
-      </View>
-      {returnOrderList?.length > 0 ? (
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Product Return</Text>
+      </View> */}
 
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <View style={[styles.cell, styles.borderRight]}>
-                <Text style={styles.headerText}>RETURN ID</Text>
-              </View>
-              <View style={[styles.cell, styles.borderRight]}>
-                <Text style={styles.headerText}>STATUS</Text>
-              </View>
+      {results?.length > 0 ? (
+        <>
+          <FlatList
+            data={results}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item, index) =>
+              `${item.id || item.product_id || index}`
+            }
+            renderItem={renderItem}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: moderateScale(120),
+            }}
+            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore && (
+                <Text style={{ textAlign: 'center' }}>Loading...</Text>
+              )
+            }
+          />
+        </>
+      ) : (
+        <>
+          {returnOrderList?.length > 0 ? (
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>Product Return</Text>
 
-              <View style={styles.cell}>
-                <Text style={styles.headerText}>DATE ADDED</Text>
-              </View>
-              <View style={styles.cell}>
-                <Text style={styles.headerText}>COMMENT</Text>
-              </View>
-              <View style={styles.cell}>
-                <Text style={styles.headerText}>ACTION</Text>
+              <View style={styles.table}>
+                <View style={styles.tableHeader}>
+                  <View style={[styles.cell, styles.borderRight]}>
+                    <Text style={styles.headerText}>Return ID</Text>
+                  </View>
+                  <View style={[styles.cell, styles.borderRight]}>
+                    <Text style={styles.headerText}>Status</Text>
+                  </View>
+
+                  <View style={styles.cell}>
+                    <Text style={styles.headerText}>Date Added</Text>
+                  </View>
+                  <View style={styles.cell}>
+                    <Text style={styles.headerText}>Order ID</Text>
+                  </View>
+                  <View style={styles.cell}>
+                    <Text style={styles.headerText}>Customer</Text>
+                  </View>
+                  <View style={styles.cell}>
+                    <Text style={styles.headerText}>Action</Text>
+                  </View>
+                </View>
+
+                <FlatList
+                  data={returnOrderList}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{
+                    paddingBottom: moderateScale(
+                      returnOrderList?.length > 15 ? 100 : 0,
+                    ),
+                  }}
+                  keyExtractor={(item, index) => `${item.id}_${index}`}
+                  renderItem={({ item, index }) => (
+                    <View
+                      style={[
+                        styles.tableRow,
+                        index === returnOrderList?.length - 1 && {
+                          borderBottomWidth: 0,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.cell, styles.orderIdColumn]}>
+                        <Text style={styles.orderId}>#{item?.return_id}</Text>
+                      </View>
+                      <View style={[styles.cell, styles.customerColumn]}>
+                        <Text style={styles.customer}>
+                          {item?.return_status?.name}
+                        </Text>
+                      </View>
+                      <View style={[styles.cell, styles.dateColumn]}>
+                        <Text style={styles.date}>
+                          {formatDate(item?.date_added)}
+                        </Text>
+                      </View>
+                      <View style={[styles.cell, styles.dateColumn]}>
+                        <Text style={styles.date}>{item?.order_id || '-'}</Text>
+                      </View>
+                      <View style={[styles.cell, styles.dateColumn]}>
+                        <Text style={styles.date}>
+                          {item?.firstname + ' ' + item?.lastname || '-'}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[styles.cell, styles.reorderColumn]}
+                        onPress={() => {
+                          navigation.navigate('ReturnRequestDetails', {
+                            orderItem: item,
+                          });
+                        }}
+                      >
+                        <Ionicons
+                          name="eye"
+                          size={moderateScale(20)}
+                          color="#000"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  // onEndReached={loadMore}
+                  onEndReachedThreshold={0.3}
+                  // ListFooterComponent={loading && <Loader visible={true} />}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
+                    />
+                  }
+                />
               </View>
             </View>
-
-            <FlatList
-              data={returnOrderList}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingBottom: moderateScale(returnOrderList?.length >15?100:0),
-              }}
-              keyExtractor={(item, index) => `${item.id}_${index}`}
-              renderItem={({ item, index }) => (
-                <View
-                  style={[
-                    styles.tableRow,
-                    index === returnOrderList?.length - 1 && {
-                      borderBottomWidth: 0,
-                    },
-                  ]}
-                >
-                  <View style={[styles.cell, styles.orderIdColumn]}>
-                    <Text style={styles.orderId}>#{item?.return_id}</Text>
-                  </View>
-                  <View style={[styles.cell, styles.customerColumn]}>
-                    <Text style={styles.customer}>{item?.return_status?.name}</Text>
-                  </View>
-                  <View style={[styles.cell, styles.dateColumn]}>
-                    <Text style={styles.date}>{formatDate(item?.date_added)}</Text>
-                  </View>
-                  <View style={[styles.cell, styles.dateColumn]}>
-                    <Text style={styles.date}>{item?.comment || '-'}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.cell, styles.reorderColumn]}
-                    onPress={() => {
-                      navigation.navigate('ReturnRequestDetails', {
-                        orderItem: item,
-                      });
-                    }}
-                  >
-                    <Ionicons
-                      name="eye"
-                      size={moderateScale(20)}
-                      color="#000"
-                    />
-                  </TouchableOpacity>
-                </View>
-              )}
-              // onEndReached={loadMore}
-              onEndReachedThreshold={0.3}
-              // ListFooterComponent={loading && <Loader visible={true} />}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-            />
-          </View>
-        </View>
-      ) : (
-        <View style={styles.emptyContainer}>
-          {Platform.OS == 'android' ? (
-            <FastImage
-              source={ImageData.NoData}
-              style={{ width: 200, height: 200 }}
-              resizeMode={FastImage.resizeMode.contain}
-            />
           ) : (
-            <Text style={styles.emptyText}>No items available</Text>
+            <View style={styles.emptyContainer}>
+              {Platform.OS == 'android' ? (
+                <FastImage
+                  source={ImageData.NoData}
+                  style={{ width: 200, height: 200 }}
+                  resizeMode={FastImage.resizeMode.contain}
+                />
+              ) : (
+                <Text style={styles.emptyText}>No items available</Text>
+              )}
+            </View>
           )}
-        </View>
+          <TouchableOpacity
+            onPress={() => navigation.replace('AccountProfile')}
+            style={{
+              width: 100,
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: 40,
+              position: 'absolute',
+              bottom: moderateScale(20),
+              right: moderateScale(20),
+              backgroundColor: Color.RED,
+              borderRadius: 5,
+            }}
+          >
+            <Text style={{ color: '#fff' }}>Continue</Text>
+          </TouchableOpacity>
+        </>
       )}
     </SafeAreaView>
   );
@@ -401,7 +405,7 @@ const styles = ScaledSheet.create({
     color: Color.RED,
     marginTop: moderateScale(10),
     marginLeft: moderateScale(10),
-    marginBottom:moderateScale(10),
+    marginBottom: moderateScale(10),
   },
   subTitle: {
     fontSize: moderateScale(14),
@@ -411,8 +415,7 @@ const styles = ScaledSheet.create({
     marginBottom: moderateScale(15),
   },
   table: {
-  
-    marginHorizontal: moderateScale(10),
+    marginHorizontal: moderateScale(5),
     borderWidth: 1,
     borderColor: '#D1D1D1',
     borderRadius: moderateScale(4),
@@ -437,7 +440,7 @@ const styles = ScaledSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: moderateScale(10),
-    paddingHorizontal: moderateScale(5),
+    paddingHorizontal: moderateScale(0),
   },
   borderRight: {
     borderRightWidth: 1,
@@ -456,7 +459,7 @@ const styles = ScaledSheet.create({
   customer: {
     color: Color.BLACK2,
     fontFamily: FONT.SEMIBOLD,
-    fontSize: 12,
+    fontSize: 10,
   },
   date: {
     color: Color.BLACK2,
@@ -498,6 +501,27 @@ const styles = ScaledSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
+  },
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  itemPrice: {
+    fontSize: moderateScale(13),
+    color: '#555',
   },
 });
 export default React.memo(ProductReturns);

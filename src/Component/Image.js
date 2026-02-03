@@ -10,6 +10,7 @@ export const ImageData = {
   Success: require('../assets/image/Success.gif'),
   Profile: require('../assets/image/profile.png'),
   New_Logo: require('../assets/image/newLogo.png'),
+  NOIMAGE: require('../assets/image/noImage.png'),
 };
 export const IconData = {
   Eye: require('../assets/icon/eye.png'),
@@ -45,6 +46,7 @@ export const Color = {
   GRAY6: '#D9D9D9',
   WHITE: '#FFFFFF',
   GREEN: '#009427',
+  RED2:'#ff0000'
 };
 
 export const companyDetails = {

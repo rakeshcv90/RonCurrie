@@ -64,6 +64,7 @@ const AddCartScreen = ({ navigation }) => {
   const [isFocus, setIsFocus] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [deliveryType, setDeliveryType] = useState(null);
+  const [isNegative, setIsNegative] = useState(false);
   useEffect(() => {
     if (skipAutoBack) return;
     if (cartList?.length === 0 && !hasNavigatedBack) {
@@ -182,7 +183,8 @@ const AddCartScreen = ({ navigation }) => {
     }, 0);
     const miscTotal = miscList.reduce((sum, misc) => {
       const amt = parseFloat(misc?.price) || 0;
-      return sum + amt;
+      return isNegative ? sum - amt : sum + amt;
+      // return sum + amt;
     }, 0);
     const total = subTotal + miscTotal;
     return total.toFixed(2);
@@ -245,7 +247,12 @@ const AddCartScreen = ({ navigation }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -267,7 +274,17 @@ const AddCartScreen = ({ navigation }) => {
 
     return Number(subTotal);
   };
+const getTotalCluster = () => {
+  const clusterMap = cartList?.reduce((acc, item) => {
+    const productId = item?.product_id;
+    if (productId) {
+      acc[productId] = (acc[productId] || 0) + 1;
+    }
+    return acc;
+  }, {});
 
+  return Object.keys(clusterMap || {}).length;
+};
   const onCreateOrder1 = async data => {
     // let validations = [];
 
@@ -463,7 +480,7 @@ const AddCartScreen = ({ navigation }) => {
     );
 
     const payload = {
-      shipping_method: 'Delivery',
+      shipping_method: deliveryType?.name,
       shipping_code: '',
       shipping_type: 'delivery',
       shipping_date: deliveryType?.date,
@@ -486,7 +503,7 @@ const AddCartScreen = ({ navigation }) => {
     if (hasMisc) {
       payload.miscellaneous = miscList;
     }
-
+console.log('Payload for delivery order:',deliveryType?.name);
     setLoader(true);
 
     try {
@@ -584,6 +601,9 @@ const AddCartScreen = ({ navigation }) => {
 
     return total.toFixed(2);
   };
+  const toggleSign = () => {
+    setIsNegative(prev => !prev);
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -639,8 +659,11 @@ const AddCartScreen = ({ navigation }) => {
               </TouchableOpacity>
 
               <View style={styles.tab}>
-                <Text style={styles.groupText}>{getItemCount()} Items,</Text>
-                <Text style={styles.groupText}> {cartList?.length} Groups</Text>
+               <Text style={styles.groupText}>Groups= {cartList?.length}</Text>
+                 <Text style={styles.groupText}> Cluster= {getTotalCluster()}</Text>
+                <Text style={styles.groupText}> Items= {getItemCount()}</Text>
+              
+               
               </View>
             </View>
             <ScrollView
@@ -685,19 +708,61 @@ const AddCartScreen = ({ navigation }) => {
                   </View>
                   <View>
                     <Text style={styles.cashLabel}>AMOUNT</Text>
-                    <View style={styles.cashBox}>
-                      <View style={styles.cashInputRow}>
-                        <Text style={styles.cashSymbol}>£</Text>
-                        <TextInput
-                          style={styles.cashInput1}
-                          placeholder="0.00"
-                          keyboardType="numeric"
-                          placeholderTextColor={'#000'}
-                          value={item.price}
-                          onChangeText={text =>
-                            handleChange(index, 'price', text)
-                          }
-                        />
+                    <View style={[styles.cashBox]}>
+                      <View style={[styles.cashInputRow]}>
+                        <View
+                          style={{
+                            width: 50,
+                            height: 40,
+                          }}
+                        >
+                          <TouchableOpacity
+                            style={[
+                              styles.sidePanel,
+                              { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                            ]}
+                            onPress={toggleSign}
+                          >
+                            <View style={styles.qtyBtnCircle}>
+                              <Text style={styles.qtyBtnText}>
+                                {' '}
+                                {isNegative ? '+' : '-'}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        </View>
+                        <View
+                          style={{
+                            width: 100,
+                            height: 40,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            borderRightWidth: 1,
+                            borderRightColor: '#ddd',
+                            // paddingHorizontal: 6,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <Text style={styles.cashSymbol}>£</Text>
+                          <Text style={styles.cashSymbol}>
+                            {isNegative && (
+                              <Text style={styles.cashSymbol}>-</Text>
+                            )}
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.cashInput1,
+                              { flex: 1, textAlign: 'left', left: -10 },
+                            ]}
+                            placeholder="0.00"
+                            keyboardType="numeric"
+                            placeholderTextColor={'#000'}
+                            value={item.price}
+                            onChangeText={text =>
+                              handleChange(index, 'price', text)
+                            }
+                          />
+                        </View>
                       </View>
                     </View>
                   </View>
@@ -1200,9 +1265,10 @@ const styles = ScaledSheet.create({
   cashInputRow: {
     flexDirection: 'row',
     borderWidth: 1,
+
     borderColor: '#ddd',
     borderRadius: moderateScale(5),
-    paddingHorizontal: moderateScale(5),
+    // paddingHorizontal: moderateScale(5),
     marginVertical: moderateScale(5),
     alignItems: 'center',
   },
@@ -1224,7 +1290,7 @@ const styles = ScaledSheet.create({
   },
   groupText: {
     fontSize: moderateScale(14),
-    fontFamily: FONT.REGULAR,
+    fontFamily: FONT.SEMIBOLD,
     color: Color.BLACK2,
     lineHeight: moderateScale(24),
   },
@@ -1351,6 +1417,29 @@ const styles = ScaledSheet.create({
   totalValue: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  sidePanel: {
+    width: verticalScale(40),
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f2f2f2',
+    borderRightWidth: 1,
+    borderRightColor: '#ddd',
+  },
+  qtyBtnCircle: {
+    height: verticalScale(28),
+    width: verticalScale(28),
+    borderRadius: verticalScale(14),
+    backgroundColor: '#888',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qtyBtnText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    left: -2,
   },
 });
 

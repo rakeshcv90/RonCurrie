@@ -192,7 +192,7 @@ const DeliveryOptionsModal = ({
             {loader ? (
               <Loader visible={loader} />
             ) : (
-              <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+              <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
                 <Text style={styles.title}>Delivery Options</Text>
                 <Text style={styles.subtitle}>
                   Please select the preferred delivery method

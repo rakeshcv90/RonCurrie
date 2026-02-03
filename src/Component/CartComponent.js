@@ -186,7 +186,7 @@ const CartComponent = () => {
           </View>
           <Text style={{ color: 'white', fontSize: 16 }}>
             {Number(getPrice()) < 0
-              ? `- £ ${Math.abs(Number(getPrice())).toFixed(2)}`
+              ? `£ -${Math.abs(Number(getPrice())).toFixed(2)}`
               : `£ ${Number(getPrice()).toFixed(2)}`}
           </Text>
           <View

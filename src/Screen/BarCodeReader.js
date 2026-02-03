@@ -18,7 +18,7 @@ import {
   moderateScale,
   verticalScale,
 } from 'react-native-size-matters';
-import { Color, FONT, IconData } from '../Component/Image';
+import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { usePermissions } from '../Component/usePermissions';
 import {
@@ -198,7 +198,12 @@ const BarCodeReader = ({ navigation }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+        <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>

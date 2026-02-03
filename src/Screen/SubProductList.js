@@ -14,7 +14,7 @@ import {
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import { Color, FONT } from '../Component/Image';
+import { Color, FONT, ImageData } from '../Component/Image';
 import { Api, ImageBaseUrl } from '../utility/api';
 import FastImage from 'react-native-fast-image';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -113,7 +113,12 @@ const SubProductList = ({ route }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+         <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -157,11 +162,12 @@ const SubProductList = ({ route }) => {
               onError={handleError}
             />
           ) : (
-            <Ionicons
-              name="images"
-              size={moderateScale(60)}
-              color={Color.GRAY}
-            />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
           )}
         </View>
 

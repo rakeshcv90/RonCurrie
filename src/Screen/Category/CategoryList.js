@@ -24,7 +24,7 @@ import {
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import { Color, FONT } from '../../Component/Image';
+import { Color, FONT, ImageData } from '../../Component/Image';
 import SearchComponent from '../Component/SearchComponent';
 import RenderHTML from 'react-native-render-html';
 import { decode } from 'html-entities';
@@ -120,7 +120,12 @@ const CategoryList = ({ route, navigation }) => {
             onError={handleError}
           />
         ) : (
-          <Ionicons name="images" size={moderateScale(80)} color={Color.GRAY} />
+          <FastImage
+            style={styles.itemImage}
+            source={ImageData?.NOIMAGE}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={handleError}
+          />
         )}
 
         <View style={styles.itemTextContainer}>
@@ -165,10 +170,11 @@ const CategoryList = ({ route, navigation }) => {
               onError={handleError}
             />
           ) : (
-            <Ionicons
-              name="images"
-              size={moderateScale(60)}
-              color={Color.GRAY}
+            <FastImage
+              style={styles.itemImage}
+              source={ImageData?.NOIMAGE}
+              resizeMode={FastImage.resizeMode.cover}
+              onError={handleError}
             />
           )}
         </View>
@@ -185,7 +191,6 @@ const CategoryList = ({ route, navigation }) => {
     );
   };
   const renderItem2 = ({ item }) => {
-  
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 
     const handleError = () => {
@@ -215,10 +220,11 @@ const CategoryList = ({ route, navigation }) => {
               onError={handleError}
             />
           ) : (
-            <Ionicons
-              name="images"
-              size={moderateScale(60)}
-              color={Color.GRAY}
+            <FastImage
+              style={styles.itemImage}
+              source={ImageData?.NOIMAGE}
+              resizeMode={FastImage.resizeMode.cover}
+              onError={handleError}
             />
           )}
         </View>
@@ -238,7 +244,7 @@ const CategoryList = ({ route, navigation }) => {
             numberOfLines={2} // 👈 breaks into next line
             ellipsizeMode="tail" // 👈 ...
           >
-           {item?.has_option === 1 && "From"} £ {Number(item.price).toFixed(2)}
+            {item?.has_option === 1 && 'From'} £ {Number(item.price).toFixed(2)}
           </Text>
         </View>
       </TouchableOpacity>
