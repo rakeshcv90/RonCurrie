@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import React, { useCallback, useState } from 'react';
+import React, { memo, useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Loader from '../Component/Loader';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -42,6 +42,7 @@ const OrderHistory = ({ navigation }) => {
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
+
   const loadData = async (pageNumber = 1, searchTerm = '') => {
     try {
       await dispatch(
@@ -136,10 +137,10 @@ const OrderHistory = ({ navigation }) => {
     }
   };
 
-  const handleItemPress = item => {
+  const handleItemPress = useCallback(item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
-  };
+  }, []);
 
   const decodeHtml = text => {
     if (!text) return '';
@@ -198,6 +199,17 @@ const OrderHistory = ({ navigation }) => {
       </TouchableOpacity>
     );
   };
+
+  const formatDate = useCallback(date => {
+    if (!date) return '';
+
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice();
+
+    return `${day}/${month}/${year}`;
+  }, []);
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -288,7 +300,7 @@ const OrderHistory = ({ navigation }) => {
 
                   contentContainerStyle={{
                     paddingBottom: moderateScale(
-                      orderList?.length > 15 ? 120 : 0,
+                      orderList?.length > 15 ? 120 : 180,
                     ),
                   }}
                   keyExtractor={(item, index) => `${item.id}_${index}`}
@@ -315,7 +327,9 @@ const OrderHistory = ({ navigation }) => {
                         <Text style={styles.customer}>{item.name}</Text>
                       </View>
                       <View style={[styles.cell, styles.dateColumn]}>
-                        <Text style={styles.date}>{item.date_added}</Text>
+                        <Text style={styles.date}>
+                          {formatDate(item.date_added)} {}
+                        </Text>
                       </View>
                       <TouchableOpacity
                         style={[styles.cell, styles.reorderColumn]}
@@ -344,17 +358,15 @@ const OrderHistory = ({ navigation }) => {
               </View>
             </View>
           ) : (
-            <View style={styles.emptyContainer}>
-              {Platform.OS == 'android' ? (
-                <FastImage
-                  source={ImageData.NoData}
-                  style={{ width: 200, height: 200 }}
-                  resizeMode={FastImage.resizeMode.contain}
-                />
+            <>
+              {loading ? (
+                <Loader visible={loading} />
               ) : (
-                <Text style={styles.emptyText}>No items available</Text>
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No items available</Text>
+                </View>
               )}
-            </View>
+            </>
           )}
 
           {orderList?.length <= 0 ||
@@ -497,8 +509,9 @@ const styles = ScaledSheet.create({
     height: 350, // or whatever height you prefer
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 20,
     color: '#666',
+    fontFamily: FONT.SEMIBOLD,
     textAlign: 'center',
   },
   itemRow: {

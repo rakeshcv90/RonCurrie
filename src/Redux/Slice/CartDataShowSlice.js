@@ -53,6 +53,6 @@ const CartDataShowSlice = createSlice({
   },
 });
 
-export const { clearcartProducts, triggerCartRefresh,setSkipAutoBack } =
+export const { clearcartProducts, triggerCartRefresh, setSkipAutoBack } =
   CartDataShowSlice.actions;
 export default CartDataShowSlice.reducer;

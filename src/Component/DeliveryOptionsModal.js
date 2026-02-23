@@ -186,14 +186,25 @@ const DeliveryOptionsModal = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback>
         <View style={styles.overlay}>
           <View style={styles.bottomModal}>
             {loader ? (
               <Loader visible={loader} />
             ) : (
-              <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-                <Text style={styles.title}>Delivery Options</Text>
+              <ScrollView
+                contentContainerStyle={{ paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* <Text style={styles.title}>Delivery Options</Text> */}
+
+                <View style={styles.headerRow}>
+                  <Text style={styles.title}>Delivery Options</Text>
+
+                  <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                    <Ionicons name="close" size={24} color="#b20000" />
+                  </TouchableOpacity>
+                </View>
                 <Text style={styles.subtitle}>
                   Please select the preferred delivery method
                 </Text>
@@ -509,6 +520,16 @@ const styles = ScaledSheet.create({
     fontSize: 14,
     color: '#222',
   },
+  headerRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '5@ms',
+},
+
+closeBtn: {
+  padding: 5,
+},
 });
 
 export default DeliveryOptionsModal;

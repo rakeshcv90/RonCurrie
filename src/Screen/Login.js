@@ -10,7 +10,11 @@ import {
   ScrollView,
   Keyboard,
 } from 'react-native';
-import { moderateScale, ScaledSheet, verticalScale } from 'react-native-size-matters';
+import {
+  moderateScale,
+  ScaledSheet,
+  verticalScale,
+} from 'react-native-size-matters';
 import React, { useState } from 'react';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -147,7 +151,7 @@ const Login = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -190,7 +194,7 @@ const Login = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                  height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -201,6 +205,12 @@ const Login = ({ navigation }) => {
                   secureTextEntry={secureText}
                   value={password}
                   onChangeText={setPassword}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                  onSubmitEditing={() => {
+                    Keyboard.dismiss();
+                    loginFunction();
+                  }}
                 />
                 <TouchableOpacity onPress={() => setSecureText(!secureText)}>
                   <Ionicons

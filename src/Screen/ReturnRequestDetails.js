@@ -9,8 +9,8 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScaledSheet, moderateScale } from 'react-native-size-matters';
-import { Color, IconData, ImageData } from '../Component/Image';
+import { ScaledSheet, moderateScale, verticalScale } from 'react-native-size-matters';
+import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
 
@@ -70,18 +70,22 @@ const ReturnRequestDetails = ({ navigation, route }) => {
     return `${day}/${month}/${year}`;
   };
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+const decodeHtml = text => {
+  if (!text) return '';
+
+  return text
+    // remove HTML tags like <p>, <div>, etc.
+    .replace(/<\/?[^>]+(>|$)/g, '')
+    // decode entities
+    .replace(/&quot;/g, '')
+    .replace(/&apos;/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    // optional cleanup
+    .replace(/["']/g, '')
+    .trim();
+};
 
   const handleItemPress = item => {
     dispatch(clearProducts());
@@ -133,6 +137,8 @@ const ReturnRequestDetails = ({ navigation, route }) => {
       </TouchableOpacity>
     );
   };
+
+  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -261,7 +267,7 @@ const ReturnRequestDetails = ({ navigation, route }) => {
 
           <View style={styles.tableHeader}>
             <Text style={[styles.headerText, { flex: 1 }]}>Date Added</Text>
-            <Text style={[styles.headerText, { flex: 1 }]}>Order Status</Text>
+            <Text style={[styles.headerText, { flex: 1 }]}>Status</Text>
             <Text style={[styles.headerText, { flex: 1 }]}>Comment</Text>
           </View>
 
@@ -273,13 +279,14 @@ const ReturnRequestDetails = ({ navigation, route }) => {
                     <Text style={[styles.value, { flex: 1 }]}>
                       {formatDate(item?.date_added) || '-'}
                     </Text>
-
+{console.log("Order ",item)}
                     <Text style={[styles.value, { flex: 1 }]}>
-                      {item?.status}
+                      {item?.return_status?.name}
                     </Text>
 
                     <Text style={[styles.value, { flex: 1 }]}>
-                      {item?.comment || '-'}
+                      {/* {item?.comment || '-'} */}
+                     { decodeHtml(item?.comment)||'-' }
                     </Text>
                   </View>
                 ))
@@ -292,17 +299,25 @@ const ReturnRequestDetails = ({ navigation, route }) => {
             onPress={() => navigation.replace('AccountProfile')}
             style={{
               marginBottom: 20,
-              width: 100,
+              width: verticalScale(120),
               justifyContent: 'center',
               alignItems: 'center',
-              height: 40,
+              height: verticalScale(35),
               alignSelf: 'flex-end',
               backgroundColor: Color.RED,
               borderRadius: 5,
               padding: 10,
             }}
           >
-            <Text style={{ color: '#fff' }}>Continue</Text>
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: moderateScale(16),
+                fontFamily: FONT.SEMIBOLD,
+              }}
+            >
+              Continue
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       )}

@@ -13,7 +13,7 @@ import {
   Keyboard,
   Alert,
 } from 'react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   moderateScale,
   scale,
@@ -24,10 +24,9 @@ import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useDispatch, useSelector } from 'react-redux';
-import { MMKVStorage } from '../utility/MmkvStore';
-// import { fetchCartData } from '../Redux/Slice/CartDataShowSlice';
+
 import { Api, ImageBaseUrl } from '../utility/api';
-import { deleteData, getData, postData, putData } from '../utility/ApiCall';
+import { getData, postData } from '../utility/ApiCall';
 import { showToast } from '../utility/showToast';
 import CartComponent from '../Component/CartComponent';
 import RenderItem from '../Component/RenderItem';
@@ -40,7 +39,8 @@ import { setSkipAutoBack } from '../Redux/Slice/CartDataShowSlice';
 import { Dropdown } from 'react-native-element-dropdown';
 import DeliveryOptionsModal from '../Component/DeliveryOptionsModal';
 import { fetchA4PrintDetails } from '../Redux/Slice/A4PrintSlice';
-
+import { Dimensions } from 'react-native';
+const windowHeight = Dimensions.get('window').height;
 const AddCartScreen = ({ navigation }) => {
   const [loader, setLoader] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -54,7 +54,10 @@ const AddCartScreen = ({ navigation }) => {
   const { cartList, loading, error, refreshKey, skipAutoBack } = useSelector(
     state => state.cartListData,
   );
-  const [miscList, setMiscList] = useState([{ description: '', price: '' }]);
+  const [miscList, setMiscList] = useState([
+    { id: Date.now(), description: '', price: '', isNegative: false },
+  ]);
+
   const [selectedTab, setSelectedTab] = useState('Collect From Store');
   const [hasNavigatedBack, setHasNavigatedBack] = useState(false);
   const [addressData, setAddressData] = useState([]);
@@ -64,7 +67,7 @@ const AddCartScreen = ({ navigation }) => {
   const [isFocus, setIsFocus] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [deliveryType, setDeliveryType] = useState(null);
-  const [isNegative, setIsNegative] = useState(false);
+
   useEffect(() => {
     if (skipAutoBack) return;
     if (cartList?.length === 0 && !hasNavigatedBack) {
@@ -75,15 +78,133 @@ const AddCartScreen = ({ navigation }) => {
     }
   }, [cartList, navigation]);
   const handleAddMisc = () => {
-    setMiscList([...miscList, { description: '', price: '' }]);
+    setMiscList(prev => [
+      ...prev,
+      {
+        id: Date.now() + Math.random(), // UNIQUE KEY (important!)
+        description: '',
+        price: '',
+        isNegative: false, // always default
+      },
+    ]);
   };
 
-  const handleChange = (index, field, value) => {
-    const updatedList = [...miscList];
-    updatedList[index][field] = value;
-    setMiscList(updatedList);
+  const handleChange = (id, field, value) => {
+    setMiscList(prev =>
+      prev.map(item => (item.id === id ? { ...item, [field]: value } : item)),
+    );
   };
-  const calculateMatrixPrice = item => {
+
+  // const getTotalPrice = () => {
+  //   if (!cartList || cartList.length === 0) return '0.00';
+  //   const subTotal = cartList?.reduce((sum, item) => {
+  //     const price = calculateMatrixPrice(item);
+
+  //     // If mode is 1 or 2, subtract price; otherwise, add
+  //     if (item.mode === 1 || item.mode === 2) {
+  //       return sum - price;
+  //     } else {
+  //       return sum + price;
+  //     }
+  //   }, 0);
+  //   const miscTotal = miscList.reduce((sum, misc) => {
+  //     const amt = parseFloat(misc?.price) || 0;
+
+  //     return misc.isNegative ? sum - amt : sum + amt;
+  //   }, 0);
+
+  //   const total = subTotal + miscTotal;
+  //   return total.toFixed(2);
+  // };
+
+  //   const calculateMatrixPrice = item => {
+  //   const { matrix, additional_option, cart_quantity, cart_id } = item;
+  //   const additionalOptionArray = JSON.parse(additional_option || '[]');
+
+  //   if (!matrix || matrix?.length === 0) {
+  //     let customOptionPrice = 0;
+  //     let parsedOption;
+
+  //     try {
+  //       parsedOption = JSON.parse(additional_option || '[]');
+  //     } catch {
+  //       parsedOption = [];
+  //     }
+
+  //     // Case 1: parsedOption is object(custome length)
+  //     if (
+  //       parsedOption &&
+  //       !Array.isArray(parsedOption) &&
+  //       Object.keys(parsedOption).length > 0
+  //     ) {
+  //       const firstValue = Object.values(parsedOption)[0];
+  //       if (typeof firstValue === 'string' && firstValue?.includes('#')) {
+  //         const parts = firstValue?.split('#');
+
+  //         const middleValue = firstValue.split('#')[2];
+  //         const secondValue = firstValue.split('#')[1];
+  //         const totalPriceNumber =
+  //           (Number(secondValue) || 0) *
+  //           (Number(item?.options?.[0]?.bespoke_factor_val) || 0) *
+  //           (Number(item?.cart_quantity) || 0);
+
+  //         customOptionPrice = totalPriceNumber || 0;
+  //       } else {
+  //         const price = item?.options?.[0]?.values?.[0]?.price;
+
+  //         customOptionPrice = Number(price) * cart_quantity || 0;
+  //       }
+  //     }
+  //     // Case 2: parsedOption is array (like [])
+  //     else if (Array.isArray(parsedOption) && parsedOption?.length === 0) {
+  //       customOptionPrice = Number(item?.price) * cart_quantity || 0;
+  //     }
+
+  //     return customOptionPrice;
+  //   }
+
+  //   let optionData = {};
+  //   try {
+  //     optionData = JSON.parse(additional_option);
+  //   } catch (e) {
+  //     parsedOption = [];
+  //     // return Number(item.price) * (cart_quantity || 1);
+  //   }
+
+  //   const values = Object.values(optionData)
+  //     .map(Number)
+  //     .filter(v => !isNaN(v));
+
+  //   const [width, height] = values.map(v => Math.floor(parseFloat(v)));
+
+  //   let matched = matrix.find(m => m.width === width && m.height === height);
+
+  //   if (!matched) {
+  //     const largerMatches = matrix.filter(
+  //       m => m.width >= width && m.height >= height,
+  //     );
+
+  //     if (largerMatches.length > 0) {
+  //       matched = largerMatches.sort(
+  //         (a, b) =>
+  //           a.width -
+  //           width +
+  //           (a.height - height) -
+  //           (b.width - width + (b.height - height)),
+  //       )[0];
+  //     } else {
+  //       matched = matrix.sort(
+  //         (a, b) => b.width - a.width || b.height - a.height,
+  //       )[0];
+  //     }
+  //   }
+
+  //   const matrixPrice = Number(matched?.price || 0);
+
+  //   return matrixPrice * (cart_quantity || 1);
+  // };
+
+  const calculateMatrixPrice = useCallback(item => {
     const { matrix, additional_option, cart_quantity, cart_id } = item;
     const additionalOptionArray = JSON.parse(additional_option || '[]');
 
@@ -118,7 +239,11 @@ const AddCartScreen = ({ navigation }) => {
         } else {
           const price = item?.options?.[0]?.values?.[0]?.price;
 
-          customOptionPrice = Number(price) * cart_quantity || 0;
+          const basePrice = item?.price;
+
+          const finalPrice = price > 0 ? price : basePrice;
+
+          customOptionPrice = Number(finalPrice) * cart_quantity || 0;
         }
       }
       // Case 2: parsedOption is array (like [])
@@ -141,7 +266,7 @@ const AddCartScreen = ({ navigation }) => {
       .map(Number)
       .filter(v => !isNaN(v));
 
-    const [width, height] = values;
+    const [width, height] = values.map(v => Math.floor(parseFloat(v)));
 
     let matched = matrix.find(m => m.width === width && m.height === height);
 
@@ -168,35 +293,26 @@ const AddCartScreen = ({ navigation }) => {
     const matrixPrice = Number(matched?.price || 0);
 
     return matrixPrice * (cart_quantity || 1);
-  };
-  const getTotalPrice = () => {
-    if (!cartList || cartList.length === 0) return '0.00';
-    const subTotal = cartList?.reduce((sum, item) => {
+  }, []);
+
+  const totalPrice = useMemo(() => {
+    if (!cartList?.length) return '0.00';
+
+    const subTotal = cartList.reduce((sum, item) => {
       const price = calculateMatrixPrice(item);
-
-      // If mode is 1 or 2, subtract price; otherwise, add
-      if (item.mode === 1 || item.mode === 2) {
-        return sum - price;
-      } else {
-        return sum + price;
-      }
+      return item.mode === 1 || item.mode === 2 ? sum - price : sum + price;
     }, 0);
+
     const miscTotal = miscList.reduce((sum, misc) => {
-      const amt = parseFloat(misc?.price) || 0;
-      return isNegative ? sum - amt : sum + amt;
-      // return sum + amt;
+      const amt = parseFloat(misc.price) || 0;
+      return misc.isNegative ? sum - amt : sum + amt;
     }, 0);
-    const total = subTotal + miscTotal;
-    return total.toFixed(2);
-    // return Math.round(parseFloat(total || 0)).toFixed(2);
-  };
-  const handleDeleteMisc = index => {
-    if (miscList.length === 1) {
-      return;
-    }
 
-    const updatedList = miscList.filter((_, i) => i !== index);
-    setMiscList(updatedList);
+    return (subTotal + miscTotal).toFixed(2);
+  }, [cartList, miscList]);
+
+  const handleDeleteMisc = id => {
+    setMiscList(prev => prev.filter(item => item.id !== id));
   };
   useEffect(() => {
     if (cartList?.length === 0) {
@@ -221,51 +337,97 @@ const AddCartScreen = ({ navigation }) => {
       .replace(/[^a-zA-Z0-9\s.,-]/g, '')
       .trim();
   };
-  const renderItem = ({ item }) => {
-    const imageUrl = item?.image ? ImageBaseUrl + item?.image : null;
+  // const renderItem = ({ item }) => {
+  //   const imageUrl = item?.image ? ImageBaseUrl + item?.image : null;
 
-    const handleError = () => {
-      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
-    };
+  //   const handleError = () => {
+  //     setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+  //   };
 
-    const hasError = imageErrorMap[item.id] || false;
+  //   const hasError = imageErrorMap[item.id] || false;
 
-    return (
-      <TouchableOpacity
-        style={styles.itemRow}
-        onPress={() => handleItemPress(item)}
-      >
-        {imageUrl && !hasError ? (
-          <FastImage
-            style={styles.itemImage}
-            source={{
-              uri: imageUrl,
+  //   return (
+  //     <TouchableOpacity
+  //       style={styles.itemRow}
+  //       onPress={() => handleItemPress(item)}
+  //     >
+  //       {imageUrl && !hasError ? (
+  //         <FastImage
+  //           style={styles.itemImage}
+  //           source={{
+  //             uri: imageUrl,
+  //             priority: FastImage.priority.high,
+  //             cache: FastImage.cacheControl.immutable,
+  //           }}
+  //           resizeMode={FastImage.resizeMode.cover}
+  //           onError={handleError}
+  //         />
+  //       ) : (
+  //         <FastImage
+  //           style={styles.itemImage}
+  //           source={ImageData?.NOIMAGE}
+  //           resizeMode={FastImage.resizeMode.cover}
+  //           onError={handleError}
+  //         />
+  //       )}
+
+  //       <View style={styles.itemTextContainer}>
+  //         <Text style={styles.itemName}>
+  //           {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+  //         </Text>
+  //         <Text style={styles.itemPrice}>
+  //           £ {Number(item.price).toFixed(2)}
+  //         </Text>
+  //       </View>
+  //     </TouchableOpacity>
+  //   );
+  // };
+
+  const handleImageError = useCallback(id => {
+    setImageErrorMap(prev => {
+      if (prev[id]) return prev; // prevent unnecessary state update
+      return { ...prev, [id]: true };
+    });
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }) => {
+      const hasError = imageErrorMap[item.id];
+      const imageSource =
+        item?.image && !hasError
+          ? {
+              uri: ImageBaseUrl + item.image,
               priority: FastImage.priority.high,
               cache: FastImage.cacheControl.immutable,
-            }}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
-        ) : (
+            }
+          : ImageData.NOIMAGE;
+
+      return (
+        <TouchableOpacity
+          style={styles.itemRow}
+          onPress={() => handleItemPress(item)}
+        >
           <FastImage
             style={styles.itemImage}
-            source={ImageData?.NOIMAGE}
+            source={imageSource}
             resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
+            onError={() => handleImageError(item.id)}
           />
-        )}
 
-        <View style={styles.itemTextContainer}>
-          <Text style={styles.itemName}>
-            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
-          </Text>
-          <Text style={styles.itemPrice}>
-            £ {Number(item.price).toFixed(2)}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+          <View style={styles.itemTextContainer}>
+            <Text style={styles.itemName}>
+              {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+            </Text>
+            <Text style={styles.itemPrice}>
+              £ {Number(item.price).toFixed(2)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+    },
+    [imageErrorMap, handleImageError, handleItemPress],
+  );
+
   const getItemCount = () => {
     const subTotal = cartList?.reduce(
       (sum, item) => sum + item?.cart_quantity,
@@ -274,63 +436,28 @@ const AddCartScreen = ({ navigation }) => {
 
     return Number(subTotal);
   };
-const getTotalCluster = () => {
-  const clusterMap = cartList?.reduce((acc, item) => {
-    const productId = item?.product_id;
-    if (productId) {
-      acc[productId] = (acc[productId] || 0) + 1;
-    }
-    return acc;
-  }, {});
+  const getTotalCluster = () => {
+    const clusterMap = cartList?.reduce((acc, item) => {
+      const productId = item?.product_id;
+      if (productId) {
+        acc[productId] = (acc[productId] || 0) + 1;
+      }
+      return acc;
+    }, {});
 
-  return Object.keys(clusterMap || {}).length;
-};
+    return Object.keys(clusterMap || {}).length;
+  };
   const onCreateOrder1 = async data => {
-    // let validations = [];
-
-    // validations = [
-    //   { field: 'customerName', message: 'Please enter customer name' },
-
-    //   { field: 'carDetails', message: 'Please enter car details' },
-    // ];
-
-    // const formData = {
-    //   customerName: customerName.trim(),
-
-    //   carDetails: carDetails.trim(),
-    // };
-
-    // for (let i = 0; i < validations.length; i++) {
-    //   const { field, message } = validations[i];
-
-    //   if (!formData[field]) {
-    //     Alert.alert('Validation Error', message);
-    //     return;
-    //   }
-    //   if (field === 'phone') {
-    //     if (formData.phone.length < 10) {
-    //       Alert.alert(
-    //         'Validation Error',
-    //         'Phone number must be at least 10 digits.',
-    //       );
-    //       return;
-    //     } else if (formData.phone.length > 15) {
-    //       Alert.alert(
-    //         'Validation Error',
-    //         'Phone number cannot be more than 15 digits.',
-    //       );
-    //       return;
-    //     }
-    //   }
-    // }
     const hasInvalidMisc = miscList?.some(item => {
-      const hasDescription = item.description?.trim() !== '';
-      const hasPrice =
-        item.price !== null &&
-        item.price !== undefined &&
-        item.price.toString().trim() !== '';
+      const hasDescription =
+        typeof item.description === 'string' &&
+        item.description.trim().length > 0;
 
-      // ❌ One filled, the other missing
+      const hasPrice =
+        item?.price !== null &&
+        item?.price !== undefined &&
+        item?.price.toString().trim() !== '';
+
       return (hasDescription && !hasPrice) || (!hasDescription && hasPrice);
     });
 
@@ -341,10 +468,18 @@ const getTotalCluster = () => {
       );
       return;
     }
-    const hasMisc = miscList?.some(
-      item =>
-        item.description?.trim() !== '' || item.price?.toString().trim() !== '',
-    );
+    const hasMisc = miscList.some(item => {
+      const hasDescription =
+        typeof item.description === 'string' &&
+        item.description.trim().length > 0;
+
+      const hasPrice =
+        item.price !== null &&
+        item.price !== undefined &&
+        item.price.toString().trim() !== '';
+
+      return hasDescription || hasPrice;
+    });
 
     const payload = {
       shipping_method: 'Collection',
@@ -360,7 +495,29 @@ const getTotalCluster = () => {
     };
 
     if (hasMisc) {
-      payload.miscellaneous = miscList;
+      payload.miscellaneous = miscList
+        // keep only valid rows
+        .filter(item => {
+          const hasDescription =
+            typeof item.description === 'string' &&
+            item.description.trim() !== '';
+
+          const hasPrice =
+            item.price !== null &&
+            item.price !== undefined &&
+            item.price.toString().trim() !== '';
+
+          return hasDescription && hasPrice;
+        })
+        // map to API format
+        .map(item => {
+          const amount = Math.abs(Number(item.price) || 0);
+
+          return {
+            description: item.description.trim(),
+            price: item.isNegative ? -amount : amount,
+          };
+        });
     }
 
     setLoader(true);
@@ -384,7 +541,7 @@ const getTotalCluster = () => {
       } else {
       }
     } catch (error) {
-      console.error('Error adding to basket:', error);
+      console.log('Error adding to basket:', error?.response);
       showToast('danger', 'Error', error.message || 'Something went wrong.');
     } finally {
       setLoader(false);
@@ -425,7 +582,10 @@ const getTotalCluster = () => {
       { field: 'phone', message: 'Please enter your phone number' },
     ];
     const hasInvalidMisc = miscList?.some(item => {
-      const hasDescription = item.description?.trim() !== '';
+      const hasDescription =
+        typeof item.description === 'string' &&
+        item.description.trim().length > 0;
+
       const hasPrice =
         item.price !== null &&
         item.price !== undefined &&
@@ -474,10 +634,17 @@ const getTotalCluster = () => {
       }
     }
 
-    const hasMisc = miscList?.some(
-      item =>
-        item.description?.trim() !== '' || item.price?.toString().trim() !== '',
-    );
+    const hasMisc = miscList?.some(item => {
+      const hasDescription =
+        typeof item.description === 'string' && item.description.trim() !== '';
+
+      const hasPrice =
+        item.price !== null &&
+        item.price !== undefined &&
+        item.price.toString().trim() !== '';
+
+      return hasDescription || hasPrice;
+    });
 
     const payload = {
       shipping_method: deliveryType?.name,
@@ -501,9 +668,29 @@ const getTotalCluster = () => {
     };
 
     if (hasMisc) {
-      payload.miscellaneous = miscList;
+      payload.miscellaneous = miscList
+        .filter(item => {
+          const hasDescription =
+            typeof item.description === 'string' &&
+            item.description.trim() !== '';
+
+          const hasPrice =
+            item.price !== null &&
+            item.price !== undefined &&
+            item.price.toString().trim() !== '';
+
+          return hasDescription || hasPrice;
+        })
+        .map(item => {
+          const amount = Math.abs(Number(item.price) || 0);
+
+          return {
+            description: item.description.trim(),
+            price: item.isNegative ? -amount : amount,
+          };
+        });
     }
-console.log('Payload for delivery order:',deliveryType?.name);
+
     setLoader(true);
 
     try {
@@ -601,9 +788,17 @@ console.log('Payload for delivery order:',deliveryType?.name);
 
     return total.toFixed(2);
   };
-  const toggleSign = () => {
-    setIsNegative(prev => !prev);
+
+  const toggleSign = id => {
+    setMiscList(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, isNegative: !item.isNegative } : item,
+      ),
+    );
   };
+  useEffect(() => {
+    setDeliveryType(null);
+  }, [cartList]);
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -659,11 +854,12 @@ console.log('Payload for delivery order:',deliveryType?.name);
               </TouchableOpacity>
 
               <View style={styles.tab}>
-               <Text style={styles.groupText}>Groups= {cartList?.length}</Text>
-                 <Text style={styles.groupText}> Cluster= {getTotalCluster()}</Text>
+                <Text style={styles.groupText}>Groups= {cartList?.length}</Text>
+                <Text style={styles.groupText}>
+                  {' '}
+                  Cluster= {getTotalCluster()}
+                </Text>
                 <Text style={styles.groupText}> Items= {getItemCount()}</Text>
-              
-               
               </View>
             </View>
             <ScrollView
@@ -681,7 +877,7 @@ console.log('Payload for delivery order:',deliveryType?.name);
 
               {miscList?.map((item, index) => (
                 <View
-                  key={index}
+                  key={item.id}
                   style={{
                     flexDirection: 'row',
                     justifyContent: 'center',
@@ -693,14 +889,22 @@ console.log('Payload for delivery order:',deliveryType?.name);
                   <View style={{ flex: 1 }}>
                     <Text style={styles.totalLabel}>TITLE</Text>
 
-                    <View style={styles.cashInputRow}>
+                    <View
+                      style={[
+                        styles.cashInputRow,
+                        {
+                          height: windowHeight >= 900 ? verticalScale(35) : 45,
+                          paddingHorizontal: 10,
+                        },
+                      ]}
+                    >
                       <TextInput
                         style={styles.cashInput1}
                         placeholder="Enter title"
                         placeholderTextColor={'#000'}
                         value={item.description}
                         onChangeText={text =>
-                          handleChange(index, 'description', text)
+                          handleChange(item.id, 'description', text)
                         }
                       />
                       {/* </View> */}
@@ -712,8 +916,8 @@ console.log('Payload for delivery order:',deliveryType?.name);
                       <View style={[styles.cashInputRow]}>
                         <View
                           style={{
-                            width: 50,
-                            height: 40,
+                            width: verticalScale(45),
+                            height: verticalScale(35),
                           }}
                         >
                           <TouchableOpacity
@@ -721,20 +925,19 @@ console.log('Payload for delivery order:',deliveryType?.name);
                               styles.sidePanel,
                               { borderLeftWidth: 1, borderLeftColor: '#ddd' },
                             ]}
-                            onPress={toggleSign}
+                            onPress={() => toggleSign(item.id)}
                           >
                             <View style={styles.qtyBtnCircle}>
                               <Text style={styles.qtyBtnText}>
-                                {' '}
-                                {isNegative ? '+' : '-'}
+                                {item.isNegative ? '+' : '-'}
                               </Text>
                             </View>
                           </TouchableOpacity>
                         </View>
                         <View
                           style={{
-                            width: 100,
-                            height: 40,
+                            width: verticalScale(80),
+                            height: windowHeight >= 1100 ? 45 : 45,
                             flexDirection: 'row',
                             alignItems: 'center',
                             borderRightWidth: 1,
@@ -745,21 +948,21 @@ console.log('Payload for delivery order:',deliveryType?.name);
                         >
                           <Text style={styles.cashSymbol}>£</Text>
                           <Text style={styles.cashSymbol}>
-                            {isNegative && (
+                            {item.isNegative && (
                               <Text style={styles.cashSymbol}>-</Text>
                             )}
                           </Text>
                           <TextInput
                             style={[
                               styles.cashInput1,
-                              { flex: 1, textAlign: 'left', left: -10 },
+                              { flex: 1, textAlign: 'left', left: -5 },
                             ]}
                             placeholder="0.00"
                             keyboardType="numeric"
                             placeholderTextColor={'#000'}
                             value={item.price}
                             onChangeText={text =>
-                              handleChange(index, 'price', text)
+                              handleChange(item.id, 'price', text)
                             }
                           />
                         </View>
@@ -768,7 +971,7 @@ console.log('Payload for delivery order:',deliveryType?.name);
                   </View>
                   <TouchableOpacity
                     style={{ marginTop: moderateScale(20), zIndex: 10 }}
-                    onPress={() => handleDeleteMisc(index)}
+                    onPress={() => handleDeleteMisc(item.id)}
                   >
                     <Ionicons name="trash-outline" size={20} color="gray" />
                   </TouchableOpacity>
@@ -940,7 +1143,7 @@ console.log('Payload for delivery order:',deliveryType?.name);
                                   lineHeight: 24,
                                 }}
                               >
-                                £{getTotalPrice()}
+                                £{totalPrice}
                               </Text>
                             </View>
                             <View
@@ -1021,7 +1224,7 @@ console.log('Payload for delivery order:',deliveryType?.name);
                           <View style={styles.totalContainer}>
                             <Text style={styles.totalLabel}>TOTAL</Text>
                             <Text style={styles.totalValue}>
-                              £{getTotal(getTotalPrice(), deliveryType?.price)}
+                              £{getTotal(totalPrice, deliveryType?.price)}
                             </Text>
                           </View>
 
@@ -1079,13 +1282,13 @@ console.log('Payload for delivery order:',deliveryType?.name);
                       onChangeText={setCustomerName}
                     />
 
-                    <Text style={styles.label}>CAR DETAILS</Text>
+                    {/* <Text style={styles.label}>CAR DETAILS</Text>
                     <TextInput
                       style={styles.input2}
                       placeholder="Enter car details"
                       value={carDetails}
                       onChangeText={setCarDetails}
-                    />
+                    /> */}
 
                     <>
                       <View
@@ -1123,7 +1326,7 @@ console.log('Payload for delivery order:',deliveryType?.name);
                               lineHeight: 24,
                             }}
                           >
-                            £{getTotalPrice()}
+                            £{totalPrice}
                           </Text>
                         </View>
                       </View>
@@ -1419,7 +1622,7 @@ const styles = ScaledSheet.create({
     fontWeight: 'bold',
   },
   sidePanel: {
-    width: verticalScale(40),
+    width: verticalScale(35),
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1439,7 +1642,7 @@ const styles = ScaledSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-    left: -2,
+    top: -1,
   },
 });
 

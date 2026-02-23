@@ -9,9 +9,10 @@ export const fetchProductsList = createAsyncThunk(
     try {
       // Append payload in URL
       const response = await getData(`${Api.EPOS_PRODUCTLIST_PAGE}?name=${payload}`);
-
+ 
       return response?.data;
     } catch (error) {
+     
       return rejectWithValue(error);
     }
   },

@@ -7,7 +7,7 @@ import {
   ScrollView,
   FlatList,
 } from 'react-native';
-import React, { useCallback, useState } from 'react';
+import React, { memo, useCallback, useState } from 'react';
 import {
   moderateScale,
   ScaledSheet,
@@ -32,6 +32,7 @@ import DownloadPdf from './DownloadPdf';
 import ReturnModel from '../Component/ReturnModel';
 import CartComponent from '../Component/CartComponent';
 import SearchComponent from './Component/SearchComponent';
+import FastImage from 'react-native-fast-image';
 
 const OrderHistoryDetails = ({ navigation, route }) => {
   const order_id = route?.params?.orderItem;
@@ -143,13 +144,16 @@ const OrderHistoryDetails = ({ navigation, route }) => {
     if (allEmpty) return '--------';
 
     // Format actual address
-    return `${firstname} ${lastname}, ${company},${address_1} ${address_2}, ${city} ${postcode}, ${zone} ${country}`;
+    return `${firstname} ${lastname} ${company} ${address_1} ${address_2} ${city} ${postcode} ${zone} ${country}`;
   };
 
-  const handleItemPress = item => {
+const handleItemPress = useCallback(
+  item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
-  };
+  },
+  [],
+);
 
   const decodeHtml = text => {
     if (!text) return '';

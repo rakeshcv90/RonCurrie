@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScaledSheet, moderateScale } from 'react-native-size-matters';
+import { ScaledSheet, moderateScale, verticalScale } from 'react-native-size-matters';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
@@ -36,7 +36,7 @@ const ProductReturns = ({ navigation }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
   const [lastFetched, setLastFetched] = useState(null);
-  console.log('returnOrderList', returnOrderList);
+
 
   const loadData = async (pageNumber = 1) => {
     try {
@@ -313,24 +313,18 @@ const ProductReturns = ({ navigation }) => {
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              {Platform.OS == 'android' ? (
-                <FastImage
-                  source={ImageData.NoData}
-                  style={{ width: 200, height: 200 }}
-                  resizeMode={FastImage.resizeMode.contain}
-                />
-              ) : (
+         
                 <Text style={styles.emptyText}>No items available</Text>
-              )}
+              
             </View>
           )}
           <TouchableOpacity
             onPress={() => navigation.replace('AccountProfile')}
             style={{
-              width: 100,
+              width:verticalScale(120),
               justifyContent: 'center',
               alignItems: 'center',
-              height: 40,
+              height: verticalScale(35),
               position: 'absolute',
               bottom: moderateScale(20),
               right: moderateScale(20),
@@ -338,7 +332,7 @@ const ProductReturns = ({ navigation }) => {
               borderRadius: 5,
             }}
           >
-            <Text style={{ color: '#fff' }}>Continue</Text>
+            <Text style={{ color: '#fff', fontSize: moderateScale(16) ,fontFamily: FONT.SEMIBOLD}}>Continue</Text>
           </TouchableOpacity>
         </>
       )}
@@ -498,8 +492,9 @@ const styles = ScaledSheet.create({
     height: 350, // or whatever height you prefer
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 20,
     color: '#666',
+    fontFamily: FONT.SEMIBOLD,
     textAlign: 'center',
   },
 

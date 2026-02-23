@@ -120,7 +120,7 @@ const RenderItem = ({ item, navigation }) => {
       .map(Number)
       .filter(v => !isNaN(v));
 
-    const [width, height] = values;
+    const [width, height] = values.map(v => Math.floor(parseFloat(v)));
 
     let matched = matrix.find(m => m.width === width && m.height === height);
 
@@ -349,6 +349,21 @@ const RenderItem = ({ item, navigation }) => {
       console.error('Error updating quantity:', error);
     }
   };
+  const getBespokeQty = additional_option => {
+    if (!additional_option) return null;
+
+    try {
+      const parsed = JSON.parse(additional_option);
+
+      const bespokeValue = Object.values(parsed).find(v =>
+        v.startsWith('bespoke_option'),
+      );
+
+      return bespokeValue ? bespokeValue.split('#')[1] : null;
+    } catch (e) {
+      return null;
+    }
+  };
   return (
     <>
       {optionType == 'normal' && (
@@ -362,7 +377,6 @@ const RenderItem = ({ item, navigation }) => {
                 }
               >
                 <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text>
-                
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => removeItem(item)}>
@@ -370,6 +384,41 @@ const RenderItem = ({ item, navigation }) => {
               </TouchableOpacity>
             </View>
 
+            {item?.options?.length > 0 && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  top: -6,
+                  marginBottom: 2,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: verticalScale(12),
+                    color: '#4F4F4F',
+                    fontFamily: FONT.REGULAR,
+                  }}
+                >
+                  {/* Width : {middleValue} */}
+                  {item?.options[0]?.option_descriptions?.name}:{' '}
+                  {item?.options[0]?.values[0]?.option_values_name[0]?.name}
+                </Text>
+                {item?.options?.length >= 2 && (
+                  <Text
+                    style={{
+                      fontSize: verticalScale(12),
+                      color: '#4F4F4F',
+                      fontFamily: FONT.REGULAR,
+                    }}
+                  >
+                    {/* Width : {middleValue} */}
+                    {item?.options[1]?.option_descriptions?.name}:{' '}
+                    {item?.options[1]?.values[0]?.option_values_name[0]?.name}
+                  </Text>
+                )}
+              </View>
+            )}
             <View style={styles.inlineRow}>
               <View style={styles.stockRow}>
                 <Text style={styles.stockLabel}>In-Stock:</Text>
@@ -422,13 +471,16 @@ const RenderItem = ({ item, navigation }) => {
               </View>
 
               {/* PRICE GROUP */}
+            
               <View style={styles.priceGroup}>
                 <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
                     x £
-                    {parseFloat(
-                      item?.options[0]?.values[0]?.price || 0,
-                    ).toFixed(2)}
+                    {parseFloat(item?.options[0]?.values[0]?.price) === 0
+                      ? parseFloat(item?.price).toFixed(2)
+                      : parseFloat(
+                          item?.options[0]?.values[0]?.price || 0,
+                        ).toFixed(2)}
                   </Text>
                 </View>
 
@@ -447,9 +499,15 @@ const RenderItem = ({ item, navigation }) => {
                     ]}
                   >
                     £ {(item?.mode === 1 || item?.mode === 2) && '-'}
-                    {(
+                    {/* {(
                       parseFloat(item?.options[0]?.values[0]?.price || 0) *
                       item?.cart_quantity
+                    ).toFixed(2)} */}
+                    {(
+                      (Number(item?.options?.[0]?.values?.[0]?.price) > 0
+                        ? Number(item?.options?.[0]?.values?.[0]?.price)
+                        : Number(item?.price)) *
+                      Number(item?.cart_quantity || 0)
                     ).toFixed(2)}
                   </Text>
                 </View>
@@ -594,9 +652,41 @@ const RenderItem = ({ item, navigation }) => {
               </TouchableOpacity>
             </View>
 
-            {/* INLINE ROW FIXED */}
+            {item?.options?.length > 0 && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  top: -6,
+                  marginBottom: 2,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: verticalScale(10),
+                    color: '#4F4F4F',
+                    fontFamily: FONT.REGULAR,
+                  }}
+                >
+                  {item?.options[0]?.option_descriptions?.name}:{' '}
+                  {getBespokeQty(item?.additional_option)}
+                </Text>
+                {item?.options?.length >= 2 && (
+                  <Text
+                    style={{
+                      fontSize: verticalScale(10),
+                      color: '#4F4F4F',
+                      fontFamily: FONT.REGULAR,
+                    }}
+                  >
+                    {item?.options[1]?.option_descriptions?.name}:{' '}
+                    {item?.options[1]?.values[0]?.option_values_name[0]?.name}
+                  </Text>
+                )}
+              </View>
+            )}
+
             <View style={styles.inlineRow}>
-              {/* STOCK */}
               <View style={styles.stockRow}>
                 <Text style={styles.stockLabel}>In-Stock:</Text>
                 <Text
@@ -732,18 +822,18 @@ const RenderItem = ({ item, navigation }) => {
             >
               <Text
                 style={{
-                  fontSize: verticalScale(14),
+                  fontSize: verticalScale(12),
                   color: '#4F4F4F',
-                  fontFamily: FONT.MEDIUM,
+                  fontFamily: FONT.REGULAR,
                 }}
               >
                 Width (mm):{middleValue}
               </Text>
               <Text
                 style={{
-                  fontSize: verticalScale(14),
+                  fontSize: verticalScale(12),
                   color: '#4F4F4F',
-                  fontFamily: FONT.MEDIUM,
+                  fontFamily: FONT.REGULAR,
                 }}
               >
                 Height (mm):{secondValue}

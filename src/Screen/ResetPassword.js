@@ -79,6 +79,7 @@ const ResetPassword = ({ navigation }) => {
         setCurrentPassword('');
         setNewPassword('');
         setRepeatPassword('');
+        navigation.goBack()
       } else {
         setLoader(false);
         // Alert.alert('Error', response?.message || 'Something went wrong');

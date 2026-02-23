@@ -45,6 +45,7 @@ const CategoryData = ({ route }) => {
       .trim();
   };
   const handleItemPress = item => {
+
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
   };
@@ -127,7 +128,7 @@ const CategoryData = ({ route }) => {
             style={styles.itemImage}
             source={ImageData?.NOIMAGE}
             resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
+            // onError={handleError}
           />
           )}
         </View>

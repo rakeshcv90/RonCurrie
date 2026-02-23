@@ -41,6 +41,19 @@ const COLUMNS = 6;
 const totalHorizontalMargin = moderateScale(7) * COLUMNS;
 const itemWidth = (screenW - totalHorizontalMargin) / COLUMNS;
 
+const decodeHtml = text => {
+  if (!text) return '';
+  return text
+    .replace(/&quot;/g, '')
+    .replace(/&apos;/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/["']/g, '')
+    .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+    .trim();
+};
+
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
   const { products, loading, error } = useSelector(state => state.product);
@@ -88,73 +101,113 @@ const Home = ({ navigation }) => {
     }, [dispatch]),
   );
 
-  const toggleExpand = id => {
+  // const toggleExpand = id => {
+  //   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  //   setExpanded(expanded === id ? null : id);
+  // };
+  const toggleExpand = useCallback(id => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded(expanded === id ? null : id);
-  };
+    setExpanded(prev => (prev === id ? null : id));
+  }, []);
 
-  const handleItemPress = item => {
-    dispatch(clearProducts());
-    navigation.navigate('DisplayItems', { itemData: item });
-  };
+  // const handleItemPress = item => {
+  //   dispatch(clearProducts());
+  //   navigation.navigate('DisplayItems', { itemData: item });
+  // };
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
-  const renderItem = ({ item }) => {
-    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+  const handleItemPress = useCallback(
+    item => {
+      dispatch(clearProducts());
+      navigation.navigate('DisplayItems', { itemData: item });
+    },
+    [dispatch, navigation],
+  );
 
-    const handleError = () => {
-      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
-    };
+  const handleImageError = useCallback(id => {
+    setImageErrorMap(prev => {
+      if (prev[id]) return prev;
+      return { ...prev, [id]: true };
+    });
+  }, []);
 
-    const hasError = imageErrorMap[item.id] || false;
+  const renderItem = useCallback(
+    ({ item }) => {
+      const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+      const hasError = imageErrorMap[item.id];
 
-    return (
-      <TouchableOpacity
-        style={styles.itemRow}
-        onPress={() => handleItemPress(item)}
-      >
-        {imageUrl && !hasError ? (
+      return (
+        <TouchableOpacity
+          style={styles.itemRow}
+          onPress={() => handleItemPress(item)}
+        >
           <FastImage
             style={styles.itemImage}
-            source={{
-              uri: imageUrl,
-              priority: FastImage.priority.high,
-              cache: FastImage.cacheControl.immutable,
-            }}
+            source={
+              imageUrl && !hasError ? { uri: imageUrl } : ImageData.NOIMAGE
+            }
             resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
+            onError={() => handleImageError(item.id)}
           />
-        ) : (
-          <FastImage
-            style={styles.itemImage}
-            source={ImageData?.NOIMAGE}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
-        )}
 
-        <View style={styles.itemTextContainer}>
-          <Text style={styles.itemName}>
-            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
-          </Text>
-          <Text style={styles.itemPrice}>
-            £ {Number(item.price).toFixed(2)}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+          <View style={styles.itemTextContainer}>
+            <Text style={styles.itemName}>
+              {decodeHtml(item.name || item.descriptions?.name)}
+            </Text>
+            <Text style={styles.itemPrice}>
+              £ {Number(item.price).toFixed(2)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+    },
+    [imageErrorMap, handleItemPress, handleImageError],
+  );
+
+  // const renderItem = ({ item }) => {
+  //   const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+  //   // const handleError = () => {
+  //   //   setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
+  //   // };
+
+  //   const hasError = imageErrorMap[item.id] || false;
+
+  //   return (
+  //     <TouchableOpacity
+  //       style={styles.itemRow}
+  //       onPress={() => handleItemPress(item)}
+  //     >
+  //       {imageUrl && !hasError ? (
+  //         <FastImage
+  //           style={styles.itemImage}
+  //           source={{
+  //             uri: imageUrl,
+  //             priority: FastImage.priority.high,
+  //             cache: FastImage.cacheControl.immutable,
+  //           }}
+  //           resizeMode={FastImage.resizeMode.cover}
+  //           onError={() => handleImageError(item.id)}
+  //         />
+  //       ) : (
+  //         <FastImage
+  //           style={styles.itemImage}
+  //           source={ImageData?.NOIMAGE}
+  //           resizeMode={FastImage.resizeMode.cover}
+  //           onError={() => handleImageError(item.id)}
+  //         />
+  //       )}
+
+  //       <View style={styles.itemTextContainer}>
+  //         <Text style={styles.itemName}>
+  //           {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+  //         </Text>
+  //         <Text style={styles.itemPrice}>
+  //           £ {Number(item.price).toFixed(2)}
+  //         </Text>
+  //       </View>
+  //     </TouchableOpacity>
+  //   );
+  // };
   const onRefresh = async () => {
     setRefreshing(true);
 
@@ -169,15 +222,22 @@ const Home = ({ navigation }) => {
 
     setRefreshing(false);
   };
+
   return (
     <SafeAreaView style={styles.container}>
-      <SearchComponent
+      {/* <SearchComponent
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
-      />
+      /> */}
 
+      <SearchComponent
+        onResults={useCallback(setResults, [])}
+        onLoadMoreRef={useCallback(setLoadMoreFunc, [])}
+        navigation={navigation}
+        autoFocus
+      />
       {results?.length > 0 ? (
         <>
           <FlatList
@@ -263,13 +323,18 @@ const Home = ({ navigation }) => {
               {expanded === (category.id || index) &&
                 category?.product_data?.length > 0 && (
                   <FlatList
-                    data={category.product_data}
+                    data={category?.product_data}
                     numColumns={COLUMNS}
-                    key={COLUMNS}
+                    // key={COLUMNS}
                     keyExtractor={(item, idx) => idx.toString()}
-                    scrollEnabled={true}
+                    // scrollEnabled={true}
+                    scrollEnabled={expanded === (category.id || index)}
                     nestedScrollEnabled={true}
                     showsVerticalScrollIndicator={true}
+                    removeClippedSubviews
+                    windowSize={5}
+                    initialNumToRender={18}
+                    maxToRenderPerBatch={18}
                     style={{ maxHeight: moderateScale(350) }}
                     contentContainerStyle={{ paddingBottom: moderateScale(10) }}
                     renderItem={({ item }) => (
@@ -283,14 +348,9 @@ const Home = ({ navigation }) => {
                         ]}
                         onPress={() => handleItemPress(item)}
                       >
-                        {/* <Text style={styles.itemText}>
-                          {item.epos_tile_title}
-
-                        
-                        </Text> */}
                         <Text style={styles.itemText}>
                           {item.epos_tile_title
-                            ? item.epos_tile_title.replace(/\s+/g, ' ').trim()
+                            ? decodeHtml(item.epos_tile_title)
                             : ''}
                         </Text>
                       </TouchableOpacity>
@@ -343,8 +403,9 @@ const Home = ({ navigation }) => {
         </ScrollView>
       )}
       <CartComponent />
-
-      {products?.length <= 0 && <Loader visible={loading} />}
+  
+      {/* {products?.length <= 0 && <Loader visible={loading} />} */}
+      {loading && products?.length === 0 && <Loader visible />}
     </SafeAreaView>
   );
 };
@@ -392,9 +453,9 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
   },
   itemText: {
-    fontSize: '14@ms',
+    fontSize: '12@ms',
     color: '#121212',
-    fontFamily: FONT.SEMIBOLD,
+    fontFamily: FONT.MEDIUM,
     textAlign: 'center',
   },
 
@@ -424,4 +485,4 @@ const styles = ScaledSheet.create({
   },
 });
 
-export default Home;
+export default React.memo(Home);

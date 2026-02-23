@@ -24,6 +24,7 @@ export const IconData = {
   CART: require('../assets/icon/cart.png'),
   HOME: require('../assets/icon/home.png'),
   CAR: require('../assets/icon/car.png'),
+  SAFTY: require('../assets/icon/security.png'),
 };
 export const FONT = {
   BOLD: 'OpenSans-Bold',
@@ -46,7 +47,7 @@ export const Color = {
   GRAY6: '#D9D9D9',
   WHITE: '#FFFFFF',
   GREEN: '#009427',
-  RED2:'#ff0000'
+  RED2: '#ff0000',
 };
 
 export const companyDetails = {

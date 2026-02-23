@@ -52,16 +52,18 @@ const CategoryComponent = ({ categoryData, navigation }) => {
   };
 
   const getProductList = async dataItem => {
-    setLoader(true);
+   
+    // setLoader(true);
     try {
       const res = await getData(
         `${Api.EPOS_PRODUCTLIST_PAGE}?name=${encodeURIComponent(
           dataItem?.slug,
         )}`,
       );
+      //  console.log("DJDJDJD",res?.data)
       if (res?.success == true && res?.responseCode == 200) {
         setLoader(false);
-    
+  
         if (res?.data?.pageName == 'productList') {
           navigation.navigate('CategoryData', { listDAta: res?.data });
         } else if (res?.data?.pageName == 'categoryList') {
@@ -70,6 +72,7 @@ const CategoryComponent = ({ categoryData, navigation }) => {
           navigation.navigate('CategoryPage', { listDAta: res?.data });
         } else if (res?.data?.pageName == 'informationPage') {
         } else if (res?.data?.pageName == 'productPage') {
+          
         } else {
         }
       } else {

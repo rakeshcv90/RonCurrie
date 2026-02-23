@@ -8,8 +8,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   ScrollView,
+  Keyboard,
 } from 'react-native';
-import { moderateScale, ScaledSheet, verticalScale } from 'react-native-size-matters';
+import {
+  moderateScale,
+  ScaledSheet,
+  verticalScale,
+} from 'react-native-size-matters';
 import React, { useState } from 'react';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,8 +41,7 @@ const ForgotPassword = ({ navigation }) => {
       };
 
       const response = await postData(Api.FORGOT_PASSWORD, payload);
-
-
+     
       if (response?.status === 200) {
         setLoader(false);
         setEmail('');
@@ -120,7 +124,7 @@ const ForgotPassword = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                 height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -130,6 +134,12 @@ const ForgotPassword = ({ navigation }) => {
                   placeholderTextColor={Color.GRAY2}
                   value={email}
                   onChangeText={setEmail}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                  onSubmitEditing={() => {
+                    Keyboard.dismiss();
+                    forgetPassword();
+                  }}
                 />
               </View>
             </View>

@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   ScrollView,
+  Keyboard,
 } from 'react-native';
 import {
   moderateScale,
@@ -338,7 +339,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-               height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -356,7 +357,6 @@ const SignUp = ({ navigation }) => {
               style={{
                 marginBottom: moderateScale(5),
                 marginTop: moderateScale(10),
-                
               }}
             >
               <Text
@@ -383,7 +383,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-              height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -427,7 +427,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-               height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -471,7 +471,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-               height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -587,7 +587,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-               height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -632,7 +632,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-            height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -676,7 +676,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-              height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -720,7 +720,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-                height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -766,7 +766,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-              height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -811,7 +811,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-            height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -854,7 +854,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-        height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -906,7 +906,7 @@ const SignUp = ({ navigation }) => {
                 borderWidth: 1,
                 borderColor: Color.GRAY2,
                 marginBottom: 10,
-              height: verticalScale (40),
+                height: verticalScale(40),
               }}
             >
               <View style={styles.inputRow}>
@@ -917,6 +917,12 @@ const SignUp = ({ navigation }) => {
                   secureTextEntry={secureText1}
                   value={confirmPassword}
                   onChangeText={handleConfirmPassword}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                  onSubmitEditing={() => {
+                    Keyboard.dismiss();
+                    loginFunction();
+                  }}
                 />
                 <TouchableOpacity onPress={() => setSecureText1(!secureText1)}>
                   <Ionicons

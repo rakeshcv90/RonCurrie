@@ -48,6 +48,7 @@ const CategoryList = ({ route, navigation }) => {
           dataItem?.slug,
         )}`,
       );
+
       if (res?.success == true && res?.responseCode == 200) {
         if (res?.data?.pageName == 'productList') {
           navigation.navigate('CategoryData', { listDAta: res?.data });
@@ -55,6 +56,9 @@ const CategoryList = ({ route, navigation }) => {
           navigation.navigate('CategoryList', { listDAta: res?.data });
         } else if (res?.data?.pageName == 'categoryPage') {
           navigation.navigate('CategoryPage', { listDAta: res?.data });
+        } else if (res?.data?.pageName == 'productPage') {
+       
+          // navigation.navigate('DisplayItems', { itemData: item });
         }
       } else {
       }
@@ -204,7 +208,9 @@ const CategoryList = ({ route, navigation }) => {
         style={styles.card}
         activeOpacity={0.8}
         onPress={() => {
-          getProductList(item);
+           
+              navigation.navigate('DisplayItems', { itemData: item });
+          // getProductList(item);
         }}
       >
         <View style={styles.imageWrapper}>

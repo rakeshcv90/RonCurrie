@@ -50,10 +50,8 @@ apiClient.interceptors.request.use(
 );
 
 const handleApiError = async error => {
-  if (error.response) {
+  if (error?.response) {
     const { status, data } = error.response;
-
- 
     try {
       if (status === 403) {
         await MMKVStorage.clearAllData();
@@ -122,7 +120,7 @@ export const postData = async (endpoint, body = {}) => {
 
     return response;
   } catch (error) {
-    console.log('rrrrrrr', error);
+    console.log('rrrrrrr', error?.response);
     handleApiError(error);
     // throw error
   }

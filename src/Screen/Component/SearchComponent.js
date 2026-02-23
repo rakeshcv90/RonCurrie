@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   Keyboard,
   StatusBar,
-   KeyboardAvoidingView, Platform
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -72,20 +73,20 @@ const SearchComponent = ({
       return () => clearTimeout(timer);
     }, [autoFocus]),
   );
-  const handleSearch = () => {
+
+  const handleSearch = useCallback(() => {
     if (!searchText.trim()) {
       showToast('danger', 'Please enter a search term');
       setResults([]);
+      onResults?.([]);
       return;
     }
-
     fetchData(searchText, 1);
-  };
+  }, [searchText]);
 
-  const fetchData = async (query, pageNumber = 1) => {
+  const fetchData = useCallback(async (query, pageNumber = 1) => {
     try {
-      if (pageNumber === 1) setLoader(true);
-      else setLoadingMore(true);
+      pageNumber === 1 ? setLoader(true) : setLoadingMore(true);
 
       const res = await getData(
         `${Api.SEARCH}?searchQuery=${encodeURIComponent(
@@ -105,52 +106,47 @@ const SearchComponent = ({
       } else if (response && typeof response === 'object') {
         extracted = [response];
       }
-      if (pageNumber === 1 && extracted.length === 0) {
-        showToast('danger', 'No Results Found', 'No matching products found');
-        setResults([]);
-        onResults && onResults([]);
-        setPage(1);
-        setLastPage(1);
-        return; // stop pagination
-      }
 
       if (pageNumber === 1) {
         setResults(extracted);
-        onResults && onResults(extracted); // <-- send results to Home
-
-        if (extracted.length === 0) showToast('danger', res?.message);
+        onResults?.(extracted);
       } else {
-        const newResults = [...results, ...extracted];
-        setResults(newResults);
-        onResults && onResults(newResults); // <-- append results for pagination
+        setResults(prev => {
+          const merged = [...prev, ...extracted];
+          onResults?.(merged);
+          return merged;
+        });
       }
 
       setPage(currentPage);
       setLastPage(last_page);
     } catch (err) {
-      console.log(err);
       showToast('danger', 'Error', err.message || 'Something went wrong');
     } finally {
       setLoader(false);
       setLoadingMore(false);
     }
-  };
+  }, []);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < lastPage) {
       fetchData(searchText, page + 1);
     }
-  }, [loadingMore, page, lastPage, searchText]);
-  useEffect(() => {
-    onLoadMoreRef(() => loadMore);
-  }, [loadMore]);
-  // const searchByBarcode = async barcode => {
-  //   if (!barcode) return;
+  }, [loadingMore, page, lastPage, searchText, fetchData]);
 
-  //   if (!barcode) {
-  //     isProcessingBarcodeRef.current = false;
-  //     return;
-  //   }
+  // useEffect(() => {
+  //   onLoadMoreRef(() => loadMore);
+  // }, [loadMore]);
+
+  useEffect(() => {
+    if (onLoadMoreRef) {
+      onLoadMoreRef(() => loadMore);
+    }
+  }, [onLoadMoreRef, loadMore]);
+  // const searchByBarcode = async barcode => {
+  //   if (!barcode || isProcessingBarcodeRef.current) return;
+
+  //   isProcessingBarcodeRef.current = true;
 
   //   const payloadData = {
   //     customer_id: userData?.customer_id,
@@ -161,34 +157,23 @@ const SearchComponent = ({
   //   try {
   //     const response = await postData(Api.BAR_CODE_SCANNER, payloadData);
 
+  //     const resData = response?.data;
+  //     const cartItems = resData?.data?.data;
   //     if (
-  //       response?.data?.success == true &&
-  //       response?.data?.responseCode == 200
+  //       resData?.success === true &&
+  //       resData?.responseCode === 200 &&
+  //       Array.isArray(cartItems) &&
+  //       cartItems.length > 0
   //     ) {
-  //       setTimeout(() => {
-  //         dispatch(triggerCartRefresh());
-  //         setSearchText('');
-  //         searchInputRef.current?.focus();
-  //         showToast(
-  //           'success',
-  //           'Success!',
-  //           ` Item associated with the scanned barcode has been added to the cart successfully!`,
-  //         );
-  //       }, 300);
+  //       dispatch(triggerCartRefresh());
+  //       showToast('success', 'Success!', 'Item added to cart successfully');
   //     } else {
-  //       searchInputRef.current?.focus();
-  //       showToast(
-  //         'danger',
-  //         'Error',
-  //         `Barcode scanned is not of a listed product, please try againwith a different barcode`,
-  //       );
+  //       showToast('danger', 'Error', 'Invalid barcode, please try again');
   //     }
-
-  //     searchInputRef.current?.focus();
   //   } catch (error) {
-  //     showToast('danger', 'Error', error.message || 'Something went wrong');
+  //     showToast('danger', 'Error', 'Something went wrong');
   //   } finally {
-  //     // 🔥 RESET EVERYTHING (CRITICAL)
+  //     // 🔥 FULL RESET (CRITICAL)
   //     isProcessingBarcodeRef.current = false;
   //     barcodeBufferRef.current = '';
   //     setSearchText('');
@@ -196,44 +181,47 @@ const SearchComponent = ({
   //   }
   // };
 
-  const searchByBarcode = async barcode => {
-    if (!barcode || isProcessingBarcodeRef.current) return;
+  const searchByBarcode = useCallback(
+    async barcode => {
+      if (!barcode || isProcessingBarcodeRef.current) return;
 
-    isProcessingBarcodeRef.current = true;
+      isProcessingBarcodeRef.current = true;
 
-    const payloadData = {
-      customer_id: userData?.customer_id,
-      bar_code: barcode,
-      order_mode: 'add',
-    };
-
-    try {
-      const response = await postData(Api.BAR_CODE_SCANNER, payloadData);
-  
-
-      const resData = response?.data;
-    const cartItems = resData?.data?.data; 
-      if (
-        resData?.success === true &&
-        resData?.responseCode === 200 &&
-        Array.isArray(cartItems) &&
-        cartItems.length > 0
-      ) {
-        dispatch(triggerCartRefresh());
-        showToast('success', 'Success!', 'Item added to cart successfully');
-      } else {
-        showToast('danger', 'Error', 'Invalid barcode, please try again');
+      try {
+        const response = await postData(Api.BAR_CODE_SCANNER, {
+          customer_id: userData?.customer_id,
+          bar_code: barcode,
+          order_mode: 'add',
+        });
+        const resData = response?.data;
+        const cartItems = resData?.data?.data;
+        if (
+          resData?.success === true &&
+          resData?.responseCode === 200 &&
+          Array.isArray(cartItems) &&
+          cartItems.length > 0
+        ) {
+          dispatch(triggerCartRefresh());
+          showToast('success', 'Success!', 'Item added to cart successfully');
+        } else {
+          showToast(
+            'danger',
+            'Error',
+            resData?.message || 'Invalid barcode, please try again',
+          );
+        }
+      } catch (error) {
+        showToast('danger', 'Error', 'Something went wrong');
+      } finally {
+        isProcessingBarcodeRef.current = false;
+        barcodeBufferRef.current = '';
+        setSearchText('');
+        searchInputRef.current?.focus();
       }
-    } catch (error) {
-      showToast('danger', 'Error', 'Something went wrong');
-    } finally {
-      // 🔥 FULL RESET (CRITICAL)
-      isProcessingBarcodeRef.current = false;
-      barcodeBufferRef.current = '';
-      setSearchText('');
-      searchInputRef.current?.focus();
-    }
-  };
+    },
+    [userData?.customer_id, dispatch],
+  );
+
   return (
     <View style={styles.headerContainer}>
       <StatusBar
@@ -262,79 +250,6 @@ const SearchComponent = ({
       </View>
 
       <View style={styles.searchContainer}>
-        {/* <TextInput
-          ref={searchInputRef}
-          placeholder="Search Term"
-          style={styles.searchInput}
-          placeholderTextColor={'#777'}
-          value={searchText}
-          autoFocus={false}
-          returnKeyType="search"
-          onChangeText={text => {
-            if (text.length === 0) {
-              lastScannedRef.current = '';
-              setSearchText('');
-              setResults([]);
-              onResults && onResults([]);
-              return;
-            }
-            if (text.length >= 13) {
-              lastScannedRef.current = text;
-              searchByBarcode(text);
-              return;
-            }
-            setSearchText(text);
-          }}
-          onSubmitEditing={() => {
-            Keyboard.dismiss();
-            handleSearch(); // 🔥 same API call
-          }}
-        /> */}
-        {/* <TextInput
-          ref={searchInputRef}
-          placeholder="Search Term"
-          style={styles.searchInput}
-          placeholderTextColor="#777"
-          value={searchText}
-          autoFocus={false}
-          returnKeyType="search"
-          onChangeText={text => {
-            // RESET
-            if (text.length === 0) {
-              lastScannedRef.current = '';
-              isBarcodeScanRef.current = false;
-              setSearchText('');
-              setResults([]);
-              onResults && onResults([]);
-              return;
-            }
-
-            // ✅ BARCODE DETECTED
-            if (text.length >= 13) {
-              isBarcodeScanRef.current = true; // 🔥 mark barcode scan
-              lastScannedRef.current = text;
-              setSearchText(text);
-              searchByBarcode(text);
-              return;
-            }
-
-            // ✅ NORMAL TYPING
-            isBarcodeScanRef.current = false;
-            setSearchText(text);
-          }}
-          onSubmitEditing={() => {
-            Keyboard.dismiss();
-
-            // ❌ STOP search API if barcode already handled
-            if (isBarcodeScanRef.current) {
-              isBarcodeScanRef.current = false; // reset for next input
-              return;
-            }
-
-            handleSearch();
-          }}
-        /> */}
-
         <TextInput
           ref={searchInputRef}
           placeholder="Search Term"
@@ -346,10 +261,9 @@ const SearchComponent = ({
             setSearchText(text);
             barcodeBufferRef.current = text;
 
-            if (text.trim().length === 0) {
+            if (!text.trim()) {
               setResults([]);
-              onResults && onResults([]);
-              return;
+              onResults?.([]);
             }
           }}
           onSubmitEditing={() => {
@@ -459,4 +373,4 @@ const styles = ScaledSheet.create({
     marginLeft: moderateScale(10),
   },
 });
-export default SearchComponent;
+export default React.memo(SearchComponent);
