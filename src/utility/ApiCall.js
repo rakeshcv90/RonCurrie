@@ -50,6 +50,7 @@ apiClient.interceptors.request.use(
 );
 
 const handleApiError = async error => {
+  console.log('API Error:', error);
   if (error?.response) {
     const { status, data } = error.response;
     try {

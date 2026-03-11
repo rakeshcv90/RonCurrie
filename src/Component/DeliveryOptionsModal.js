@@ -124,7 +124,7 @@ const DeliveryOptionsModal = ({
       };
 
       const response = await postData(Api.GET_SHIPPING, payloadData);
-
+console.log("dfdsfsdfdsfds", payloadData);
       if (response?.status === 200) {
         const shippingList = response.data?.data?.ocaaspro?.quote ?? [];
         setListData(shippingList);

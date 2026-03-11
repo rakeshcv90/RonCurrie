@@ -47,6 +47,7 @@ export const Color = {
   GRAY6: '#D9D9D9',
   WHITE: '#FFFFFF',
   GREEN: '#009427',
+  GREEN2:'#00ad45',
   RED2: '#ff0000',
 };
 

@@ -39,6 +39,7 @@ import CartComponent from '../Component/CartComponent';
 import SearchComponent from './Component/SearchComponent';
 import FastImage from 'react-native-fast-image';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
+import decodeHtml from '../utility/decodeHtml';
 
 const BarCodeReader = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState('Sales');
@@ -61,6 +62,7 @@ const BarCodeReader = ({ navigation }) => {
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
+    const [allowKeyboard, setAllowKeyboard] = useState(false);
   useEffect(() => {
     const fetchUserData = async () => {
       const data = await MMKVStorage.getItem('User_Data');
@@ -156,18 +158,18 @@ const BarCodeReader = ({ navigation }) => {
     //   }
     // }, 2000);
   };
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
@@ -337,8 +339,13 @@ const BarCodeReader = ({ navigation }) => {
                   editable={true}
                   keyboardType="numeric"
                   onChangeText={handleManualInput}
+                   showSoftInputOnFocus={allowKeyboard} 
                   returnKeyType="search"
                   onSubmitEditing={() => handleSubmitBarcode(barcode)}
+
+                      onTouchStart={() => {
+            setAllowKeyboard(true); // enable keyboard when user taps
+          }}
                 />
               </View>
 

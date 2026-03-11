@@ -23,6 +23,7 @@ import { ImageBaseUrl } from '../utility/api';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import { useDispatch } from 'react-redux';
 import FastImage from 'react-native-fast-image';
+import decodeHtml from '../utility/decodeHtml';
 
 const ReturnModel = ({ visible, onClose }) => {
   const dispatch = useDispatch();
@@ -37,18 +38,18 @@ const ReturnModel = ({ visible, onClose }) => {
     navigation.navigate('DisplayItems', { itemData: item });
   };
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
   const renderItem = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 

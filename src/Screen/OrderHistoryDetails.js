@@ -33,6 +33,7 @@ import ReturnModel from '../Component/ReturnModel';
 import CartComponent from '../Component/CartComponent';
 import SearchComponent from './Component/SearchComponent';
 import FastImage from 'react-native-fast-image';
+import decodeHtml from '../utility/decodeHtml';
 
 const OrderHistoryDetails = ({ navigation, route }) => {
   const order_id = route?.params?.orderItem;
@@ -155,18 +156,18 @@ const handleItemPress = useCallback(
   [],
 );
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
   const renderItem = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 
@@ -178,12 +179,12 @@ const handleItemPress = useCallback(
 
     return (
       <TouchableOpacity
-        style={styles.itemRow}
+        style={styles.itemRow1}
         onPress={() => handleItemPress(item)}
       >
         {imageUrl && !hasError ? (
           <FastImage
-            style={styles.itemImage}
+            style={styles.itemImage1}
             source={{
               uri: imageUrl,
               priority: FastImage.priority.high,
@@ -201,11 +202,11 @@ const handleItemPress = useCallback(
           />
         )}
 
-        <View style={styles.itemTextContainer}>
-          <Text style={styles.itemName}>
+        <View style={styles.itemTextContainer1}>
+          <Text style={styles.itemName1} numberOfLines={2}>
             {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
           </Text>
-          <Text style={styles.itemPrice}>
+          <Text style={styles.itemPrice1}>
             £ {Number(item.price).toFixed(2)}
           </Text>
         </View>
@@ -364,8 +365,9 @@ const handleItemPress = useCallback(
                       >
                         <Image
                           source={IconData.CART}
-                          style={{ width: 20, height: 20 }}
+                        style={{ width: 15, height: 15 }}
                           resizeMode="contain"
+                          tintColor={Color.WHITE}
                         />
                       </TouchableOpacity>
 
@@ -377,8 +379,9 @@ const handleItemPress = useCallback(
                       >
                         <Image
                           source={IconData.REORDER}
-                          style={{ width: 20, height: 20 }}
+                          style={{ width: 15, height: 15 }}
                           resizeMode="contain"
+                             tintColor={Color.WHITE}
                         />
                       </TouchableOpacity>
                     </View>
@@ -581,13 +584,14 @@ const styles = ScaledSheet.create({
     marginHorizontal: moderateScale(5),
   },
   iconBtn: {
-    width: moderateScale(30),
-    height: moderateScale(30),
+    width: moderateScale(32),
+    height: moderateScale(32),
     borderWidth: 1,
     borderColor: Color.GRAY3,
-    borderRadius: 4,
+    borderRadius:moderateScale(16),
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor:'#6d6d6d',
     marginLeft: moderateScale(6),
   },
   summaryBox: {
@@ -611,6 +615,31 @@ const styles = ScaledSheet.create({
     marginTop: moderateScale(10),
   },
   totalAmount: { color: Color.RED, fontFamily: FONT.SEMIBOLD },
+
+    itemRow1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: moderateScale(8),
+    gap: moderateScale(5),
+  },
+  itemImage1: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName1: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  itemPrice1: {
+    fontSize: moderateScale(13),
+    color: '#555',
+  },
+  itemTextContainer1: {
+    flex: 1,
+    paddingRight: moderateScale(15),
+  },
 });
 
 export default React.memo(OrderHistoryDetails);

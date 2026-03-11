@@ -40,6 +40,7 @@ import { Dropdown } from 'react-native-element-dropdown';
 import DeliveryOptionsModal from '../Component/DeliveryOptionsModal';
 import { fetchA4PrintDetails } from '../Redux/Slice/A4PrintSlice';
 import { Dimensions } from 'react-native';
+import decodeHtml from '../utility/decodeHtml';
 const windowHeight = Dimensions.get('window').height;
 const AddCartScreen = ({ navigation }) => {
   const [loader, setLoader] = useState(false);
@@ -51,6 +52,7 @@ const AddCartScreen = ({ navigation }) => {
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
+  const [phoneError, setPhoneError] = useState('');
   const { cartList, loading, error, refreshKey, skipAutoBack } = useSelector(
     state => state.cartListData,
   );
@@ -67,7 +69,7 @@ const AddCartScreen = ({ navigation }) => {
   const [isFocus, setIsFocus] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [deliveryType, setDeliveryType] = useState(null);
-
+  const [notes, setNotes] = useState('');
   useEffect(() => {
     if (skipAutoBack) return;
     if (cartList?.length === 0 && !hasNavigatedBack) {
@@ -95,115 +97,6 @@ const AddCartScreen = ({ navigation }) => {
     );
   };
 
-  // const getTotalPrice = () => {
-  //   if (!cartList || cartList.length === 0) return '0.00';
-  //   const subTotal = cartList?.reduce((sum, item) => {
-  //     const price = calculateMatrixPrice(item);
-
-  //     // If mode is 1 or 2, subtract price; otherwise, add
-  //     if (item.mode === 1 || item.mode === 2) {
-  //       return sum - price;
-  //     } else {
-  //       return sum + price;
-  //     }
-  //   }, 0);
-  //   const miscTotal = miscList.reduce((sum, misc) => {
-  //     const amt = parseFloat(misc?.price) || 0;
-
-  //     return misc.isNegative ? sum - amt : sum + amt;
-  //   }, 0);
-
-  //   const total = subTotal + miscTotal;
-  //   return total.toFixed(2);
-  // };
-
-  //   const calculateMatrixPrice = item => {
-  //   const { matrix, additional_option, cart_quantity, cart_id } = item;
-  //   const additionalOptionArray = JSON.parse(additional_option || '[]');
-
-  //   if (!matrix || matrix?.length === 0) {
-  //     let customOptionPrice = 0;
-  //     let parsedOption;
-
-  //     try {
-  //       parsedOption = JSON.parse(additional_option || '[]');
-  //     } catch {
-  //       parsedOption = [];
-  //     }
-
-  //     // Case 1: parsedOption is object(custome length)
-  //     if (
-  //       parsedOption &&
-  //       !Array.isArray(parsedOption) &&
-  //       Object.keys(parsedOption).length > 0
-  //     ) {
-  //       const firstValue = Object.values(parsedOption)[0];
-  //       if (typeof firstValue === 'string' && firstValue?.includes('#')) {
-  //         const parts = firstValue?.split('#');
-
-  //         const middleValue = firstValue.split('#')[2];
-  //         const secondValue = firstValue.split('#')[1];
-  //         const totalPriceNumber =
-  //           (Number(secondValue) || 0) *
-  //           (Number(item?.options?.[0]?.bespoke_factor_val) || 0) *
-  //           (Number(item?.cart_quantity) || 0);
-
-  //         customOptionPrice = totalPriceNumber || 0;
-  //       } else {
-  //         const price = item?.options?.[0]?.values?.[0]?.price;
-
-  //         customOptionPrice = Number(price) * cart_quantity || 0;
-  //       }
-  //     }
-  //     // Case 2: parsedOption is array (like [])
-  //     else if (Array.isArray(parsedOption) && parsedOption?.length === 0) {
-  //       customOptionPrice = Number(item?.price) * cart_quantity || 0;
-  //     }
-
-  //     return customOptionPrice;
-  //   }
-
-  //   let optionData = {};
-  //   try {
-  //     optionData = JSON.parse(additional_option);
-  //   } catch (e) {
-  //     parsedOption = [];
-  //     // return Number(item.price) * (cart_quantity || 1);
-  //   }
-
-  //   const values = Object.values(optionData)
-  //     .map(Number)
-  //     .filter(v => !isNaN(v));
-
-  //   const [width, height] = values.map(v => Math.floor(parseFloat(v)));
-
-  //   let matched = matrix.find(m => m.width === width && m.height === height);
-
-  //   if (!matched) {
-  //     const largerMatches = matrix.filter(
-  //       m => m.width >= width && m.height >= height,
-  //     );
-
-  //     if (largerMatches.length > 0) {
-  //       matched = largerMatches.sort(
-  //         (a, b) =>
-  //           a.width -
-  //           width +
-  //           (a.height - height) -
-  //           (b.width - width + (b.height - height)),
-  //       )[0];
-  //     } else {
-  //       matched = matrix.sort(
-  //         (a, b) => b.width - a.width || b.height - a.height,
-  //       )[0];
-  //     }
-  //   }
-
-  //   const matrixPrice = Number(matched?.price || 0);
-
-  //   return matrixPrice * (cart_quantity || 1);
-  // };
-
   const calculateMatrixPrice = useCallback(item => {
     const { matrix, additional_option, cart_quantity, cart_id } = item;
     const additionalOptionArray = JSON.parse(additional_option || '[]');
@@ -218,7 +111,6 @@ const AddCartScreen = ({ navigation }) => {
         parsedOption = [];
       }
 
-      // Case 1: parsedOption is object(custome length)
       if (
         parsedOption &&
         !Array.isArray(parsedOption) &&
@@ -324,64 +216,6 @@ const AddCartScreen = ({ navigation }) => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
   };
-
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
-  // const renderItem = ({ item }) => {
-  //   const imageUrl = item?.image ? ImageBaseUrl + item?.image : null;
-
-  //   const handleError = () => {
-  //     setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
-  //   };
-
-  //   const hasError = imageErrorMap[item.id] || false;
-
-  //   return (
-  //     <TouchableOpacity
-  //       style={styles.itemRow}
-  //       onPress={() => handleItemPress(item)}
-  //     >
-  //       {imageUrl && !hasError ? (
-  //         <FastImage
-  //           style={styles.itemImage}
-  //           source={{
-  //             uri: imageUrl,
-  //             priority: FastImage.priority.high,
-  //             cache: FastImage.cacheControl.immutable,
-  //           }}
-  //           resizeMode={FastImage.resizeMode.cover}
-  //           onError={handleError}
-  //         />
-  //       ) : (
-  //         <FastImage
-  //           style={styles.itemImage}
-  //           source={ImageData?.NOIMAGE}
-  //           resizeMode={FastImage.resizeMode.cover}
-  //           onError={handleError}
-  //         />
-  //       )}
-
-  //       <View style={styles.itemTextContainer}>
-  //         <Text style={styles.itemName}>
-  //           {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
-  //         </Text>
-  //         <Text style={styles.itemPrice}>
-  //           £ {Number(item.price).toFixed(2)}
-  //         </Text>
-  //       </View>
-  //     </TouchableOpacity>
-  //   );
-  // };
 
   const handleImageError = useCallback(id => {
     setImageErrorMap(prev => {
@@ -492,6 +326,7 @@ const AddCartScreen = ({ navigation }) => {
       notify: 0,
       payment_code: '',
       collection_push_notification: data,
+      comment: notes,
     };
 
     if (hasMisc) {
@@ -573,14 +408,11 @@ const AddCartScreen = ({ navigation }) => {
         city: parts[3],
       };
     }
-    let validations = [];
+    // let validations = [];
 
-    validations = [
-      // { field: 'postcode', message: 'Please enter your postcode' },
-      // { field: 'customerName', message: 'Please enter customer name' },
-      // { field: 'address', message: 'Please enter address' },
-      { field: 'phone', message: 'Please enter your phone number' },
-    ];
+    // validations = [
+    //   { field: 'phone', message: 'Please enter your phone number' },
+    // ];
     const hasInvalidMisc = miscList?.some(item => {
       const hasDescription =
         typeof item.description === 'string' &&
@@ -610,29 +442,47 @@ const AddCartScreen = ({ navigation }) => {
       carDetails: carDetails.trim(),
     };
 
-    for (let i = 0; i < validations.length; i++) {
-      const { field, message } = validations[i];
+    // for (let i = 0; i < validations.length; i++) {
+    //   const { field, message } = validations[i];
 
-      // if (!formData[field]) {
-      //   Alert.alert('Validation Error', message);
-      //   return;
-      // }
-      if (field === 'phone') {
-        if (formData.phone.length < 10) {
-          Alert.alert(
-            'Validation Error',
-            'Phone number must be at least 10 digits.',
-          );
-          return;
-        } else if (formData.phone.length > 15) {
-          Alert.alert(
-            'Validation Error',
-            'Phone number cannot be more than 15 digits.',
-          );
-          return;
-        }
-      }
+    //   // if (!formData[field]) {
+    //   //   Alert.alert('Validation Error', message);
+    //   //   return;
+    //   // }
+    //   if (field === 'phone') {
+    //     if (formData.phone.length < 10) {
+    //       Alert.alert(
+    //         'Validation Error',
+    //         'Phone number must be at least 10 digits.',
+    //       );
+    //       return;
+    //     } else if (formData.phone.length > 15) {
+    //       Alert.alert(
+    //         'Validation Error',
+    //         'Phone number cannot be more than 15 digits.',
+    //       );
+    //       return;
+    //     }
+    //   }
+    // }
+    // Phone validation only
+    if (!contactNumber || contactNumber.trim() === '') {
+      setPhoneError('Please enter your phone number');
+      return;
     }
+
+    // if (contactNumber.length < 10) {
+    //   setPhoneError('Phone number must be at least 10 digits');
+    //   return;
+    // }
+
+    if (contactNumber.length > 16) {
+      setPhoneError('Phone number cannot be more than 16 digits');
+      return;
+    }
+
+    // ✅ Clear error if valid
+    setPhoneError('');
 
     const hasMisc = miscList?.some(item => {
       const hasDescription =
@@ -665,6 +515,7 @@ const AddCartScreen = ({ navigation }) => {
       shipping_zone: selectedAddress?.zone_name,
       shipping_country: selectedAddress?.country_name,
       notify: 0,
+      comment: notes,
     };
 
     if (hasMisc) {
@@ -713,7 +564,7 @@ const AddCartScreen = ({ navigation }) => {
       } else {
       }
     } catch (error) {
-      console.error('Error adding to basket:', error);
+      console.log('Error adding to basket:', error);
       showToast('danger', 'Error', error.message || 'Something went wrong.');
     } finally {
       setLoader(false);
@@ -782,7 +633,7 @@ const AddCartScreen = ({ navigation }) => {
   };
 
   const getTotal = (price, price2) => {
-    const cleanPrice2 = Number(price2.replace('£', ''));
+    const cleanPrice2 = Number(price2?.replace('£', '') || 0);
     const cleanPrice = Number(price);
     const total = cleanPrice + cleanPrice2;
 
@@ -796,9 +647,16 @@ const AddCartScreen = ({ navigation }) => {
       ),
     );
   };
+  // useEffect(() => {
+  //   setDeliveryType(null);
+  // }, [cartList,]);
+
   useEffect(() => {
-    setDeliveryType(null);
+    if (!cartList || cartList?.length === 0) {
+      setDeliveryType(null);
+    }
   }, [cartList]);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -917,19 +775,35 @@ const AddCartScreen = ({ navigation }) => {
                         <View
                           style={{
                             width: verticalScale(45),
-                            height: verticalScale(35),
+                            height: verticalScale(40),
                           }}
                         >
                           <TouchableOpacity
                             style={[
                               styles.sidePanel,
-                              { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                              {
+                                borderLeftWidth: 1,
+                                borderLeftColor: '#ddd',
+                                backgroundColor: Color.RED,
+                                borderTopLeftRadius: 5,
+                                borderBottomLeftRadius: 5,
+                              },
                             ]}
                             onPress={() => toggleSign(item.id)}
                           >
-                            <View style={styles.qtyBtnCircle}>
-                              <Text style={styles.qtyBtnText}>
-                                {item.isNegative ? '+' : '-'}
+                            <View
+                              style={[
+                                styles.qtyBtnCircle,
+                                { backgroundColor: Color.WHITE },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.qtyBtnText,
+                                  { color: Color.RED },
+                                ]}
+                              >
+                                {item.isNegative ? '-' : '-'}
                               </Text>
                             </View>
                           </TouchableOpacity>
@@ -970,16 +844,37 @@ const AddCartScreen = ({ navigation }) => {
                     </View>
                   </View>
                   <TouchableOpacity
-                    style={{ marginTop: moderateScale(20), zIndex: 10 }}
+                    style={{
+                      marginTop: moderateScale(20),
+                      zIndex: 10,
+                    }}
                     onPress={() => handleDeleteMisc(item.id)}
                   >
-                    <Ionicons name="trash-outline" size={20} color="gray" />
+                    <Ionicons name="trash-outline" size={25} color="#4472c4" />
                   </TouchableOpacity>
                 </View>
               ))}
               <TouchableOpacity style={styles.miscBtn} onPress={handleAddMisc}>
                 <Text style={styles.miscText}>Add Miscellaneous Charges</Text>
               </TouchableOpacity>
+              <View
+                style={{
+                  width: '100%',
+                  marginVertical: 10,
+                  borderRadius: moderateScale(4),
+                  alignItems: 'flex-start',
+                  paddingHorizontal: verticalScale(10),
+                  // padding: 10,
+                }}
+              >
+                <Text style={styles.label}>NOTES</Text>
+                <TextInput
+                  style={styles.input2}
+                  placeholder="Enter Notes"
+                  value={notes}
+                  onChangeText={setNotes}
+                />
+              </View>
 
               <View style={styles.tabHeader}>
                 <TouchableOpacity
@@ -1041,68 +936,76 @@ const AddCartScreen = ({ navigation }) => {
                           <Text style={styles.findBtnText}>Find Address</Text>
                         </TouchableOpacity>
                       </View>
-                      <View style={styles.container}>
-                        <Dropdown
-                          style={styles.input2}
-                          placeholderStyle={styles.placeholderStyle}
-                          selectedTextStyle={styles.selectedTextStyle}
-                          inputSearchStyle={styles.inputSearchStyle}
-                          iconStyle={styles.iconStyle}
-                          data={addressData}
-                          search
-                          maxHeight={300}
-                          labelField="label"
-                          valueField="value"
-                          placeholder={'Select item'}
-                          searchPlaceholder="Search..."
-                          value={value}
-                          onFocus={() => setIsFocus(true)}
-                          onBlur={() => setIsFocus(false)}
-                          onChange={item => {
-                            setValue(item.value);
 
-                            setSelectedAddress(item);
-                            setIsFocus(false);
-                          }}
-                        />
-                      </View>
-                      <TouchableOpacity
-                        style={{
-                          width: '100%',
-                          height: moderateScale(48),
-                          backgroundColor: Color.BLACK3,
-                          borderRadius: moderateScale(4),
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
-                        onPress={() => {
-                          const value =
-                            selectedAddress?.label || selectedAddress; // if it's an object with label
+                      {addressData?.length > 0 && (
+                        <>
+                          <View style={styles.container}>
+                            <Dropdown
+                              style={styles.input2}
+                              placeholderStyle={styles.placeholderStyle}
+                              selectedTextStyle={styles.selectedTextStyle}
+                              inputSearchStyle={styles.inputSearchStyle}
+                              iconStyle={styles.iconStyle}
+                              data={addressData}
+                              search
+                              maxHeight={300}
+                              labelField="label"
+                              valueField="value"
+                              placeholder={'Select item'}
+                              searchPlaceholder="Search..."
+                              value={value}
+                              onFocus={() => setIsFocus(true)}
+                              onBlur={() => setIsFocus(false)}
+                              onChange={item => {
+                                setValue(item.value);
 
-                          if (
-                            !value ||
-                            (typeof value === 'string' && !value.trim())
-                          ) {
-                            Alert.alert(
-                              'Validation Error',
-                              'Please select address first',
-                            );
-                          } else {
-                            setOpenModal(true);
-                          }
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: Color.WHITE,
-                            fontFamily: FONT.SEMIBOLD,
-                            fontSize: 14,
-                            lineHeight: 24,
-                          }}
-                        >
-                          Delivery Option
-                        </Text>
-                      </TouchableOpacity>
+                                setSelectedAddress(item);
+                                setIsFocus(false);
+                              }}
+                            />
+                          </View>
+
+                          <TouchableOpacity
+                            style={{
+                              width: '100%',
+                              height: moderateScale(48),
+                              backgroundColor: Color.RED,
+                              borderRadius: moderateScale(4),
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              marginTop: 5,
+                            }}
+                            onPress={() => {
+                              const value =
+                                selectedAddress?.label || selectedAddress; // if it's an object with label
+
+                              if (
+                                !value ||
+                                (typeof value === 'string' && !value.trim())
+                              ) {
+                                Alert.alert(
+                                  'Validation Error',
+                                  'Please select address first',
+                                );
+                              } else {
+                                setOpenModal(true);
+                              }
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: Color.WHITE,
+                                fontFamily: FONT.SEMIBOLD,
+                                fontSize: 14,
+                                lineHeight: 24,
+                              }}
+                            >
+                              Delivery Option
+                            </Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+
                       {deliveryType != null && (
                         <>
                           <View
@@ -1231,70 +1134,84 @@ const AddCartScreen = ({ navigation }) => {
                           <Text style={styles.sectionTitle}>
                             Customer Information
                           </Text>
-
-                          <Text style={styles.label}>CUSTOMER NAME</Text>
-                          <TextInput
-                            style={styles.input2}
-                            placeholder="Enter Name"
-                            value={customerName}
-                            onChangeText={setCustomerName}
-                          />
-
-                          <Text style={styles.label}>
-                            CUSTOMER DELIVERY ADDRESS
-                          </Text>
-                          <TextInput
-                            style={[styles.input2, styles.multilineInput]}
-                            placeholder="Delivery Address"
-                            value={selectedAddress?.originalAddress}
-                            multiline={true}
-                            textAlignVertical="top"
-                            onChangeText={text =>
-                              setSelectedAddress(prev => ({
-                                ...prev,
-                                originalAddress: text,
-                              }))
-                            }
-                          />
-
-                          <Text style={styles.label}>
-                            CUSTOMER CONTACT NUMBER
-                          </Text>
-                          <TextInput
-                            style={styles.input2}
-                            placeholder="Enter Contact Number"
-                            value={contactNumber}
-                            onChangeText={setContactNumber}
-                            keyboardType="phone-pad"
-                          />
                         </>
                       )}
+                      <View style={{ marginTop: 10, }}>
+                        <Text style={styles.label}>CUSTOMER NAME</Text>
+                        <TextInput
+                          style={styles.input2}
+                          placeholder="Enter Name"
+                          value={customerName}
+                          onChangeText={setCustomerName}
+                        />
+
+                        <Text style={styles.label}>
+                          CUSTOMER DELIVERY ADDRESS
+                        </Text>
+                        <TextInput
+                          style={[styles.input2, styles.multilineInput]}
+                          placeholder="Delivery Address"
+                          value={selectedAddress?.originalAddress}
+                          multiline={true}
+                          textAlignVertical="top"
+                          onChangeText={text =>
+                            setSelectedAddress(prev => ({
+                              ...prev,
+                              originalAddress: text,
+                            }))
+                          }
+                        />
+
+                        <Text style={styles.label}>
+                          CUSTOMER CONTACT NUMBER
+                          <Text style={{ color: Color.RED }}>*</Text>
+                        </Text>
+                        <TextInput
+                          style={[
+                            styles.input2,
+                            phoneError && { borderColor: Color.RED },
+                          ]}
+                          placeholder="Enter Contact Number"
+                          value={contactNumber}
+                          // onChangeText={setContactNumber}
+                          keyboardType="phone-pad"
+                          maxLength={16}
+                          onChangeText={text => {
+                            const cleaned = text.replace(/[^0-9]/g, '');
+
+                            setContactNumber(cleaned);
+
+                            if (cleaned.length === 0) {
+                              setPhoneError('Please enter your phone number');
+                            } else if (cleaned.length > 16) {
+                              setPhoneError('Maximum 16 digits allowed');
+                            } else {
+                              setPhoneError(''); // valid
+                            }
+                          }}
+                        />
+
+                        {phoneError ? (
+                          <Text
+                            style={{
+                              color: Color.RED,
+                              fontSize: 12,
+                              marginTop: 4,
+                            }}
+                          >
+                            {phoneError}
+                          </Text>
+                        ) : null}
+                      </View>
                     </View>
                   </>
                 ) : (
                   <View>
-                    <Text style={styles.sectionTitle}>Customer Details</Text>
-                    <Text style={styles.label}>CUSTOMER NAME</Text>
-                    <TextInput
-                      style={styles.input2}
-                      placeholder="Enter Name"
-                      value={customerName}
-                      onChangeText={setCustomerName}
-                    />
-
-                    {/* <Text style={styles.label}>CAR DETAILS</Text>
-                    <TextInput
-                      style={styles.input2}
-                      placeholder="Enter car details"
-                      value={carDetails}
-                      onChangeText={setCarDetails}
-                    /> */}
-
                     <>
                       <View
                         style={{
                           width: '100%',
-
+                          marginVertical: 10,
                           borderRadius: moderateScale(4),
                           alignItems: 'center',
                           paddingHorizontal: verticalScale(10),
@@ -1350,7 +1267,7 @@ const AddCartScreen = ({ navigation }) => {
                     width: '30%',
 
                     height: moderateScale(40),
-                    backgroundColor: Color.RED,
+                    backgroundColor: '#4472c4',
                     justifyContent: 'center',
                     alignItems: 'center',
                     alignSelf: 'flex-end',
@@ -1367,32 +1284,10 @@ const AddCartScreen = ({ navigation }) => {
                 style={[
                   styles.bottomBtn,
                   {
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
                     paddingHorizontal: moderateScale(10),
                   },
                 ]}
               >
-                <TouchableOpacity
-                  onPress={() => {
-                    Keyboard.dismiss();
-
-                    onCreateOrder1(1);
-                  }}
-                  style={{
-                    width: '65%',
-                    height: moderateScale(40),
-                    backgroundColor: Color.RED,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    alignSelf: 'flex-end',
-                    borderRadius: 4,
-                  }}
-                >
-                  <Text style={styles.bottomBtnText}>
-                    Create Order and push through notification system
-                  </Text>
-                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
                     Keyboard.dismiss();
@@ -1403,7 +1298,7 @@ const AddCartScreen = ({ navigation }) => {
                     width: '30%',
 
                     height: moderateScale(40),
-                    backgroundColor: Color.RED,
+                    backgroundColor: '#4472c4',
                     justifyContent: 'center',
                     alignItems: 'center',
                     alignSelf: 'flex-end',
@@ -1599,7 +1494,7 @@ const styles = ScaledSheet.create({
     marginBottom: verticalScale(10),
   },
   findBtn: {
-    backgroundColor: '#3D3D3D',
+    backgroundColor: Color.RED,
     height: moderateScale(45),
     width: '35%',
     borderRadius: moderateScale(6),

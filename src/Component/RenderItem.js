@@ -14,6 +14,7 @@ import { useDispatch } from 'react-redux';
 import { fetchCartData } from '../Redux/Slice/CartDataShowSlice';
 import { showToast } from '../utility/showToast';
 import Loader from './Loader';
+import decodeHtml from '../utility/decodeHtml';
 const RenderItem = ({ item, navigation }) => {
   const [userData, setUserData] = useState(null);
   const [loader, setLoader] = useState(false);
@@ -280,19 +281,6 @@ const RenderItem = ({ item, navigation }) => {
   }
   const price = getPrice(item);
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
-
   const additionalOptionPrice = (() => {
     const opt = item?.additional_option;
 
@@ -380,7 +368,7 @@ const RenderItem = ({ item, navigation }) => {
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => removeItem(item)}>
-                <Ionicons name="trash-outline" size={22} color="gray" />
+                <Ionicons name="trash-outline" size={22} color="#4472c4" />
               </TouchableOpacity>
             </View>
 
@@ -400,7 +388,7 @@ const RenderItem = ({ item, navigation }) => {
                     fontFamily: FONT.REGULAR,
                   }}
                 >
-                  {/* Width : {middleValue} */}
+                
                   {item?.options[0]?.option_descriptions?.name}:{' '}
                   {item?.options[0]?.values[0]?.option_values_name[0]?.name}
                 </Text>
@@ -412,7 +400,7 @@ const RenderItem = ({ item, navigation }) => {
                       fontFamily: FONT.REGULAR,
                     }}
                   >
-                    {/* Width : {middleValue} */}
+                 
                     {item?.options[1]?.option_descriptions?.name}:{' '}
                     {item?.options[1]?.values[0]?.option_values_name[0]?.name}
                   </Text>
@@ -436,15 +424,18 @@ const RenderItem = ({ item, navigation }) => {
 
               <View style={styles.qtyBox}>
                 <TouchableOpacity
-                  style={styles.sidePanel}
+                  style={[styles.sidePanel, { backgroundColor: Color.GREEN2 }]}
                   onPress={() => handleDecrement(item)}
                 >
-                  <View style={styles.qtyBtnCircle}>
-                    <Text style={styles.qtyBtnText}>-</Text>
+                  <View
+                    style={[styles.qtyBtnCircle, { backgroundColor: 'white' }]}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: Color.GREEN2 }]}>
+                      -
+                    </Text>
                   </View>
                 </TouchableOpacity>
 
-                {/* <Text style={styles.qtyNumber}>{item?.cart_quantity}</Text> */}
                 <TextInput
                   style={styles.qtyInput}
                   value={inputQty}
@@ -460,18 +451,29 @@ const RenderItem = ({ item, navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.sidePanel,
-                    { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                    {
+                      borderLeftWidth: 1,
+                      borderLeftColor: '#ddd',
+                      backgroundColor: Color.RED,
+                    },
                   ]}
                   onPress={() => handleIncrement(item, optionType)}
                 >
-                  <View style={styles.qtyBtnCircle}>
-                    <Text style={styles.qtyBtnText}>+</Text>
+                  <View
+                    style={[
+                      styles.qtyBtnCircle,
+                      { backgroundColor: Color.WHITE },
+                    ]}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: Color.RED }]}>
+                      +
+                    </Text>
                   </View>
                 </TouchableOpacity>
               </View>
 
               {/* PRICE GROUP */}
-            
+
               <View style={styles.priceGroup}>
                 <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
@@ -499,10 +501,6 @@ const RenderItem = ({ item, navigation }) => {
                     ]}
                   >
                     £ {(item?.mode === 1 || item?.mode === 2) && '-'}
-                    {/* {(
-                      parseFloat(item?.options[0]?.values[0]?.price || 0) *
-                      item?.cart_quantity
-                    ).toFixed(2)} */}
                     {(
                       (Number(item?.options?.[0]?.values?.[0]?.price) > 0
                         ? Number(item?.options?.[0]?.values?.[0]?.price)
@@ -530,7 +528,7 @@ const RenderItem = ({ item, navigation }) => {
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => removeItem(item)}>
-                <Ionicons name="trash-outline" size={22} color="gray" />
+                <Ionicons name="trash-outline" size={22} color="#4472c4"  />
               </TouchableOpacity>
             </View>
 
@@ -554,18 +552,20 @@ const RenderItem = ({ item, navigation }) => {
               <View style={styles.qtyBox}>
                 {/* MINUS BUTTON */}
                 <TouchableOpacity
-                  style={styles.sidePanel}
+                  style={[styles.sidePanel, { backgroundColor: Color.GREEN2 }]}
                   onPress={() => handleDecrement(item, optionType)}
                 >
-                  <View style={styles.qtyBtnCircle}>
-                    <Text style={styles.qtyBtnText}>-</Text>
+                  <View
+                    style={[
+                      styles.qtyBtnCircle,
+                      { backgroundColor: Color.WHITE },
+                    ]}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: Color.GREEN2 }]}>
+                      -
+                    </Text>
                   </View>
                 </TouchableOpacity>
-
-                {/* NUMBER */}
-                {/* <Text style={styles.qtyNumber}>{item?.cart_quantity}</Text> */}
-
-                {/* PLUS BUTTON */}
 
                 <TextInput
                   style={styles.qtyInput}
@@ -581,17 +581,28 @@ const RenderItem = ({ item, navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.sidePanel,
-                    { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                    {
+                      borderLeftWidth: 1,
+                      borderLeftColor: '#ddd',
+                      backgroundColor: Color.RED,
+                    },
                   ]}
                   onPress={() => handleIncrement(item, optionType)}
                 >
-                  <View style={styles.qtyBtnCircle}>
-                    <Text style={styles.qtyBtnText}>+</Text>
+                  <View
+                    style={[
+                      styles.qtyBtnCircle,
+                      { backgroundColor: Color.WHITE },
+                    ]}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: Color.RED }]}>
+                      +
+                    </Text>
                   </View>
                 </TouchableOpacity>
               </View>
 
-              {/* PRICE GROUP */}
+         
               <View style={styles.priceGroup}>
                 <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
@@ -600,15 +611,7 @@ const RenderItem = ({ item, navigation }) => {
                 </View>
 
                 <View style={styles.divider} />
-                {/* 
-                <View style={styles.priceHalf}>
-                  <Text style={styles.priceText}>
-                    £
-                    {(
-                      parseFloat(item?.price || 0) * item?.cart_quantity
-                    ).toFixed(2)}
-                  </Text>
-                </View> */}
+            
 
                 <View style={styles.priceHalf}>
                   <Text
@@ -637,7 +640,7 @@ const RenderItem = ({ item, navigation }) => {
         <>
           <View style={styles.cartRowWrapper}>
             <View style={styles.topRow}>
-              {/* <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text> */}
+          
               <TouchableOpacity
                 style={{ flex: 1 }}
                 onPress={() =>
@@ -648,7 +651,7 @@ const RenderItem = ({ item, navigation }) => {
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => removeItem(item)}>
-                <Ionicons name="trash-outline" size={22} color="gray" />
+                <Ionicons name="trash-outline" size={22} color="#4472c4" />
               </TouchableOpacity>
             </View>
 
@@ -704,16 +707,22 @@ const RenderItem = ({ item, navigation }) => {
               <View style={styles.qtyBox}>
                 {/* MINUS BUTTON */}
                 <TouchableOpacity
-                  style={styles.sidePanel}
+                  style={[styles.sidePanel, { backgroundColor: Color.GREEN2 }]}
                   onPress={() => handleDecrement(item, optionType)}
                 >
-                  <View style={styles.qtyBtnCircle}>
-                    <Text style={styles.qtyBtnText}>-</Text>
+                  <View
+                    style={[
+                      styles.qtyBtnCircle,
+                      { backgroundColor: Color.WHITE },
+                    ]}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: Color.GREEN2 }]}>
+                      -
+                    </Text>
                   </View>
                 </TouchableOpacity>
 
-                {/* NUMBER */}
-                {/* <Text style={styles.qtyNumber}>{item?.cart_quantity}</Text> */}
+            
                 <TextInput
                   style={styles.qtyInput}
                   value={inputQty}
@@ -730,12 +739,23 @@ const RenderItem = ({ item, navigation }) => {
                 <TouchableOpacity
                   style={[
                     styles.sidePanel,
-                    { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                    {
+                      borderLeftWidth: 1,
+                      borderLeftColor: '#ddd',
+                      backgroundColor: Color.RED,
+                    },
                   ]}
                   onPress={() => handleIncrement(item, optionType)}
                 >
-                  <View style={styles.qtyBtnCircle}>
-                    <Text style={styles.qtyBtnText}>+</Text>
+                  <View
+                    style={[
+                      styles.qtyBtnCircle,
+                      { backgroundColor: Color.WHITE },
+                    ]}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: Color.RED }]}>
+                      +
+                    </Text>
                   </View>
                 </TouchableOpacity>
               </View>
@@ -743,14 +763,7 @@ const RenderItem = ({ item, navigation }) => {
               {/* PRICE GROUP */}
 
               <View style={styles.priceGroup}>
-                {/* <View style={styles.priceHalf}>
-                  <Text style={styles.priceText}>
-                    x £
-                    {parseFloat(
-                      item?.options[0]?.bespoke_factor_val || 0,
-                    ).toFixed(2)}
-                  </Text>
-                </View> */}
+           
 
                 <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
@@ -760,17 +773,7 @@ const RenderItem = ({ item, navigation }) => {
 
                 <View style={styles.divider} />
 
-                {/* <View style={styles.priceHalf}>
-                  <Text style={styles.priceText}>
-                    £
-                    {(
-                      parseFloat(
-                        secondValue * item?.options?.[0]?.bespoke_factor_val ||
-                          0,
-                      ) * item?.cart_quantity
-                    ).toFixed(2)}
-                  </Text>
-                </View> */}
+        
 
                 <View style={styles.priceHalf}>
                   <Text
@@ -802,7 +805,6 @@ const RenderItem = ({ item, navigation }) => {
         <>
           <View style={styles.cartRowWrapper}>
             <View style={styles.topRow}>
-              {/* <Text style={styles.productName}>{decodeHtml(item?.isbn)}</Text> */}
               <TouchableOpacity
                 style={{ flex: 1 }}
                 onPress={() =>
@@ -813,7 +815,7 @@ const RenderItem = ({ item, navigation }) => {
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => removeItem(item)}>
-                <Ionicons name="trash-outline" size={22} color="gray" />
+                <Ionicons name="trash-outline" size={22} color="#4472c4"  />
               </TouchableOpacity>
             </View>
 
@@ -857,52 +859,44 @@ const RenderItem = ({ item, navigation }) => {
               </View>
 
               <View style={styles.qtyBox}>
-                {/* MINUS BUTTON */}
                 <TouchableOpacity
-                  style={styles.sidePanel}
+                  style={[styles.sidePanel, { backgroundColor: Color.GREEN2 }]}
                   onPress={() => handleDecrement(item)}
                 >
-                  <View style={styles.qtyBtnCircle}>
-                    <Text style={styles.qtyBtnText}>-</Text>
+                  <View
+                    style={[
+                      styles.qtyBtnCircle,
+                      { backgroundColor: Color.WHITE },
+                    ]}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: Color.GREEN2 }]}>
+                      -
+                    </Text>
                   </View>
                 </TouchableOpacity>
 
-                {/* NUMBER */}
                 <Text style={styles.qtyNumber}>{item?.cart_quantity}</Text>
 
-                {/* <TextInput
-                  style={styles.qtyInput}
-                  keyboardType="numeric"
-                  value={String(item?.cart_quantity)}
-                  onChangeText={text => {
-                    if (text === '') {
-                      // allow user to type empty for a moment
-                      updateCartQtyFromInput(item, '', item?.mode);
-                      return;
-                    }
-
-                    const num = Number(text);
-                    if (!isNaN(num)) {
-                      updateCartQtyFromInput(item, num, item?.mode);
-                    }
-                  }}
-                  onEndEditing={() => {
-                    if (!item?.cart_quantity || item?.cart_quantity <= 0) {
-                      updateCartQtyFromInput(item, 1, item?.mode);
-                    }
-                  }}
-                /> */}
-
-                {/* PLUS BUTTON */}
                 <TouchableOpacity
                   style={[
                     styles.sidePanel,
-                    { borderLeftWidth: 1, borderLeftColor: '#ddd' },
+                    {
+                      borderLeftWidth: 1,
+                      borderLeftColor: '#ddd',
+                      backgroundColor: Color.RED,
+                    },
                   ]}
                   onPress={() => handleIncrement(item, optionType)}
                 >
-                  <View style={styles.qtyBtnCircle}>
-                    <Text style={styles.qtyBtnText}>+</Text>
+                  <View
+                    style={[
+                      styles.qtyBtnCircle,
+                      { backgroundColor: Color.WHITE },
+                    ]}
+                  >
+                    <Text style={[styles.qtyBtnText, { color: Color.RED }]}>
+                      +
+                    </Text>
                   </View>
                 </TouchableOpacity>
               </View>
@@ -910,22 +904,10 @@ const RenderItem = ({ item, navigation }) => {
               {/* PRICE GROUP */}
               <View style={styles.priceGroup}>
                 <View style={styles.priceHalf}>
-                  <Text style={styles.priceText}>
-                    {/* x £
-                    {parseFloat(
-                      item?.options[0]?.values[0]?.price || 0,
-                    ).toFixed(2)} */}
-                    -
-                  </Text>
+                  <Text style={styles.priceText}>-</Text>
                 </View>
 
                 <View style={styles.divider} />
-
-                {/* <View style={styles.priceHalf}>
-                  <Text style={styles.priceText}>
-                    £{parseFloat(price).toFixed(2)}
-                  </Text>
-                </View> */}
 
                 <View style={styles.priceHalf}>
                   <Text
@@ -984,7 +966,6 @@ const styles = ScaledSheet.create({
 
   /* STOCK INLINE */
   stockRow: {
-    // flexDirection: 'row',
     alignItems: 'center',
     width: '15%',
   },
@@ -1018,7 +999,7 @@ const styles = ScaledSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f2f2f2',
+
     borderRightWidth: 1,
     borderRightColor: '#ddd',
   },
@@ -1070,7 +1051,6 @@ const styles = ScaledSheet.create({
     width: 1,
     backgroundColor: '#ccc',
     height: '100%',
-    // marginVertical: 5,
   },
 
   priceText: {

@@ -27,6 +27,7 @@ import { ImageBaseUrl } from '../utility/api';
 import FastImage from 'react-native-fast-image';
 import SearchComponent from './Component/SearchComponent';
 import CartComponent from '../Component/CartComponent';
+import decodeHtml from '../utility/decodeHtml';
 
 const links = [
   {
@@ -60,7 +61,12 @@ const AccountProfile = ({ navigation, route }) => {
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
-
+  const firstInitial = userData?.firstname
+    ? userData.firstname.charAt(0).toUpperCase()
+    : '';
+  const lastInitial = userData?.lastname
+    ? userData.lastname.charAt(0).toUpperCase()
+    : '';
   useFocusEffect(
     useCallback(() => {
       const fetchUserData = async () => {
@@ -78,18 +84,18 @@ const AccountProfile = ({ navigation, route }) => {
     navigation.navigate('DisplayItems', { itemData: item });
   };
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
   const renderItem = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 
@@ -116,7 +122,7 @@ const AccountProfile = ({ navigation, route }) => {
             onError={handleError}
           />
         ) : (
-         <FastImage
+          <FastImage
             style={styles.itemImage}
             source={ImageData?.NOIMAGE}
             resizeMode={FastImage.resizeMode.cover}
@@ -147,7 +153,7 @@ const AccountProfile = ({ navigation, route }) => {
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
-         autoFocus={true}
+        autoFocus={true}
       />
       {results?.length > 0 ? (
         <>
@@ -180,17 +186,10 @@ const AccountProfile = ({ navigation, route }) => {
           >
             <View style={styles.userInfo}>
               <View style={styles.avatar}>
-                <Image
-                  source={ImageData.Profile}
-                  style={{
-                    width: moderateScale(80),
-                    height: moderateScale(80),
-                  }}
-                  resizeMode="contain"
-                />
-                {/* <TouchableOpacity activeOpacity={0.7} style={styles.editIcon}>
-              <Ionicons name="pencil" color={Color.BLACK} size={20} />
-            </TouchableOpacity> */}
+                <Text style={styles.avatarText}>
+                  {firstInitial}
+                  {lastInitial}
+                </Text>
               </View>
 
               <View>
@@ -309,15 +308,16 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: moderateScale(80),
-    height: moderateScale(80),
-    borderRadius: moderateScale(40),
-    backgroundColor: Color.GRAY6,
+    width: moderateScale(60),
+    height: moderateScale(60),
+    borderRadius: moderateScale(30),
+
+    backgroundColor: Color.RED,
 
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: moderateScale(5),
-    marginBottom: moderateScale(10),
+    // marginBottom: moderateScale(10),
   },
   editIcon: {
     position: 'absolute',
@@ -333,12 +333,13 @@ const styles = ScaledSheet.create({
     fontSize: moderateScale(18),
     fontFamily: FONT.BOLD,
     color: Color.BLACK,
+     marginTop: moderateScale(0),
   },
   userEmail: {
     fontSize: moderateScale(14),
     fontFamily: FONT.MEDIUM,
     color: Color.BLACK,
-    marginTop: moderateScale(4),
+     marginTop: moderateScale(4),
   },
   userPhone: {
     fontSize: moderateScale(14),
@@ -436,6 +437,12 @@ const styles = ScaledSheet.create({
   itemPrice: {
     fontSize: moderateScale(13),
     color: '#555',
+  },
+
+  avatarText: {
+    color: '#fff',
+    fontSize: moderateScale(30),
+    fontWeight: 'bold',
   },
 });
 

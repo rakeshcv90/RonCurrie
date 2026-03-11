@@ -46,11 +46,12 @@ import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import { ImageBaseUrl } from '../utility/api';
 import FastImage from 'react-native-fast-image';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import decodeHtml from '../utility/decodeHtml';
 
 const OrderSuccessFull = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const data = route?.params?.resData;
-
+  console.log('Test cosxddsdsfds', data);
   const [isDetailsLoaded, setIsDetailsLoaded] = useState(false);
 
   const { a4PrintDetails } = useSelector(state => state.a4PrintData);
@@ -159,211 +160,211 @@ const OrderSuccessFull = ({ navigation, route }) => {
     const vatAmount = vatItem ? Number(vatItem.value || 0).toFixed(2) : '0.00';
 
     return `
-   <!DOCTYPE html>
-   <html>
-   <head>
-     <meta charset="UTF-8" />
-     <style>
-       body {
-         margin: 0 !important;
-         padding: 10px 35px 10px 35px !important;
-         height: auto !important;
-         width: 100% !important;
-       }
-       h1 {
-         font-size: 22px;
-         margin-bottom: 15px;
-       }
-       table {
-         width: 100%;
-         border-collapse: collapse;
-       }
-       th, td {
-         padding: 8px;
-         border: 1px solid #dddddd;
-         vertical-align: top;
-       }
-       th {
-         text-align: left;
-       }
-       .section {
-         border: 1px solid #dddddd;
-         margin-bottom: 15px;
-        
-       }
-       .section-title {
-         font-weight: bold;
-         padding: 8px;
-         border-bottom: 1px solid #dddddd;
-       }
-       .content-table td {
-         padding: 10px;
-         vertical-align: top;
-       }
-       .product-sub {
-         font-size: 10px;
-         color: #555;
-       }
-       .totals td {
-         border: 1px solid #dddddd;
-         padding: 8px;
-       }
-       .totals tr td:first-child {
-         width: 80%;
-       }
-       .totals tr:last-child td {
-         font-weight: bold;
-       }
-       .right {
-         text-align: right;
-       }
-   
-       /* Address Box */
-       .section1 {
-         margin-top: 20px;
-         margin-bottom: 20px;
-         border: 1px solid #dddddd;
-         border-radius: 4px;
-       }
-       .address-row1 {
-         display: flex;
-         font-weight: bold;
-         border-bottom: 1px solid #dddddd;
-         padding: 0;
-         margin: 0;
-       }
-       .address-column1 {
-         width: 50%;
-         font-size: 13px;
-         padding: 8px 10px;
-         box-sizing: border-box;
-         border-right: 1px solid #dddddd;
-       }
-       .address-row {
-         display: flex;
-         justify-content: space-between;
-         margin: 0;
-         padding: 0;
-       }
-       .address-column {
-         width: 50%;
-         padding: 8px 10px;
-         font-size: 13px;
-         line-height: 1.4;
-         box-sizing: border-box;
-       }
-       .left-column {
-         border-right: 1px solid #dddddd;
-       }
-   .no-right-border {
-     border-right: none !important;
-   }
-   
-   .no-left-border {
-     border-left: none !important;
-   }
-     .no-border {
-     border-left: none !important;
-     border-right: none !important;
-     text-align: left;
-   }
-     .totals tr:first-child td {
-     border-bottom: none;
-     font-weight: bold;
-   }
-    .groups-table {
-     width: 50%;         
-     border-collapse: collapse;
-     margin-left: auto;   
-     margin-right: 0;
-       margin-top: -15px;
-   }
-   
-   .groups-table td {
-     border: none;
-     padding: 4px 8px;
-     font-size: 14px;
-      vertical-align: middle;
-   }
-   
-   .groups-table td:first-child {
-     width: 80%;
-     text-align: right;
-     font-weight: bold;
-     border-right: 1px solid #dddd; /* optional divider */
-     padding-right: 10px;
-     
-   }
-   tfoot td {
-     border-top: 1px solid #ddd;
-     padding: 8px;
-   }
-   
-   .groups-table td:last-child {
-      text-align: left;  /* align value to left */
-     font-weight: bold;
-     padding-left: 15px; 
-   }
-   
-   /* remove margins from outer container */
-   .no-margin {
-     margin: 0 !important;
-     padding: 0 !important;
-   }
-   
-   .no-outer-border {
-     border: none !important;
-   }
-   @media print {
-     html, body {
-       width: 210mm;
-       height: auto;
-     }
-    
-     thead {
-       display: table-header-group;
-     }
-   
-     tfoot {
-       display: table-footer-group;
-     }
-   
-   }
-   @page {
-     margin-top: 10mm;
-  
-   } 
-     </style>
-   </head>
-   
-   <body>
-   
-    
-     <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
-          <h1 style="margin: 0; font-size: 30px; font-weight: 600;">Order ID: ${
-            a4PrintDetails?.order_id
-          }</h1>
-   
-         <img src="https://nomansland.roncurry.co.uk/assets/roncurries-logo-2iaZ574S.png" 
-        style="width:400px;height:auto;" />
-        
-     </div>
-   
-     <!-- ORDER DETAILS -->
-   <div class="section product-section">
-       <table class="content-table">
-           <tr>
-             <td width="50%">
-             ${
-               a4PrintDetails?.shipping_method != 'Collection'
-                 ? `
-                  <b>${a4PrintDetails?.epos_customer_name}</b><br/>
-                  ${a4PrintDetails?.epos_customer_address}<br/>
-                  ${a4PrintDetails?.epos_customer_number}<br/>
-           
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        margin: 0 !important;
+        padding: 10px 35px 10px 35px !important;
+        height: auto !important;
+        width: 100% !important;
+      }
+      h1 {
+        font-size: 22px;
+        margin-bottom: 15px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        padding: 8px;
+        border: 1px solid #dddddd;
+        vertical-align: top;
+      }
+      th {
+        text-align: left;
+      }
+      .section {
+        border: 1px solid #dddddd;
+        margin-bottom: 15px;
        
-                 `
-                 : `
+      }
+      .section-title {
+        font-weight: bold;
+        padding: 8px;
+        border-bottom: 1px solid #dddddd;
+      }
+      .content-table td {
+        padding: 10px;
+        vertical-align: top;
+      }
+      .product-sub {
+        font-size: 10px;
+        color: #555;
+      }
+      .totals td {
+        border: 1px solid #dddddd;
+        padding: 8px;
+      }
+      .totals tr td:first-child {
+        width: 80%;
+      }
+      .totals tr:last-child td {
+        font-weight: bold;
+      }
+      .right {
+        text-align: right;
+      }
+  
+      /* Address Box */
+      .section1 {
+        margin-top: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #dddddd;
+        border-radius: 4px;
+      }
+      .address-row1 {
+        display: flex;
+        font-weight: bold;
+        border-bottom: 1px solid #dddddd;
+        padding: 0;
+        margin: 0;
+      }
+      .address-column1 {
+        width: 50%;
+        font-size: 13px;
+        padding: 8px 10px;
+        box-sizing: border-box;
+        border-right: 1px solid #dddddd;
+      }
+      .address-row {
+        display: flex;
+        justify-content: space-between;
+        margin: 0;
+        padding: 0;
+      }
+      .address-column {
+        width: 50%;
+        padding: 8px 10px;
+        font-size: 13px;
+        line-height: 1.4;
+        box-sizing: border-box;
+      }
+      .left-column {
+        border-right: 1px solid #dddddd;
+      }
+  .no-right-border {
+    border-right: none !important;
+  }
+  
+  .no-left-border {
+    border-left: none !important;
+  }
+    .no-border {
+    border-left: none !important;
+    border-right: none !important;
+    text-align: left;
+  }
+    .totals tr:first-child td {
+    border-bottom: none;
+    font-weight: bold;
+  }
+   .groups-table {
+    width: 50%;         
+    border-collapse: collapse;
+    margin-left: auto;   
+    margin-right: 0;
+      margin-top: -15px;
+  }
+  
+  .groups-table td {
+    border: none;
+    padding: 4px 8px;
+    font-size: 14px;
+     vertical-align: middle;
+  }
+  
+  .groups-table td:first-child {
+    width: 80%;
+    text-align: right;
+    font-weight: bold;
+    border-right: 1px solid #dddd; /* optional divider */
+    padding-right: 10px;
+    
+  }
+  tfoot td {
+    border-top: 1px solid #ddd;
+    padding: 8px;
+  }
+  
+  .groups-table td:last-child {
+     text-align: left;  /* align value to left */
+    font-weight: bold;
+    padding-left: 15px; 
+  }
+  
+  /* remove margins from outer container */
+  .no-margin {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .no-outer-border {
+    border: none !important;
+  }
+  @media print {
+    html, body {
+      width: 210mm;
+      height: auto;
+    }
+   
+    thead {
+      display: table-header-group;
+    }
+  
+    tfoot {
+      display: table-footer-group;
+    }
+  
+  }
+  @page {
+    margin-top: 10mm;
+ 
+  } 
+    </style>
+  </head>
+  
+  <body>
+  
+   
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+         <h1 style="margin: 0; font-size: 30px; font-weight: 600;">Order ID: ${
+           a4PrintDetails?.order_id
+         }</h1>
+  
+        <img src="https://nomansland.roncurry.co.uk/assets/roncurries-logo-2iaZ574S.png" 
+       style="width:400px;height:auto;" />
+       
+    </div>
+  
+    <!-- ORDER DETAILS -->
+  <div class="section product-section">
+      <table class="content-table">
+          <tr>
+            <td width="50%">
+            ${
+              a4PrintDetails?.shipping_method != 'Collection'
+                ? `
+                 <b>${a4PrintDetails?.epos_customer_name}</b><br/>
+                 ${a4PrintDetails?.epos_customer_address}<br/>
+                 ${a4PrintDetails?.epos_customer_number}<br/>
+          
+      
+                `
+                : `
                   <b>${a4PrintDetails?.epos_customer_name}</b><br/>
                       ${
                         a4PrintDetails?.epos_customer_number?.trim()
@@ -371,310 +372,346 @@ const OrderSuccessFull = ({ navigation, route }) => {
                           : a4PrintDetails?.telephone
                       }<br/>
                 `
-             }
-           </td>
-   
-         <td width="50%">
-       <b>Date Added:</b> ${(() => {
-         if (!a4PrintDetails?.date_added) return '-';
+            }
+          </td>
+  
+        <td width="50%">
+      <b>Date Added:</b> ${(() => {
+        if (!a4PrintDetails?.date_added) return '-';
 
-         const d = new Date(a4PrintDetails.date_added);
-         const day = String(d.getDate()).padStart(2, '0');
-         const month = String(d.getMonth() + 1).padStart(2, '0');
-         const year = String(d.getFullYear());
+        const d = new Date(a4PrintDetails.date_added);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = String(d.getFullYear());
 
-         return `${day}/${month}/${year}`;
-       })()}
-       <br/>
-   
-       <b>Telephone:</b> ${companyDetails?.mobile}  <b>VAT#</b> ${
+        return `${day}/${month}/${year}`;
+      })()}
+      <br/>
+  
+      <b>Telephone:</b> ${companyDetails?.mobile}  <b>VAT#</b> ${
       companyDetails?.companyVat
     }<br/>
-            
-             <b>Payment Method:</b> ${a4PrintDetails?.payment_method}<br/>
-                     <b>Delivery Method:</b> 
-  <span style="color: red;">
-    ${a4PrintDetails?.shipping_method || ''}
-  </span>
-           </td>
-         </tr>
-       </table>
-     </div>
-   
-     <!-- SHOW BOTH ADDRESS SECTIONS ONLY IF DELIVER -->
-     ${
-       a4PrintDetails?.shipping_method != 'Collection'
-         ? `
-     <div class="section1">
-       <div class="address-row1">
-         <div class="address-column1">Payment Address</div>
-         <div class="address-column1">Delivery Address</div>
-       </div>
-   
-       <div class="address-row">
-         <div class="address-column left-column">
-           <p>
-             <b>${a4PrintDetails?.epos_customer_name} </b><br/>
-             ${a4PrintDetails?.epos_customer_address}<br/>
-             
-           </p>
-         </div>
-   
-         <div class="address-column right-column">
-           <p>
-             ${a4PrintDetails?.shipping_company}<br/>
-             ${a4PrintDetails?.shipping_address_1}  ${a4PrintDetails?.shipping_address_2}<br/>
-          
-             ${a4PrintDetails?.shipping_city}<br/>
-             ${a4PrintDetails?.shipping_postcode}<br/>
-             ${a4PrintDetails?.shipping_country}<br/>
-             ${a4PrintDetails?.shipping_zone}
-     
-           </p>
-         </div>
-       </div>
-     </div>
-         `
-         : ''
-     }
-   
-     <!-- PRODUCT LIST -->
-    <div class="section product-section">
-       <table>
-         <thead>
-         <tr>
-       <th colspan="2" class="no-border">Order ID: ${
-         a4PrintDetails?.order_id
-       }</th>
-       <th>Model</th>
-       <th>Qty</th>
-       <th>Price</th>
-       <th>Total</th>
-        </tr>
-         </thead>
-   
-   <tbody>
-   ${a4PrintDetails?.products
-     .map((item, index) => {
-       const BASE_IMAGE_URL = 'https://roncurry.co.uk/roncurry/public/image/';
-       const NO_IMAGE_URL =
-         'https://roncurry.co.uk/roncurry/public/image/no-image.png';
-       const optionImage =
-         item?.options?.product_option_value_dimension?.option_image;
-       // const finalImage =
-       //   optionImage && optionImage !== '' ? optionImage : item?.product?.image;
-
-       const finalImage =
-         optionImage && optionImage !== ''
-           ? optionImage
-           : item?.product?.image
-           ? item.product.image
-           : NO_IMAGE_URL;
-
-       // If finalImage is NOT a full URL, prepend base URL
-       const imageSrc = finalImage.startsWith('http')
-         ? finalImage
-         : `${BASE_IMAGE_URL}${finalImage}`;
-
-       return `
-         <tr>
            
-   <td style="width:130px; text-align:center; vertical-align:middle;">
-     <div style="display:flex; justify-content:center; align-items:center;">
-       <img 
-         src="${imageSrc}"
-   
-     style="
-       width:120px;
-       height:80px;
-       object-fit:contain;
-       border-radius:5px;
-     "
-         alt="${item?.name || 'Product Image'}"
-       />
-     </div>
-   </td>
-           <td>
-             <div style="display:flex; align-items:center; gap:10px;">
-             
-               <div>
-               ${item?.product?.isbn}<br/>
-            ${
-              Array.isArray(item?.order_options) &&
-              item.order_options.length > 0
-                ? item.order_options
-                    .map(
-                      opt => `
-               <span class="product-sub">
-                 - ${opt.name}: ${opt.value}
-               </span><br/>
-             `,
-                    )
-                    .join('')
-                : ''
-            }
-               </div>
-             </div>
-           </td>
-           <td>${item?.model}</td>
-           <td>${item?.quantity}</td>
-           <td>£${Number(item?.price || 0).toFixed(2)}</td>
-   <td style="${item?.refund == 1 ? 'color:#ff0000' : ''}">
-     £${item?.refund == 1 ? '-' : ''}${Number(item?.total || 0).toFixed(2)}
-   </td>
-         </tr>
-       
-       `;
-     })
-     .join('')}
-   </tbody>
-   </tbody>
-   
-  <!-- TOTALS – SAME DESIGN, NEW PAGE -->
-  <div class="section totals-section">
-    <table>
-      <tbody>
+            <b>Payment Method:</b> ${a4PrintDetails?.payment_method}<br/>
+                    <b>Delivery Method:</b> 
+ <span style="color: red;">
+   ${a4PrintDetails?.shipping_method || ''}
+ </span>
+          </td>
+        </tr>
+      </table>
+    </div>
   
-     
-     ${a4PrintDetails?.totals
-       ?.filter(item => item.code === 'miscellaneous')
-       .map(
-         misc => `
+    <!-- SHOW BOTH ADDRESS SECTIONS ONLY IF DELIVER -->
+    ${
+      a4PrintDetails?.shipping_method != 'Collection'
+        ? `
+    <div class="section1">
+      <div class="address-row1">
+        <div class="address-column1">Payment Address</div>
+        <div class="address-column1">Delivery Address</div>
+      </div>
+  
+      <div class="address-row">
+        <div class="address-column left-column">
+          <p>
+            <b>${a4PrintDetails?.epos_customer_name} </b><br/>
+            ${a4PrintDetails?.epos_customer_address}<br/>
+            
+          </p>
+        </div>
+  
+        <div class="address-column right-column">
+          <p>
+            ${a4PrintDetails?.shipping_company}<br/>
+            ${a4PrintDetails?.shipping_address_1}  ${a4PrintDetails?.shipping_address_2}<br/>
+         
+            ${a4PrintDetails?.shipping_city}<br/>
+            ${a4PrintDetails?.shipping_postcode}<br/>
+            ${a4PrintDetails?.shipping_country}<br/>
+            ${a4PrintDetails?.shipping_zone}
+    
+          </p>
+        </div>
+      </div>
+    </div>
+        `
+        : ''
+    }
+  
+    <!-- PRODUCT LIST -->
+   <div class="section product-section">
+      <table>
+        <thead>
         <tr>
-          <td colspan="5" style="font-weight:bold; font-size:13px;">
-            ${misc.title}
-          </td>
-          <td class="right">
-            £${Number(misc.value || 0).toFixed(2)}
-          </td>
-        </tr>
-      `,
-       )
-       .join('')}
-       <!-- GROUP ROW -->
+      <th colspan="2" class="no-border">Order ID: ${
+        a4PrintDetails?.order_id
+      }</th>
+      <th>Model</th>
+      <th>Qty</th>
+      <th>Price</th>
+      <th>Total</th>
+       </tr>
+        </thead>
+  
+  <tbody>
+  ${a4PrintDetails?.products
+    .map((item, index) => {
+      const BASE_IMAGE_URL = 'https://roncurry.co.uk/roncurry/public/image/';
+      const NO_IMAGE_URL =
+        'https://roncurry.co.uk/roncurry/public/image/no-image.png';
+      const optionImage =
+        item?.options?.product_option_value_dimension?.option_image;
+      // const finalImage =
+      //   optionImage && optionImage !== '' ? optionImage : item?.product?.image;
+
+      const finalImage =
+        optionImage && optionImage !== ''
+          ? optionImage
+          : item?.product?.image
+          ? item.product.image
+          : NO_IMAGE_URL;
+
+      // If finalImage is NOT a full URL, prepend base URL
+      const imageSrc = finalImage.startsWith('http')
+        ? finalImage
+        : `${BASE_IMAGE_URL}${finalImage}`;
+
+      return `
         <tr>
-          <td colspan="5" class="right" style="font-weight:bold; font-size:13px;">
-            Group=
-          </td>
-          <td class="right">
-            ${a4PrintDetails?.products?.length}
-          </td>
-        </tr>
- 
+          
+  <td style="width:130px; text-align:center; vertical-align:middle;">
+    <div style="display:flex; justify-content:center; align-items:center;">
+      <img 
+        src="${imageSrc}"
+  
+    style="
+      width:120px;
+      height:80px;
+      object-fit:contain;
+      border-radius:5px;
+    "
+        alt="${item?.name || 'Product Image'}"
+      />
+    </div>
+  </td>
+          <td>
+            <div style="display:flex; align-items:center; gap:10px;">
+            
+              <div>
+              ${item?.product?.isbn}<br/>
            ${
-             a4PrintDetails?.shipping_method == 'Collection'
-               ? `
-         <tr>
-          <td colspan="5" class="right" style="font-weight:bold; font-size:13px;">
-           Collection
-          </td>
-          <td class="right">
-              £0.00
-          </td>
-        </tr>`
+             Array.isArray(item?.order_options) && item.order_options.length > 0
+               ? item.order_options
+                   .map(
+                     opt => `
+              <span class="product-sub">
+                - ${opt.name}: ${opt.value}
+              </span><br/>
+            `,
+                   )
+                   .join('')
                : ''
            }
+              </div>
+            </div>
+          </td>
+          <td>${item?.model}</td>
+          <td>${item?.quantity}</td>
+          <td>£${Number(item?.price || 0).toFixed(2)}</td>
+  <td style="${item?.refund == 1 ? 'color:#ff0000' : ''}">
+    £${item?.refund == 1 ? '-' : ''}${Number(item?.total || 0).toFixed(2)}
+  </td>
+        </tr>
+      
+      `;
+    })
+    .join('')}
+  </tbody>
+  </tbody>
   
-        <!-- WEIGHT + TOTAL ROWS -->
-        ${a4PrintDetails?.totals
-          .filter(
-            item => !['sub_total', 'tax', 'miscellaneous'].includes(item.code),
-          )
-          .map(
-            item => `
-            <tr>
-              <!-- LEFT EMPTY / LABEL COLUMN -->
-              <td style="font-weight:bold; font-size:13px;">
-                ${item.code === 'total' ? 'Weight (kg)' : ''}
-              </td>
+ <!-- TOTALS – SAME DESIGN, NEW PAGE -->
+ <div class="section totals-section">
+   <table>
+     <tbody>
+ ${
+   a4PrintDetails?.comment
+     ? `
+  <tr>
+    <td colspan="6" style="font-weight:bold; font-size:13px;">
+
+      <span style="font-weight:normal;">
+        ${a4PrintDetails?.comment}
+      </span>
+    </td>
+  </tr>
+`
+     : ''
+ }
+    
+    ${a4PrintDetails?.totals
+      ?.filter(item => item.code === 'miscellaneous')
+      .map(
+        misc => `
+       <tr>
+         <td colspan="5" style="font-weight:bold; font-size:13px;">
+           ${misc.title}
+         </td>
+         <td class="right">
+           £${Number(misc.value || 0).toFixed(2)}
+         </td>
+       </tr>
+     `,
+      )
+      .join('')}
+      <!-- GROUP ROW -->
+       <tr>
+         <td colspan="5" class="right" style="font-weight:bold; font-size:13px;">
+           Group=
+         </td>
+         <td class="right">
+           ${a4PrintDetails?.products?.length}
+         </td>
+       </tr>
+
+          ${
+            a4PrintDetails?.shipping_method == 'Collection'
+              ? `
+        <tr>
+         <td colspan="5" class="right" style="font-weight:bold; font-size:13px;">
+          Collection
+         </td>
+         <td class="right">
+             £0.00
+         </td>
+       </tr>`
+              : ''
+          }
+ 
+       <!-- WEIGHT + TOTAL ROWS -->
+       ${a4PrintDetails?.totals
+         .filter(
+           item => !['sub_total', 'tax', 'miscellaneous'].includes(item.code),
+         )
+         .map(
+           item => `
+           <tr>
+             <!-- LEFT EMPTY / LABEL COLUMN -->
+             <td style="font-weight:bold; font-size:13px;">
+               ${item.code === 'total' ? 'Weight (kg)' : ''}
+             </td>
+ 
+             <!-- WEIGHT VALUE -->
+             <td colspan="2">
+               ${
+                 item.code === 'total'
+                   ? `${Number(a4PrintDetails?.total_order_weight || 0).toFixed(
+                       2,
+                     )} kg`
+                   : ''
+               }
+             </td>
+ 
+             <!-- TOTAL LABEL -->
+             <td colspan="2" class="right" style="font-weight:bold; font-size:13px;">
+               ${item.title}
+               ${item.code === 'total' ? ` (VAT £${vatAmount})` : ''}
+             </td>
+ 
+             <!-- TOTAL VALUE -->
+             <td class="right">
+               £${Number(item.value || 0).toFixed(2)}
+             </td>
+           </tr>
+         `,
+         )
+         .join('')}
+ 
+     </tbody>
+   </table>
+ </div>
   
-              <!-- WEIGHT VALUE -->
-              <td colspan="2">
-                ${
-                  item.code === 'total'
-                    ? `${Number(
-                        a4PrintDetails?.total_order_weight || 0,
-                      ).toFixed(2)} kg`
-                    : ''
-                }
-              </td>
-  
-              <!-- TOTAL LABEL -->
-              <td colspan="2" class="right" style="font-weight:bold; font-size:13px;">
-                ${item.title}
-                ${item.code === 'total' ? ` (VAT £${vatAmount})` : ''}
-              </td>
-  
-              <!-- TOTAL VALUE -->
-              <td class="right">
-                £${Number(item.value || 0).toFixed(2)}
-              </td>
-            </tr>
-          `,
-          )
-          .join('')}
-  
-      </tbody>
     </table>
   </div>
   
-   
-     </table>
-   </div>
-   
-   
-   
-   
-   
-     </div>
-   <div class="section">
-     <div class="section-title">
-       History Updates${
-         a4PrintDetails?.order_history?.length > 0
-           ? ` (${a4PrintDetails.order_history.length})`
-           : '()'
-       }
-     </div>
-   
-   ${
-     a4PrintDetails?.order_history && a4PrintDetails.order_history.length > 0
-       ? `
-         <table>
-           <thead>
-             <tr>
-               <th width="25%">Date Added</th>
-               <th width="25%">Order Status</th>
-               <th width="50%">Comment</th>
-             </tr>
-           </thead>
-   
-           <tbody>
-             ${a4PrintDetails.order_history
-               .map(
-                 history => `
-                   <tr>
-                     <td>${history?.date_added || '-'}</td>
-                     <td>${history?.order_history_name?.name || '-'}</td>
-                     <td>${history?.comment || '—'}</td>
-                   </tr>
-                 `,
-               )
-               .join('')}
-           </tbody>
-         </table>
-       `
-       : `
-         <div style="text-align:left; padding:12px; ">
-           No customer updates
-         </div>
-       `
-   }
-   
-   </div>
-   </body>
-   </html>
-   `;
+    </div>
+  <div class="section">
+    <div class="section-title">
+      History Updates${
+        a4PrintDetails?.order_history?.length > 0
+          ? ` (${a4PrintDetails.order_history.length})`
+          : '()'
+      }
+    </div>
+  
+  ${
+    a4PrintDetails?.order_history && a4PrintDetails.order_history.length > 0
+      ? `
+        <table>
+          <thead>
+            <tr>
+              <th width="25%">Date Added</th>
+              <th width="25%">Order Status</th>
+              <th width="50%">Comment</th>
+            </tr>
+          </thead>
+  
+    <tbody>
+  ${a4PrintDetails.order_history
+    .map(
+      history => `
+        <tr>
+          <td>${history?.date_added || '-'}</td>
+          <td>${history?.order_history_name?.name || '-'}</td>
+          <td>${history?.comment || '—'}</td>
+        </tr>
+      `,
+    )
+    .join('')}
+
+  ${
+    a4PrintDetails?.comment
+      ? `
+        <tr>
+          <td>-</td>
+          <td><strong>Main Comment</strong></td>
+          <td>${a4PrintDetails.comment}</td>
+        </tr>
+      `
+      : ''
+  }
+</tbody>
+        </table>
+      `
+      : `
+      
+        <div style="text-align:left; padding:12px; ">
+          No customer updates
+        </div>
+
+        ${
+          a4PrintDetails?.comment
+            ? `
+        <table style="margin-top:10px;">
+          <tbody>
+            <tr>
+              <td width="25%" style="font-weight:600;">Notes</td>
+              <td width="75%">${a4PrintDetails.comment}</td>
+            </tr>
+          </tbody>
+        </table>
+      `
+            : ''
+        }
+      `
+  }
+  
+  </div>
+  </body>
+  </html>
+  `;
   };
+
 
   const generate80mmInvoice = () => {
     const totalsMap = Object.fromEntries(
@@ -887,18 +924,18 @@ ${productsHtml}
     navigation.navigate('DisplayItems', { itemData: item });
   };
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
   const renderItem = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 
@@ -943,6 +980,19 @@ ${productsHtml}
         </View>
       </TouchableOpacity>
     );
+  };
+
+  const formatDateDDMMYYYY = dateString => {
+    if (!dateString) return '';
+
+    const date = new Date(dateString);
+    if (isNaN(date)) return '';
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+
+    return `${day}-${month}-${year}`;
   };
   return (
     <SafeAreaView style={styles.container}>
@@ -1034,7 +1084,7 @@ ${productsHtml}
             </View>
 
             <View style={styles.row}>
-              <Text style={styles.label}>Return ID: </Text>
+              <Text style={styles.label}>Order ID -: </Text>
               <Text
                 style={[
                   styles.value,
@@ -1057,11 +1107,12 @@ ${productsHtml}
                   {
                     color: Color.BLACK2,
                     fontSize: verticalScale(16),
-                    fontFamily: FONT.BOLD,
+                    fontFamily: FONT.REGULAR,
                   },
                 ]}
               >
-                {data?.timestamp}
+                {/* {data?.timestamp} */}
+                {formatDateDDMMYYYY(data?.timestamp)}
               </Text>
             </View>
             <View style={styles.row}>
@@ -1072,7 +1123,7 @@ ${productsHtml}
                   {
                     color: Color.BLACK2,
                     fontSize: verticalScale(16),
-                    fontFamily: FONT.BOLD,
+                    fontFamily: FONT.REGULAR,
                   },
                 ]}
               >
@@ -1167,7 +1218,7 @@ const styles = ScaledSheet.create({
   },
   label: {
     fontSize: '16@s',
-    fontFamily: FONT.BOLD,
+    fontFamily: FONT.REGULAR,
     color: Color?.BLACK,
   },
 

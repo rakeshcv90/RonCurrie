@@ -1,25 +1,16 @@
 import {
   View,
   Text,
-  StatusBar,
   KeyboardAvoidingView,
   Platform,
-  Image,
   TouchableOpacity,
   ScrollView,
   TextInput,
   FlatList,
   RefreshControl,
 } from 'react-native';
-import React, {
-  use,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { CommonActions, useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -40,13 +31,13 @@ import Loader from '../Component/Loader';
 import { showToast } from '../utility/showToast';
 import { postData } from '../utility/ApiCall';
 import { MMKVStorage } from '../utility/MmkvStore';
-import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
 import FastImage from 'react-native-fast-image';
 import CartComponent from '../Component/CartComponent';
 import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
 import SearchComponent from './Component/SearchComponent';
 import { Dimensions } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
+import decodeHtml from '../utility/decodeHtml';
 const windowHeight = Dimensions.get('window').height;
 
 const DisplayItems = ({ navigation, route }) => {
@@ -63,8 +54,6 @@ const DisplayItems = ({ navigation, route }) => {
   const [visibleModal, setVisibleModaL] = useState(false);
   const [rowQuantities, setRowQuantities] = useState({});
   const [userData, setUserData] = useState(null);
-
-  // For Mattix
   const [width, setWidth] = useState(null);
   const [length, setLength] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -82,7 +71,11 @@ const DisplayItems = ({ navigation, route }) => {
   const [selectedValue, setSelectedValue] = useState(null);
   const [optionError, setOptionError] = useState(false);
   const isRequired = productsList?.options?.[1]?.required === 1;
-
+  useEffect(() => {
+    if (quantity >= 1 && width && length && productsList?.matrix?.length > 0) {
+      calculatePrice();
+    }
+  }, [quantity, width, length, productsList]);
   useFocusEffect(
     useCallback(() => {
       if (isFirstLoad) {
@@ -148,36 +141,6 @@ const DisplayItems = ({ navigation, route }) => {
       setOptionError(true);
     }
   }, [productsList]);
-
-  // const handleIncrease = (index, stock = 0) => {
-  //   setRowQuantities(prev => {
-  //     if (index === 'custom') {
-  //       const qty = (prev.custom?.qty || 0) + 1;
-  //       const length = Number(customLength) || 1;
-  //       const price = (length * bespokeFactor * qty).toFixed(2);
-  //       const price2 = (length * bespokeFactor).toFixed(2);
-
-  //       return { ...prev, custom: { qty, length, price, price2 } };
-  //     } else if (index === 'single') {
-  //       // const qty = Math.min((prev.single?.qty || 0) + 1, stock);
-  //       // return { ...prev, single: { qty } };
-  //       const qty =
-  //         selectedTab === 'Sales'
-  //           ? Math.min((prev.single?.qty || 0) + 1, stock) // Sales → check stock
-  //           : (prev.single?.qty || 0) + 1; // Not Sales → ignore stock
-
-  //       return { ...prev, single: { qty } };
-  //     } else {
-  //       // const qty = Math.min((prev[index] || 0) + 1, stock);
-  //       const qty =
-  //         selectedTab === 'Sales'
-  //           ? Math.min((prev[index] || 0) + 1, stock) // stock check
-  //           : (prev[index] || 0) + 1; // ignore stock
-
-  //       return { ...prev, [index]: qty };
-  //     }
-  //   });
-  // };
 
   const handleIncrease = useCallback(
     (index, stock = 0) => {
@@ -309,28 +272,6 @@ const DisplayItems = ({ navigation, route }) => {
   const addToBasket = async () => {
     let items = [];
 
-    // if (productsList?.options?.[0]?.option_values?.length > 0) {
-    //   items = productsList.options[0].option_values
-    //     .map((item, index) => {
-    //       const quantity = rowQuantities[index] ?? 0;
-    //       if (quantity === 0) return null;
-
-    //       const optionString = `{'${item.product_option_id}':'${item.product_option_value_id}'}`;
-
-    //       let modeObj = {};
-    //       if (selectedTab === 'Refund') modeObj.mode = 1;
-    //       else if (selectedTab === 'Refund - No Stock') modeObj.mode = 2;
-
-    //       return {
-    //         customer_id: userData?.customer_id,
-    //         product_id: item.product_id,
-    //         option: optionString,
-    //         quantity,
-    //         ...modeObj,
-    //       };
-    //     })
-    //     .filter(Boolean);
-    // }
     if (productsList?.options?.[0]?.option_values?.length > 0) {
       items = productsList.options[0].option_values
         .map((item, index) => {
@@ -370,22 +311,6 @@ const DisplayItems = ({ navigation, route }) => {
         })
         .filter(Boolean);
     }
-
-    // if (rowQuantities?.custom?.qty > 0) {
-    //   const custom = rowQuantities.custom;
-
-    //   const customItem = {
-    //     customer_id: userData?.customer_id,
-    //     product_id: productsList?.product_id,
-    //     option: `{'${productsList?.options?.[0]?.product_option_id}':'bespoke_option#${custom.length}#${custom.price2}'}`,
-    //     quantity: custom.qty,
-    //   };
-
-    //   if (selectedTab === 'Refund') customItem.mode = 1;
-    //   else if (selectedTab === 'Refund - No Stock') customItem.mode = 2;
-
-    //   items.push(customItem);
-    // }
 
     if (rowQuantities?.custom?.qty > 0) {
       const custom = rowQuantities.custom;
@@ -485,7 +410,9 @@ const DisplayItems = ({ navigation, route }) => {
   const calculatePrice = () => {
     const w = Math.floor(Number(width));
     const h = Math.floor(Number(length));
-
+    if (!w || !h) {
+      return; // Don't show toast here
+    }
     const matched =
       productsList?.matrix?.find(
         item =>
@@ -508,7 +435,7 @@ const DisplayItems = ({ navigation, route }) => {
         }, null);
 
     // 🚫 No price found
-    if (!matched || !matched.price) {
+    if (!matched || !matched?.price) {
       showToast(
         'danger',
         'Not Available',
@@ -618,28 +545,6 @@ const DisplayItems = ({ navigation, route }) => {
     }
   };
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
-  // const handleItemPress = item => {
-  //   setPayload(prev => ({
-  //     ...prev,
-  //     product_id: item?.id,
-  //   }));
-
-  //   dispatch(fetchProductsList(item?.slug));
-  //   setResults([]);
-  // };
-
   const handleItemPress = useCallback(
     item => {
       setPayload(prev => ({ ...prev, product_id: item?.id }));
@@ -654,55 +559,9 @@ const DisplayItems = ({ navigation, route }) => {
       return { ...prev, [id]: true };
     });
   }, []);
-  // const renderItem1 = ({ item }) => {
-  //   const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
-
-  //   // const handleError = () => {
-  //   //   setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
-  //   // };
-
-  //   const hasError = imageErrorMap[item.id] || false;
-
-  //   return (
-  //     <TouchableOpacity
-  //       style={styles.itemRow}
-  //       onPress={() => handleItemPress(item)}
-  //     >
-  //       {imageUrl && !hasError ? (
-  //         <FastImage
-  //           style={styles.itemImage}
-  //           source={{
-  //             uri: imageUrl,
-  //             priority: FastImage.priority.high,
-  //             cache: FastImage.cacheControl.immutable,
-  //           }}
-  //           resizeMode={FastImage.resizeMode.cover}
-  //         onError={() => handleImageError(item.id)}
-  //         />
-  //       ) : (
-  //         <FastImage
-  //           style={styles.itemImage}
-  //           source={ImageData?.NOIMAGE}
-  //           resizeMode={FastImage.resizeMode.cover}
-  //       onError={() => handleImageError(item.id)}
-  //         />
-  //       )}
-
-  //       <View style={styles.itemTextContainer}>
-  //         <Text style={styles.itemName}>
-  //           {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
-  //         </Text>
-  //         <Text style={styles.itemPrice}>
-  //           £ {Number(item.price).toFixed(2)}
-  //         </Text>
-  //       </View>
-  //     </TouchableOpacity>
-  //   );
-  // };
 
   const renderItem1 = useCallback(
     ({ item }) => {
-      // const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
       const hasError = imageErrorMap[item.id] || false;
 
       const imageSource =
@@ -724,26 +583,6 @@ const DisplayItems = ({ navigation, route }) => {
             resizeMode={FastImage.resizeMode.cover}
             onError={() => handleImageError(item.id)}
           />
-
-          {/* {imageUrl && !hasError ? (
-            <FastImage
-              style={styles.itemImage}
-              source={{
-                uri: imageUrl,
-                priority: FastImage.priority.high,
-                cache: FastImage.cacheControl.immutable,
-              }}
-              resizeMode={FastImage.resizeMode.cover}
-              onError={() => handleImageError(item.id)}
-            />
-          ) : (
-            <FastImage
-              style={styles.itemImage}
-              source={ImageData?.NOIMAGE}
-              resizeMode={FastImage.resizeMode.cover}
-              onError={() => handleImageError(item.id)}
-            />
-          )} */}
 
           <View style={styles.itemTextContainer}>
             <Text style={styles.itemName}>
@@ -922,7 +761,7 @@ const DisplayItems = ({ navigation, route }) => {
                         priority: FastImage.priority.high,
                         cache: FastImage.cacheControl.immutable,
                       }}
-                      resizeMode={FastImage.resizeMode.cover}
+                      resizeMode={FastImage.resizeMode.stretch}
                       // onError={handleError}
                     />
                   ) : (
@@ -1038,7 +877,6 @@ const DisplayItems = ({ navigation, route }) => {
                     {productsList?.has_option != 0 &&
                     productsList?.options?.length > 0 ? (
                       <View style={styles.tableContainer}>
-                    
                         <FlatList
                           data={productsList?.options?.[0]?.option_values}
                           keyExtractor={(item, index) => index.toString()}
@@ -1066,12 +904,8 @@ const DisplayItems = ({ navigation, route }) => {
                                     )}
                                   </Text>
                                 </View>
-                               
-                                <View style={styles.priceCell}>
-                                  {/* <Text style={styles.cellText}>
-                                    £{parseFloat(item?.price).toFixed(2)}
-                                  </Text> */}
 
+                                <View style={styles.priceCell}>
                                   <Text style={styles.cellText}>
                                     {parseFloat(item?.price) === 0
                                       ? ''
@@ -1101,8 +935,12 @@ const DisplayItems = ({ navigation, route }) => {
                                       styles.iconContainer,
                                       isDisabled
                                         ? styles.iconDisabled
-                                        : styles.iconActive,
+                                        : [
+                                            styles.iconActive,
+                                            { backgroundColor: Color.RED },
+                                          ],
                                     ]}
+                                    x
                                     onPress={() => handleDecrease(index)}
                                   >
                                     <Text style={styles.iconSymbol}>−</Text>
@@ -1134,7 +972,10 @@ const DisplayItems = ({ navigation, route }) => {
                                       styles.iconContainer,
                                       isDisabled
                                         ? styles.iconDisabled
-                                        : styles.iconActive,
+                                        : [
+                                            styles.iconActive,
+                                            { backgroundColor: Color.GREEN2 },
+                                          ],
                                     ]}
                                     onPress={() =>
                                       handleIncrease(index, inStock)
@@ -1221,7 +1062,10 @@ const DisplayItems = ({ navigation, route }) => {
                                   styles.iconContainer,
                                   productsList?.quantity === 0
                                     ? styles.iconDisabled
-                                    : styles.iconActive,
+                                    : [
+                                        styles.iconActive,
+                                        { backgroundColor: Color.RED },
+                                      ],
                                 ]}
                                 onPress={() => handleDecrease('single')}
                               >
@@ -1259,7 +1103,10 @@ const DisplayItems = ({ navigation, route }) => {
                                   styles.iconContainer,
                                   productsList?.quantity === 0
                                     ? styles.iconDisabled
-                                    : styles.iconActive,
+                                    : [
+                                        styles.iconActive,
+                                        { backgroundColor: Color.GREEN2 },
+                                      ],
                                 ]}
                                 onPress={() =>
                                   handleIncrease(
@@ -1338,6 +1185,8 @@ const DisplayItems = ({ navigation, route }) => {
                                 style={[
                                   styles.iconContainer,
                                   styles.iconActive,
+
+                                  { backgroundColor: Color.RED },
                                 ]}
                                 onPress={() => handleDecrease('custom')}
                               >
@@ -1353,17 +1202,6 @@ const DisplayItems = ({ navigation, route }) => {
                                 value={(
                                   rowQuantities.custom?.qty ?? 0
                                 ).toString()}
-                                // onChangeText={text =>
-                                //   handleCustomTyping(
-                                //     text,
-                                //     bespokeFactor,
-                                //     customLength,
-                                //   )
-                                // }
-                                // onEndEditing={() =>
-                                //   handleCustomFinal(bespokeFactor, customLength)
-                                // }
-
                                 onChangeText={text => {
                                   if (customLength !== '') {
                                     handleCustomTyping(
@@ -1396,6 +1234,7 @@ const DisplayItems = ({ navigation, route }) => {
                                 style={[
                                   styles.iconContainer,
                                   styles.iconActive,
+                                  { backgroundColor: Color.GREEN2 },
                                 ]}
                                 onPress={() => {
                                   if (customLength !== '') {
@@ -1545,10 +1384,14 @@ const DisplayItems = ({ navigation, route }) => {
 
                         <View style={styles.iconBtn}>
                           <TouchableOpacity
-                            style={styles.buttonBox}
+                            style={[
+                              styles.buttonBox,
+                              { backgroundColor: Color.RED },
+                            ]}
                             onPress={() => {
-                              setQuantity(Math.max(0, quantity - 1));
-                              calculatePrice();
+                              // setQuantity(Math.max(0, quantity - 1));
+                              setQuantity(prev => Math.max(1, prev - 1));
+                              // calculatePrice();
                             }}
                           >
                             <Text style={styles.iconText}>−</Text>
@@ -1571,7 +1414,7 @@ const DisplayItems = ({ navigation, route }) => {
                               const num = Number(text);
                               if (isNaN(num)) return;
                               setQuantity(num);
-                              calculatePrice();
+                              // calculatePrice();
                             }}
                             onEndEditing={() => {
                               if (quantity === '') setQuantity(1);
@@ -1584,7 +1427,10 @@ const DisplayItems = ({ navigation, route }) => {
 
                         <View style={styles.iconBtn}>
                           <TouchableOpacity
-                            style={styles.buttonBox}
+                            style={[
+                              styles.buttonBox,
+                              { backgroundColor: Color.GREEN2 },
+                            ]}
                             onPress={() => {
                               setQuantity(quantity + 1);
                               calculatePrice();
@@ -1616,36 +1462,37 @@ const DisplayItems = ({ navigation, route }) => {
                   </>
                 )}
 
-                {productsList?.options?.[0]?.option_values?.length > 4 && (
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.editBtn}
-                      onPress={() => {
-                        navigation.navigate('WebViewScreen', {
-                          payload: payload,
-                        });
-                      }}
-                    >
-                      <Text style={styles.addText}>Edit Stock & Price</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.addBtn}
-                      onPress={() => {
-                        if (productsList?.matrix?.length <= 0) {
-                          addToBasket();
-                        } else {
-                          matrixAddToBasket();
-                        }
-                      }}
-                    >
-                      <Text style={styles.addText}>
-                        {selectedTab === 'Sales'
-                          ? 'Add To Basket'
-                          : 'Add To Refund'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+                {productsList?.options?.[0]?.option_values?.length > 4 &&
+                  productsList?.matrix?.length <= 0 && (
+                    <View style={styles.buttonRow}>
+                      <TouchableOpacity
+                        style={styles.editBtn}
+                        onPress={() => {
+                          navigation.navigate('WebViewScreen', {
+                            payload: payload,
+                          });
+                        }}
+                      >
+                        <Text style={styles.addText}>Edit Stock & Price</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.addBtn}
+                        onPress={() => {
+                          if (productsList?.matrix?.length <= 0) {
+                            addToBasket();
+                          } else {
+                            matrixAddToBasket();
+                          }
+                        }}
+                      >
+                        <Text style={styles.addText}>
+                          {selectedTab === 'Sales'
+                            ? 'Add To Basket'
+                            : 'Add To Refund'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
               </ScrollView>
             )}
           </>
@@ -1712,7 +1559,7 @@ const styles = ScaledSheet.create({
   },
   productContainer: {
     flexDirection: 'row',
-    // padding: 10,
+
     paddingHorizontal: verticalScale(10),
     paddingVertical: verticalScale(5),
     alignItems: 'center',

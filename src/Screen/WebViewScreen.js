@@ -17,6 +17,7 @@ import FastImage from 'react-native-fast-image';
 import { clearProducts, fetchProductsList } from '../Redux/Slice/ProductListSlice';
 import { useDispatch } from 'react-redux';
 import SearchComponent from './Component/SearchComponent';
+import decodeHtml from '../utility/decodeHtml';
 
 const WebViewScreen = ({ navigation, route }) => {
   const navigation1 = useNavigation();
@@ -30,41 +31,88 @@ const WebViewScreen = ({ navigation, route }) => {
   const [imageErrorMap, setImageErrorMap] = useState({});
   const dispatch = useDispatch();
 
-  const injectedJS = `
-  (function() {
-    const logo = document.querySelector("img[alt*='Ron'], img[src*='logo'], img[style*='1954']");
-    if (logo) logo.remove();
+  // const injectedJS = `
+  // (function() {
+  //   const logo = document.querySelector("img[alt*='Ron'], img[src*='logo'], img[style*='1954']");
+  //   if (logo) logo.remove();
 
     
-       const homeIcon = document.querySelector("img[alt*='Home'], img[src*='home'], i[class*='home'], svg[class*='home'], a[href*='home']");
-    if (homeIcon) homeIcon.remove();
+  //      const homeIcon = document.querySelector("img[alt*='Home'], img[src*='home'], i[class*='home'], svg[class*='home'], a[href*='home']");
+  //   if (homeIcon) homeIcon.remove();
      
+  //   const btn2 = Array.from(document.querySelectorAll("button, a")).find(el =>
+  //     el.innerText.includes("Product Page")
+  //   );
+
+  //   if (btn2) {
+  //     btn2.addEventListener("click", function(e) {
+  //       e.preventDefault();
+  //       window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
+  //     });
+  //   }
+  // })();
+  // true;
+  // `;
+const injectedJS = `
+(function() {
+
+  function modifyPage() {
+
+    // R ICON CLICK HANDLER
+    const rIcon = document.querySelector("img[src*='ricon']");
+    if (rIcon && !rIcon.dataset.listenerAdded) {
+
+      rIcon.dataset.listenerAdded = "true";
+
+      const rLink = rIcon.closest("a");
+
+      if (rLink) {
+        rLink.addEventListener("click", function(e) {
+          e.preventDefault();
+          window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
+        });
+      }
+    }
+
+    // HIDE HOME ICON
+    const homeIcon = document.querySelector("img[alt*='Home'], img[src*='home'], i[class*='home'], svg[class*='home'], a[href*='home']");
+    if (homeIcon) {
+      homeIcon.style.display = "none";
+    }
+
+    // PRODUCT PAGE BUTTON
     const btn2 = Array.from(document.querySelectorAll("button, a")).find(el =>
-      el.innerText.includes("Product Page")
+      el.innerText && el.innerText.includes("Product Page")
     );
 
-    if (btn2) {
+    if (btn2 && !btn2.dataset.listenerAdded) {
+      btn2.dataset.listenerAdded = "true";
+
       btn2.addEventListener("click", function(e) {
         e.preventDefault();
         window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
       });
     }
-  })();
-  true;
-  `;
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  }
+
+  setInterval(modifyPage, 1000);
+
+})();
+true;
+`;
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
 
 
   const handleItemPress = item => {
@@ -213,7 +261,7 @@ const WebViewScreen = ({ navigation, route }) => {
              
                 navigation1.goBack();
               } else {
-                
+                  navigation1.goBack();
               }
             }}
             style={{ flex: 1 }}

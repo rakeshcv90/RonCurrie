@@ -24,6 +24,7 @@ import { useDispatch } from 'react-redux';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import { getData } from '../utility/ApiCall';
 import Loader from '../Component/Loader';
+import decodeHtml from '../utility/decodeHtml';
 
 const SubProductList = ({ route }) => {
   const listData = route?.params?.itemData;
@@ -70,18 +71,18 @@ const SubProductList = ({ route }) => {
     }
   };
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });

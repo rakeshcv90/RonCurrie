@@ -22,6 +22,7 @@ import {
 } from 'react-native-size-matters';
 import { Color, FONT, ImageData } from '../../Component/Image';
 import CartComponent from '../../Component/CartComponent';
+import decodeHtml from '../../utility/decodeHtml';
 
 const WebScreen = ({ route, navigation }) => {
   const data = route?.params?.url;
@@ -31,21 +32,21 @@ const WebScreen = ({ route, navigation }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
   const webViewRef = useRef(null);
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .replace(/<[^>]*>/g, '') // remove HTML tags
-      .replace(/\s+/g, ' ') // clean extra spaces
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .replace(/<[^>]*>/g, '') // remove HTML tags
+  //     .replace(/\s+/g, ' ') // clean extra spaces
 
-      .trim();
-  };
+  //     .trim();
+  // };
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });

@@ -6,7 +6,7 @@ import {
   LayoutAnimation,
   Image,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ScaledSheet,
   moderateScale,
@@ -20,7 +20,20 @@ import { useSelector } from 'react-redux';
 import { fetchProductsList } from '../../Redux/Slice/ProductListSlice';
 import { getData } from '../../utility/ApiCall';
 import Loader from '../../Component/Loader';
+import decodeHtml from '../../utility/decodeHtml';
 
+// const decodeHtml = text => {
+//   if (!text) return '';
+//   return text
+//     .replace(/&quot;/g, '')
+//     .replace(/&apos;/g, '')
+//     .replace(/&amp;/g, '&')
+//     .replace(/&lt;/g, '<')
+//     .replace(/&gt;/g, '>')
+//     .replace(/["']/g, '')
+//     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+//     .trim();
+// };
 const CategoryComponent = ({ categoryData, navigation }) => {
   const { productsList, loading, error } = useSelector(
     state => state.productsList,
@@ -33,26 +46,12 @@ const CategoryComponent = ({ categoryData, navigation }) => {
     setExpandedCategory(expandedCategory === id ? null : id);
     setExpandedSub(null);
   };
-
   const toggleSub = id => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedSub(expandedSub === id ? null : id);
   };
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
 
   const getProductList = async dataItem => {
-   
     // setLoader(true);
     try {
       const res = await getData(
@@ -63,7 +62,7 @@ const CategoryComponent = ({ categoryData, navigation }) => {
       //  console.log("DJDJDJD",res?.data)
       if (res?.success == true && res?.responseCode == 200) {
         setLoader(false);
-  
+
         if (res?.data?.pageName == 'productList') {
           navigation.navigate('CategoryData', { listDAta: res?.data });
         } else if (res?.data?.pageName == 'categoryList') {
@@ -72,7 +71,6 @@ const CategoryComponent = ({ categoryData, navigation }) => {
           navigation.navigate('CategoryPage', { listDAta: res?.data });
         } else if (res?.data?.pageName == 'informationPage') {
         } else if (res?.data?.pageName == 'productPage') {
-          
         } else {
         }
       } else {
@@ -106,8 +104,8 @@ const CategoryComponent = ({ categoryData, navigation }) => {
             ]}
           >
             <TouchableOpacity
+              activeOpacity={0.8}
               onPress={() => {
-           
                 getProductList(category);
                 // navigation.navigate('SubProductList', { itemData: category });
               }}
@@ -150,10 +148,13 @@ const CategoryComponent = ({ categoryData, navigation }) => {
                 <View
                   style={[
                     styles.subHeader,
+                    // expandedSub === sub.id && styles.subHeaderActive,
                     expandedSub === sub.id && styles.subHeaderActive,
+                    expandedSub === sub.id && styles.subHeaderBorder,
                   ]}
                 >
                   <TouchableOpacity
+                    activeOpacity={0.8}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -166,12 +167,16 @@ const CategoryComponent = ({ categoryData, navigation }) => {
                     }}
                   >
                     <View style={styles.bulletDot} />
-                    <Text style={styles.subTitle}>  {decodeHtml(sub?.name)}</Text>
+                    <Text style={styles.subTitle}>
+                      {' '}
+                      {decodeHtml(sub?.name)}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    activeOpacity={0.8}
                     onPress={() => {
                       const isExpanded = expandedSub === sub?.id;
-                    
+
                       toggleSub(sub?.id);
                       if (sub?.children?.length <= 0 && !isExpanded) {
                         getProductList(sub);
@@ -192,6 +197,7 @@ const CategoryComponent = ({ categoryData, navigation }) => {
                 {expandedSub === sub?.id &&
                   sub?.children?.map((item, i) => (
                     <TouchableOpacity
+                      activeOpacity={0.8}
                       key={i}
                       style={styles.itemBox}
                       onPress={() => {
@@ -299,5 +305,9 @@ const styles = ScaledSheet.create({
     borderWidth: 2,
     borderColor: Color.WHITE,
   },
+  subHeaderBorder: {
+  borderTopWidth: 1,
+  borderTopColor: '#888888', // or Color.WHITE
+},
 });
-export default CategoryComponent;
+export default React.memo(CategoryComponent);

@@ -22,6 +22,7 @@ import { showToast } from '../utility/showToast';
 import SearchComponent from './Component/SearchComponent';
 import { ImageBaseUrl } from '../utility/api';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
+import decodeHtml from '../utility/decodeHtml';
 
 const ProductReturns = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -82,18 +83,18 @@ const ProductReturns = ({ navigation }) => {
     return `${day}/${month}/${year}`;
   };
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
 
   const handleItemPress = item => {
     dispatch(clearProducts());

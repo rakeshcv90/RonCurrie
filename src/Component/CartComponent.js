@@ -46,98 +46,7 @@ const CartComponent = () => {
     }, []),
   );
 
-  // const calculateMatrixPrice = item => {
-  //   const { matrix, additional_option, cart_quantity, cart_id, mode } = item;
-  //   const additionalOptionArray = JSON.parse(additional_option || '[]');
-
-  //   if (!matrix || matrix?.length === 0) {
-  //     let customOptionPrice = 0;
-  //     let parsedOption;
-
-  //     try {
-  //       parsedOption = JSON.parse(additional_option || '[]');
-  //     } catch {
-  //       parsedOption = [];
-  //     }
-
-  //     if (
-  //       parsedOption &&
-  //       !Array.isArray(parsedOption) &&
-  //       Object.keys(parsedOption).length > 0
-  //     ) {
-  //       const firstValue = Object.values(parsedOption)[0];
-  //       // if (firstValue && firstValue?.includes('#')) {
-  //       //   const parts = firstValue?.split('#');
-
-  //       //   customOptionPrice = Number(parts[2]) || 0;
-  //       // }
-
-  //       if (typeof firstValue === 'string' && firstValue.includes('#')) {
-  //         const parts = firstValue.split('#');
-
-  //         const middleValue = firstValue.split('#')[2];
-  //         const secondValue = firstValue.split('#')[1];
-  //         const totalPriceNumber =
-  //           (Number(secondValue) || 0) *
-  //           (Number(item?.options?.[0]?.bespoke_factor_val) || 0) *
-  //           (Number(item?.cart_quantity) || 0);
-  //         customOptionPrice = totalPriceNumber || 0;
-  //       } else {
-  //         const price = item?.options?.[0]?.values?.[0]?.price;
-
-  //         customOptionPrice = Number(price) * cart_quantity || 0;
-  //       }
-  //     }
-  //     // Case 2: parsedOption is array (like [])
-  //     else if (Array.isArray(parsedOption) && parsedOption?.length === 0) {
-  //       customOptionPrice = Number(item?.price) * cart_quantity || 0;
-  //     }
-
-  //     return customOptionPrice;
-  //   }
-
-  //   let optionData = {};
-  //   try {
-  //     optionData = JSON.parse(additional_option);
-  //   } catch (e) {
-  //     parsedOption = [];
-  //     return Number(item.price) * (cart_quantity || 1);
-  //   }
-
-  //   const values = Object.values(optionData)
-  //     .map(Number)
-  //     .filter(v => !isNaN(v));
-
-  //   // const [width, height] = values;
-  //     const [width, height] = values.map(v => Math.floor(parseFloat(v)));
-
-  //   let matched = matrix.find(m => m.width === width && m.height === height);
-
-  //   if (!matched) {
-  //     const largerMatches = matrix.filter(
-  //       m => m.width >= width && m.height >= height,
-  //     );
-
-  //     if (largerMatches.length > 0) {
-  //       matched = largerMatches.sort(
-  //         (a, b) =>
-  //           a.width -
-  //           width +
-  //           (a.height - height) -
-  //           (b.width - width + (b.height - height)),
-  //       )[0];
-  //     } else {
-  //       matched = matrix?.sort(
-  //         (a, b) => b.width - a.width || b.height - a.height,
-  //       )[0];
-  //     }
-  //   }
-
-  //   const matrixPrice = Number(matched?.price || 0);
-
-  //   return matrixPrice * (cart_quantity || 1);
-  // };
-
+  
   const calculateMatrixPrice = useCallback(item => {
     const { matrix, additional_option, cart_quantity, cart_id, mode } = item;
     const additionalOptionArray = JSON.parse(additional_option || '[]');
@@ -268,7 +177,7 @@ const CartComponent = () => {
           }}
         >
           <View style={styles.circleLeft1}>
-            <MaterialDesignIcons name="cart" color={Color.WHITE} size={20} />
+            <MaterialDesignIcons name="cart" color={Color.WHITE} size={25} />
           </View>
           <Text style={{ color: 'white', fontSize: 16 }}>
             {Number(getPrice) < 0
@@ -284,17 +193,17 @@ const CartComponent = () => {
             }}
           />
           <View style={{ marginRight: 5 }}>
-            <Text style={{ color: 'white', fontSize: 10 }}>
+            <Text style={{ color: 'white', fontSize: 11 }}>
               {cartList?.length} Groups
             </Text>
-            <Text style={{ color: 'white', fontSize: 10 }}>
+            <Text style={{ color: 'white', fontSize: 11 }}>
               {getItemCount()} Items
             </Text>
           </View>
         </TouchableOpacity>
         <View
           style={{
-            height: 30,
+            height: 40,
             width: 3,
             backgroundColor: '#D1D1D1',
             borderRadius: 2,
@@ -311,10 +220,10 @@ const CartComponent = () => {
         >
           <View
             style={{
-              width: verticalScale(35),
-              height: verticalScale(35),
-              borderRadius: verticalScale(35),
-              backgroundColor: '#B71C1C',
+              width: verticalScale(45),
+              height: verticalScale(45),
+              borderRadius: verticalScale(45),
+              backgroundColor: Color.RED,
               justifyContent: 'center',
               alignItems: 'center',
             }}
@@ -322,7 +231,7 @@ const CartComponent = () => {
             <MaterialDesignIcons
               name="barcode-scan"
               color={Color.WHITE}
-              size={verticalScale(20)}
+              size={verticalScale(25)}
             />
           </View>
         </TouchableOpacity>
@@ -334,7 +243,7 @@ const styles = ScaledSheet.create({
   bottomCard: {
     position: 'absolute',
     bottom: 20,
-    height: verticalScale(40),
+    height: verticalScale(50),
     flexDirection: 'row',
     backgroundColor: Color.WHITE,
     borderRadius: 40,
@@ -350,7 +259,7 @@ const styles = ScaledSheet.create({
     shadowRadius: 4,
   },
   circleLeft: {
-    height: verticalScale(38),
+    height: verticalScale(45),
     borderRadius: 50,
     backgroundColor: '#3D3D3D',
     justifyContent: 'flex-start',
@@ -359,9 +268,9 @@ const styles = ScaledSheet.create({
     gap: 5,
   },
   circleLeft1: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 45,
+    height: 45,
+    borderRadius: 45,
     backgroundColor: 'black',
     justifyContent: 'center',
     alignItems: 'center',

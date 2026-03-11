@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import React, { memo, useCallback, useState } from 'react';
+import React, { memo, useCallback, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Loader from '../Component/Loader';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -29,6 +29,7 @@ import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
 import SearchComponent from './Component/SearchComponent';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import CartComponent from '../Component/CartComponent';
+import decodeHtml from '../utility/decodeHtml';
 const OrderHistory = ({ navigation }) => {
   const dispatch = useDispatch();
   const [search, setSearch] = useState('');
@@ -42,6 +43,7 @@ const OrderHistory = ({ navigation }) => {
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
+   const hasInitialLoaded = useRef(false);
 
   const loadData = async (pageNumber = 1, searchTerm = '') => {
     try {
@@ -59,16 +61,27 @@ const OrderHistory = ({ navigation }) => {
   };
 
   useFocusEffect(
+    // useCallback(() => {
+    //   const fiveMinutes = 5 * 60 * 1000;
+    //   const shouldRefresh =
+    //     !lastFetched || Date.now() - lastFetched > fiveMinutes;
+
+    //   if (shouldRefresh) {
+    //     setPage(1);
+    //     loadData(1, search);
+    //   }
+    // }, [lastFetched]),
+
     useCallback(() => {
       const fiveMinutes = 5 * 60 * 1000;
-      const shouldRefresh =
-        !lastFetched || Date.now() - lastFetched > fiveMinutes;
+      const shouldRefresh = !lastFetched || Date.now() - lastFetched > fiveMinutes;
 
-      if (shouldRefresh) {
+      if (!hasInitialLoaded.current || shouldRefresh) {
+        hasInitialLoaded.current = true;
         setPage(1);
         loadData(1, search);
       }
-    }, [lastFetched]),
+    }, [lastFetched, search]),
   );
   const loadMore = () => {
     if (!loading && hasMore) {
@@ -142,18 +155,18 @@ const OrderHistory = ({ navigation }) => {
     navigation.navigate('DisplayItems', { itemData: item });
   }, []);
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
   const renderItem = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 

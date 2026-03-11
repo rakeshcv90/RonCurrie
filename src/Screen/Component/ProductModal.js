@@ -15,7 +15,7 @@ import { scale } from 'react-native-size-matters';
 import { ImageBaseUrl } from '../../utility/api';
 import RenderHTML from 'react-native-render-html';
 import { decode } from 'html-entities';
-import { FONT } from '../../Component/Image';
+import { Color, FONT } from '../../Component/Image';
 import FastImage from 'react-native-fast-image';
 
 const { width } = Dimensions.get('window');
@@ -28,8 +28,8 @@ const ProductModal = ({ visible, onClose, product }) => {
   const tagsStyles = {
     h3: { fontSize: 18, fontWeight: FONT.EXTRABOLD, marginBottom: 8 },
     ul: { marginVertical: 8, paddingLeft: 20 },
-    li: { fontSize: 14, marginBottom: 6, lineHeight: 20 },
-    p: { fontSize: 14, marginTop: 8, lineHeight: 20 },
+    li: { fontSize: 14, marginBottom: 6, lineHeight: 20, color: Color.BLACK2},
+    p: { fontSize: 14, marginTop: 8, lineHeight: 20 ,color: Color.BLACK2},
   };
   return (
     <Modal

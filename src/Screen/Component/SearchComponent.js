@@ -25,6 +25,8 @@ import Loader from '../../Component/Loader';
 import { MMKVStorage } from '../../utility/MmkvStore';
 import { useDispatch } from 'react-redux';
 import { triggerCartRefresh } from '../../Redux/Slice/CartDataShowSlice';
+import CategoryComponent from './CategoryComponent';
+import { useRoute } from '@react-navigation/native';
 const SearchComponent = ({
   onResults,
   onLoadMoreRef,
@@ -44,14 +46,21 @@ const SearchComponent = ({
   const isBarcodeScanRef = useRef(false);
   const isProcessingBarcodeRef = useRef(false);
   const barcodeBufferRef = useRef('');
-
+  const [allowKeyboard, setAllowKeyboard] = useState(false);
   const dispatch = useDispatch();
+  const route = useRoute();
   useEffect(() => {
     if (searchText.length === 0) {
       lastScannedRef.current = '';
     }
   }, [searchText]);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      searchInputRef.current?.focus();
+    });
 
+    return unsubscribe;
+  }, [navigation]);
   useEffect(() => {
     const fetchUserData = async () => {
       const data = await MMKVStorage.getItem('User_Data');
@@ -93,33 +102,37 @@ const SearchComponent = ({
           query,
         )}&page=${pageNumber}&limit=${LIMIT}`,
       );
-
+      console.log('Test', res);
       const response = res?.data?.data;
       let extracted = [];
       let currentPage = 1;
       let last_page = 1;
-
-      if (Array.isArray(response?.data)) {
-        extracted = response.data;
-        currentPage = response.current_page || 1;
-        last_page = response.last_page || 1;
-      } else if (response && typeof response === 'object') {
-        extracted = [response];
-      }
-
-      if (pageNumber === 1) {
-        setResults(extracted);
-        onResults?.(extracted);
+      if (res?.data?.length <= 0) {
+        showToast('danger', 'Error', 'No product found');
       } else {
-        setResults(prev => {
-          const merged = [...prev, ...extracted];
-          onResults?.(merged);
-          return merged;
-        });
-      }
+        if (Array.isArray(response?.data)) {
+          extracted = response.data;
+          currentPage = response.current_page || 1;
+          last_page = response.last_page || 1;
+        } else if (response && typeof response === 'object') {
+          extracted = [response];
+        }
+        CategoryComponent;
 
-      setPage(currentPage);
-      setLastPage(last_page);
+        if (pageNumber === 1) {
+          setResults(extracted);
+          onResults?.(extracted);
+        } else {
+          setResults(prev => {
+            const merged = [...prev, ...extracted];
+            onResults?.(merged);
+            return merged;
+          });
+        }
+
+        setPage(currentPage);
+        setLastPage(last_page);
+      }
     } catch (err) {
       showToast('danger', 'Error', err.message || 'Something went wrong');
     } finally {
@@ -134,52 +147,11 @@ const SearchComponent = ({
     }
   }, [loadingMore, page, lastPage, searchText, fetchData]);
 
-  // useEffect(() => {
-  //   onLoadMoreRef(() => loadMore);
-  // }, [loadMore]);
-
   useEffect(() => {
     if (onLoadMoreRef) {
       onLoadMoreRef(() => loadMore);
     }
   }, [onLoadMoreRef, loadMore]);
-  // const searchByBarcode = async barcode => {
-  //   if (!barcode || isProcessingBarcodeRef.current) return;
-
-  //   isProcessingBarcodeRef.current = true;
-
-  //   const payloadData = {
-  //     customer_id: userData?.customer_id,
-  //     bar_code: barcode,
-  //     order_mode: 'add',
-  //   };
-
-  //   try {
-  //     const response = await postData(Api.BAR_CODE_SCANNER, payloadData);
-
-  //     const resData = response?.data;
-  //     const cartItems = resData?.data?.data;
-  //     if (
-  //       resData?.success === true &&
-  //       resData?.responseCode === 200 &&
-  //       Array.isArray(cartItems) &&
-  //       cartItems.length > 0
-  //     ) {
-  //       dispatch(triggerCartRefresh());
-  //       showToast('success', 'Success!', 'Item added to cart successfully');
-  //     } else {
-  //       showToast('danger', 'Error', 'Invalid barcode, please try again');
-  //     }
-  //   } catch (error) {
-  //     showToast('danger', 'Error', 'Something went wrong');
-  //   } finally {
-  //     // 🔥 FULL RESET (CRITICAL)
-  //     isProcessingBarcodeRef.current = false;
-  //     barcodeBufferRef.current = '';
-  //     setSearchText('');
-  //     searchInputRef.current?.focus();
-  //   }
-  // };
 
   const searchByBarcode = useCallback(
     async barcode => {
@@ -236,7 +208,7 @@ const SearchComponent = ({
             navigation.dispatch(
               CommonActions.reset({
                 index: 0,
-                routes: [{ name: 'Home' }], // 👈 this becomes the new root
+                routes: [{ name: 'Home' }],
               }),
             );
           }}
@@ -252,10 +224,12 @@ const SearchComponent = ({
       <View style={styles.searchContainer}>
         <TextInput
           ref={searchInputRef}
-          placeholder="Search Term"
+          placeholder="Search products"
           style={styles.searchInput}
           placeholderTextColor="#777"
+          showSoftInputOnFocus={allowKeyboard}
           value={searchText}
+          autoFocus={false}
           returnKeyType="search"
           onChangeText={text => {
             setSearchText(text);
@@ -270,13 +244,15 @@ const SearchComponent = ({
             Keyboard.dismiss();
             const value = barcodeBufferRef.current.trim();
 
-            // 🔥 BARCODE ONLY ON ENTER
             if (value.length >= 13) {
               searchByBarcode(value);
               return;
             }
 
             handleSearch();
+          }}
+          onTouchStart={() => {
+            setAllowKeyboard(true); // enable keyboard when user taps
           }}
         />
         <TouchableOpacity
@@ -288,7 +264,7 @@ const SearchComponent = ({
           <Ionicons name="search" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
-
+      {/* 
       <TouchableOpacity
         style={styles.menuBtn}
         onPress={() => {
@@ -296,6 +272,23 @@ const SearchComponent = ({
         }}
       >
         <Ionicons name="menu" size={25} color="#000" />
+      </TouchableOpacity> */}
+
+      <TouchableOpacity
+        style={styles.menuBtn}
+        onPress={() => {
+          if (route.name === 'AccountProfile') {
+            navigation.goBack();
+          } else {
+            navigation.navigate('AccountProfile');
+          }
+        }}
+      >
+        <Ionicons
+          name={route.name === 'AccountProfile' ? 'close' : 'menu'}
+          size={25}
+          color="#000"
+        />
       </TouchableOpacity>
       <Loader visible={loader} />
     </View>
@@ -306,7 +299,7 @@ const styles = ScaledSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: moderateScale(5),
-    // marginVertical: moderateScale(2),
+
     backgroundColor: '#F6F6F6',
     height: verticalScale(70),
     borderBottomWidth: 2,

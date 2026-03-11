@@ -424,7 +424,20 @@ const PrintModel = ({ visible, onClose, printData }) => {
  <div class="section totals-section">
    <table>
      <tbody>
- 
+ ${
+   a4PrintDetails?.comment
+     ? `
+  <tr>
+    <td colspan="6" style="font-weight:bold; font-size:13px;">
+
+      <span style="font-weight:normal;">
+        ${a4PrintDetails?.comment}
+      </span>
+    </td>
+  </tr>
+`
+     : ''
+ }
     
     ${a4PrintDetails?.totals
       ?.filter(item => item.code === 'miscellaneous')
@@ -507,14 +520,9 @@ const PrintModel = ({ visible, onClose, printData }) => {
      </tbody>
    </table>
  </div>
- 
   
     </table>
   </div>
-  
-  
-  
-  
   
     </div>
   <div class="section">
@@ -538,25 +546,53 @@ const PrintModel = ({ visible, onClose, printData }) => {
             </tr>
           </thead>
   
-          <tbody>
-            ${a4PrintDetails.order_history
-              .map(
-                history => `
-                  <tr>
-                    <td>${history?.date_added || '-'}</td>
-                    <td>${history?.order_history_name?.name || '-'}</td>
-                    <td>${history?.comment || '—'}</td>
-                  </tr>
-                `,
-              )
-              .join('')}
-          </tbody>
+    <tbody>
+  ${a4PrintDetails.order_history
+    .map(
+      history => `
+        <tr>
+          <td>${history?.date_added || '-'}</td>
+          <td>${history?.order_history_name?.name || '-'}</td>
+          <td>${history?.comment || '—'}</td>
+        </tr>
+      `,
+    )
+    .join('')}
+
+  ${
+    a4PrintDetails?.comment
+      ? `
+        <tr>
+          <td>-</td>
+          <td><strong>Main Comment</strong></td>
+          <td>${a4PrintDetails.comment}</td>
+        </tr>
+      `
+      : ''
+  }
+</tbody>
         </table>
       `
       : `
+      
         <div style="text-align:left; padding:12px; ">
           No customer updates
         </div>
+
+        ${
+          a4PrintDetails?.comment
+            ? `
+        <table style="margin-top:10px;">
+          <tbody>
+            <tr>
+              <td width="25%" style="font-weight:600;">Notes</td>
+              <td width="75%">${a4PrintDetails.comment}</td>
+            </tr>
+          </tbody>
+        </table>
+      `
+            : ''
+        }
       `
   }
   
@@ -566,42 +602,6 @@ const PrintModel = ({ visible, onClose, printData }) => {
   `;
   };
 
-  //     `${
-  //             a4PrintDetails?.epos_customer_name ||
-  //             a4PrintDetails?.epos_car_detail
-  //               ? `
-  // <div class="section1">
-  //   <div class="address-row1">
-  //     <div class="address-column1">Payment Address</div>
-  //     <div class="address-column1">Delivery Address</div>
-  //   </div>
-
-  //   <div class="address-row">
-  //     <div class="address-column left-column">
-  //      <p>
-  //           <b>${a4PrintDetails?.epos_customer_name} </b><br/>
-  //           ${a4PrintDetails?.epos_customer_address}<br/>
-
-  //         </p>
-  //     </div>
-
-  //     <div class="address-column right-column">
-  //      <p>
-  //           ${a4PrintDetails?.shipping_company}<br/>
-  //           ${a4PrintDetails?.shipping_address_1}  ${a4PrintDetails?.shipping_address_2}<br/>
-
-  //           ${a4PrintDetails?.shipping_city}<br/>
-  //           ${a4PrintDetails?.shipping_postcode}<br/>
-  //           ${a4PrintDetails?.shipping_country}<br/>
-  //           ${a4PrintDetails?.shipping_zone}
-
-  //         </p>
-  //     </div>
-  //   </div>
-  // </div>
-  // `
-  //               : ``
-  //           }`
   const generate80mmInvoice = () => {
     const totalsMap = Object.fromEntries(
       (a4PrintDetails?.totals || []).map(item => [
@@ -614,30 +614,30 @@ const PrintModel = ({ visible, onClose, printData }) => {
     const productsHtml = (a4PrintDetails?.products || [])
       .map(product => {
         return `
-        <tr>
-          <td>
-            ${product.name}
-        ${
-          Array.isArray(product?.order_options) &&
-          product.order_options.length > 0
-            ? product.order_options
-                .map(
-                  opt => `
-            <span class="product-sub">
-              - ${opt.name}: ${opt.value}
-            </span><br/>
-          `,
-                )
-                .join('')
-            : ''
-        }
+          <tr>
+            <td>
+              ${product.name}
+          ${
+            Array.isArray(product?.order_options) &&
+            product.order_options.length > 0
+              ? product.order_options
+                  .map(
+                    opt => `
+              <span class="product-sub">
+                - ${opt.name}: ${opt.value}
+              </span><br/>
+            `,
+                  )
+                  .join('')
+              : ''
+          }
 
-          </td>
-          <td class="qty">${product.quantity}</td>
-          <td class="price">£${Number(product.price).toFixed(2)}</td>
-          <td class="total">£${Number(product.total).toFixed(2)}</td>
-        </tr>
-      `;
+            </td>
+            <td class="qty">${product.quantity}</td>
+            <td class="price">£${Number(product.price).toFixed(2)}</td>
+            <td class="total">£${Number(product.total).toFixed(2)}</td>
+          </tr>
+        `;
       })
       .join('');
 
@@ -660,99 +660,99 @@ const PrintModel = ({ visible, onClose, printData }) => {
 
     // Return HTML
     return `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8" />
-<style>
-@page { margin: 0; }
+  <!DOCTYPE html>
+  <html>
+  <head>
+  <meta charset="UTF-8" />
+  <style>
+  @page { margin: 0; }
 
-html, body {
-  width: 80mm;
-  margin: 0;
-  padding: 0;
-}
+  html, body {
+    width: 80mm;
+    margin: 0;
+    padding: 0;
+  }
 
-body {
-  padding: 6px;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #000;
-}
+  body {
+    padding: 6px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #000;
+  }
 
-.order-id { font-size: 16px; font-weight: 900; margin-top: 10px; }
-.company-title { font-size: 23px; font-weight: 900; line-height: 1.2; }
-.company-title .red { color: #b22222; }
-.company-title .black { color: #000; }
-.company-details { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-.bold-label { font-weight: 900; margin: 6px 0; font-size: 14px; }
+  .order-id { font-size: 16px; font-weight: 900; margin-top: 10px; }
+  .company-title { font-size: 23px; font-weight: 900; line-height: 1.2; }
+  .company-title .red { color: #b22222; }
+  .company-title .black { color: #000; }
+  .company-details { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .bold-label { font-weight: 900; margin: 6px 0; font-size: 14px; }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 6px 0;
-}
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0;
+  }
 
-th, td {
-  border: 1px solid #dddddd;
-  padding: 6px;
-  font-size: 16px;
-  font-weight: 700;
-}
+  th, td {
+    border: 1px solid #dddddd;
+    padding: 6px;
+    font-size: 16px;
+    font-weight: 700;
+  }
 
-th { font-weight: 900; }
-.qty, .price, .total { text-align: center; font-weight: 900; }
-.summary-row td { font-weight: 900; text-align: right; font-size: 14px; }
-</style>
-</head>
+  th { font-weight: 900; }
+  .qty, .price, .total { text-align: center; font-weight: 900; }
+  .summary-row td { font-weight: 900; text-align: right; font-size: 14px; }
+  </style>
+  </head>
 
-<body>
+  <body>
 
-<div class="order-id">Order Id: ${a4PrintDetails?.order_id}</div>
+  <div class="order-id">Order Id: ${a4PrintDetails?.order_id}</div>
 
-<div class="company-title">
-  <span class="red">Ron Currie & Sons</span>
-  <span class="black"> Ltd</span>
-</div>
+  <div class="company-title">
+    <span class="red">Ron Currie & Sons</span>
+    <span class="black"> Ltd</span>
+  </div>
 
-<div class="company-details">
-  Tel: ${a4PrintDetails?.settings?.config_telephone}<br>
-  VAT: ${companyDetails?.companyVat}
-</div>
+  <div class="company-details">
+    Tel: ${a4PrintDetails?.settings?.config_telephone}<br>
+    VAT: ${companyDetails?.companyVat}
+  </div>
 
-<div class="bold-label">Date Added: ${dateAdded}</div>
+  <div class="bold-label">Date Added: ${dateAdded}</div>
 
-<table>
-<tr>
-  <th>Product</th>
-  <th>Qty</th>
-  <th>Price</th>
-  <th>Total</th>
-</tr>
+  <table>
+  <tr>
+    <th>Product</th>
+    <th>Qty</th>
+    <th>Price</th>
+    <th>Total</th>
+  </tr>
 
-${productsHtml}
+  ${productsHtml}
 
-<tr class="summary-row">
-  <td colspan="3">Groups</td>
-  <td style="text-align:left;">${a4PrintDetails?.products?.length || 0}</td>
-</tr>
+  <tr class="summary-row">
+    <td colspan="3">Groups</td>
+    <td style="text-align:left;">${a4PrintDetails?.products?.length || 0}</td>
+  </tr>
 
-<tr class="summary-row">
-  <td colspan="3">Inc VAT Sub-Total</td>
-  <td>£${totalsMap.sub_total || '0.00'}</td>
-</tr>
+  <tr class="summary-row">
+    <td colspan="3">Inc VAT Sub-Total</td>
+    <td>£${totalsMap.sub_total || '0.00'}</td>
+  </tr>
 
-<tr class="summary-row">
-  <td colspan="3">Total (VAT £${totalsMap.tax || '0.00'})</td>
-  <td>£${totalsMap.total || '0.00'}</td>
-</tr>
+  <tr class="summary-row">
+    <td colspan="3">Total (VAT £${totalsMap.tax || '0.00'})</td>
+    <td>£${totalsMap.total || '0.00'}</td>
+  </tr>
 
-</table>
+  </table>
 
-</body>
-</html>
-`;
+  </body>
+  </html>
+  `;
   };
 
   const printWithStarPassPRNT = async html => {
@@ -798,8 +798,8 @@ ${productsHtml}
         format === '80mm' ? await generate80mmInvoice() : await generatePDF();
 
       if (format === '80mm') {
-        await printWithStarPassPRNT(html); // ✅ Star PassPRNT
-        // await RNPrint.print({ html });
+        // await printWithStarPassPRNT(html); // ✅ Star PassPRNT
+        await RNPrint.print({ html });
       } else {
         await RNPrint.print({ html }); // ✅ A4 print
       }

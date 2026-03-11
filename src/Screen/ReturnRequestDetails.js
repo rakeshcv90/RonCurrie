@@ -25,6 +25,7 @@ import SearchComponent from './Component/SearchComponent';
 import { ImageBaseUrl } from '../utility/api';
 import FastImage from 'react-native-fast-image';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
+import decodeHtml from '../utility/decodeHtml';
 
 const ReturnRequestDetails = ({ navigation, route }) => {
   const order_id = route?.params?.orderItem;
@@ -70,22 +71,22 @@ const ReturnRequestDetails = ({ navigation, route }) => {
     return `${day}/${month}/${year}`;
   };
 
-const decodeHtml = text => {
-  if (!text) return '';
+// const decodeHtml = text => {
+//   if (!text) return '';
 
-  return text
-    // remove HTML tags like <p>, <div>, etc.
-    .replace(/<\/?[^>]+(>|$)/g, '')
-    // decode entities
-    .replace(/&quot;/g, '')
-    .replace(/&apos;/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    // optional cleanup
-    .replace(/["']/g, '')
-    .trim();
-};
+//   return text
+//     // remove HTML tags like <p>, <div>, etc.
+//     .replace(/<\/?[^>]+(>|$)/g, '')
+//     // decode entities
+//     .replace(/&quot;/g, '')
+//     .replace(/&apos;/g, '')
+//     .replace(/&amp;/g, '&')
+//     .replace(/&lt;/g, '<')
+//     .replace(/&gt;/g, '>')
+//     // optional cleanup
+//     .replace(/["']/g, '')
+//     .trim();
+// };
 
   const handleItemPress = item => {
     dispatch(clearProducts());

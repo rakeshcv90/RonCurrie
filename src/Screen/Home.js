@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
-  StatusBar,
+
   LayoutAnimation,
   RefreshControl,
   Dimensions,
@@ -23,11 +23,12 @@ import { fetchProducts } from '../Redux/Slice/ProductMenuSlice';
 import { useFocusEffect } from '@react-navigation/native';
 import Loader from '../Component/Loader';
 import { showToast } from '../utility/showToast';
-import { usePermissions } from '../Component/usePermissions';
+
 import CartComponent from '../Component/CartComponent';
 import { Color, FONT, ImageData } from '../Component/Image';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import { ImageBaseUrl } from '../utility/api';
+import decodeHtml from '../utility/decodeHtml';
 
 import FastImage from 'react-native-fast-image';
 import SearchComponent from './Component/SearchComponent';
@@ -41,26 +42,13 @@ const COLUMNS = 6;
 const totalHorizontalMargin = moderateScale(7) * COLUMNS;
 const itemWidth = (screenW - totalHorizontalMargin) / COLUMNS;
 
-const decodeHtml = text => {
-  if (!text) return '';
-  return text
-    .replace(/&quot;/g, '')
-    .replace(/&apos;/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/["']/g, '')
-    .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-    .trim();
-};
-
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
   const { products, loading, error } = useSelector(state => state.product);
   const { categories } = useSelector(state => state.category);
 
   const [refreshing, setRefreshing] = useState(false);
-  const { hasPermission } = usePermissions();
+
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -81,8 +69,13 @@ const Home = ({ navigation }) => {
     useCallback(() => {
       const fetchData = async () => {
         try {
-          await dispatch(fetchProducts()).unwrap(); // unwrap gives real error
-          await dispatch(fetchCategories()).unwrap(); // unwrap gives real error
+          // await dispatch(fetchProducts()).unwrap(); // unwrap gives real error
+          // await dispatch(fetchCategories()).unwrap(); // unwrap gives real error
+
+          await Promise.all([
+            dispatch(fetchProducts()).unwrap(),
+            dispatch(fetchCategories()).unwrap(),
+          ]);
         } catch (error) {
           if (error.type === 'network') {
             showToast('danger', 'Network Error', error.message);
@@ -101,19 +94,10 @@ const Home = ({ navigation }) => {
     }, [dispatch]),
   );
 
-  // const toggleExpand = id => {
-  //   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  //   setExpanded(expanded === id ? null : id);
-  // };
   const toggleExpand = useCallback(id => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(prev => (prev === id ? null : id));
   }, []);
-
-  // const handleItemPress = item => {
-  //   dispatch(clearProducts());
-  //   navigation.navigate('DisplayItems', { itemData: item });
-  // };
 
   const handleItemPress = useCallback(
     item => {
@@ -143,14 +127,20 @@ const Home = ({ navigation }) => {
           <FastImage
             style={styles.itemImage}
             source={
-              imageUrl && !hasError ? { uri: imageUrl } : ImageData.NOIMAGE
+              imageUrl && !hasError
+                ? {
+                    uri: imageUrl,
+                    priority: FastImage.priority.high,
+                    cache: FastImage.cacheControl.immutable,
+                  }
+                : ImageData.NOIMAGE
             }
             resizeMode={FastImage.resizeMode.cover}
             onError={() => handleImageError(item.id)}
           />
 
           <View style={styles.itemTextContainer}>
-            <Text style={styles.itemName}>
+            <Text style={styles.itemName} numberOfLines={2}>
               {decodeHtml(item.name || item.descriptions?.name)}
             </Text>
             <Text style={styles.itemPrice}>
@@ -163,56 +153,10 @@ const Home = ({ navigation }) => {
     [imageErrorMap, handleItemPress, handleImageError],
   );
 
-  // const renderItem = ({ item }) => {
-  //   const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
-
-  //   // const handleError = () => {
-  //   //   setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
-  //   // };
-
-  //   const hasError = imageErrorMap[item.id] || false;
-
-  //   return (
-  //     <TouchableOpacity
-  //       style={styles.itemRow}
-  //       onPress={() => handleItemPress(item)}
-  //     >
-  //       {imageUrl && !hasError ? (
-  //         <FastImage
-  //           style={styles.itemImage}
-  //           source={{
-  //             uri: imageUrl,
-  //             priority: FastImage.priority.high,
-  //             cache: FastImage.cacheControl.immutable,
-  //           }}
-  //           resizeMode={FastImage.resizeMode.cover}
-  //           onError={() => handleImageError(item.id)}
-  //         />
-  //       ) : (
-  //         <FastImage
-  //           style={styles.itemImage}
-  //           source={ImageData?.NOIMAGE}
-  //           resizeMode={FastImage.resizeMode.cover}
-  //           onError={() => handleImageError(item.id)}
-  //         />
-  //       )}
-
-  //       <View style={styles.itemTextContainer}>
-  //         <Text style={styles.itemName}>
-  //           {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
-  //         </Text>
-  //         <Text style={styles.itemPrice}>
-  //           £ {Number(item.price).toFixed(2)}
-  //         </Text>
-  //       </View>
-  //     </TouchableOpacity>
-  //   );
-  // };
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
 
     try {
-      // Re-fetch your products or any data
       await dispatch(fetchProducts()).unwrap();
 
       dispatch(fetchCartData(userData.customer_id));
@@ -221,20 +165,13 @@ const Home = ({ navigation }) => {
     }
 
     setRefreshing(false);
-  };
+  }, [dispatch, userData]);
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* <SearchComponent
+      <SearchComponent
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
-        navigation={navigation}
-        autoFocus={true}
-      /> */}
-
-      <SearchComponent
-        onResults={useCallback(setResults, [])}
-        onLoadMoreRef={useCallback(setLoadMoreFunc, [])}
         navigation={navigation}
         autoFocus
       />
@@ -325,9 +262,7 @@ const Home = ({ navigation }) => {
                   <FlatList
                     data={category?.product_data}
                     numColumns={COLUMNS}
-                    // key={COLUMNS}
                     keyExtractor={(item, idx) => idx.toString()}
-                    // scrollEnabled={true}
                     scrollEnabled={expanded === (category.id || index)}
                     nestedScrollEnabled={true}
                     showsVerticalScrollIndicator={true}
@@ -403,8 +338,7 @@ const Home = ({ navigation }) => {
         </ScrollView>
       )}
       <CartComponent />
-  
-      {/* {products?.length <= 0 && <Loader visible={loading} />} */}
+
       {loading && products?.length === 0 && <Loader visible />}
     </SafeAreaView>
   );
@@ -481,7 +415,7 @@ const styles = ScaledSheet.create({
   },
   itemTextContainer: {
     flex: 1,
-    paddingRight: moderateScale(5),
+    paddingRight: moderateScale(15),
   },
 });
 

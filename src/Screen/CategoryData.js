@@ -22,6 +22,7 @@ import { useNavigation } from '@react-navigation/native';
 import SearchComponent from './Component/SearchComponent';
 import { useDispatch } from 'react-redux';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
+import decodeHtml from '../utility/decodeHtml';
 
 const CategoryData = ({ route }) => {
   const listData = route?.params?.listDAta;
@@ -32,18 +33,18 @@ const CategoryData = ({ route }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
 
-  const decodeHtml = text => {
-    if (!text) return '';
-    return text
-      .replace(/&quot;/g, '')
-      .replace(/&apos;/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/["']/g, '')
-      .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-      .trim();
-  };
+  // const decodeHtml = text => {
+  //   if (!text) return '';
+  //   return text
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     .replace(/["']/g, '')
+  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
+  //     .trim();
+  // };
   const handleItemPress = item => {
 
     dispatch(clearProducts());
