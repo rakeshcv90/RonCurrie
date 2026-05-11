@@ -1,4 +1,11 @@
-import { View, Text, StatusBar, Image, ActivityIndicator, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  StatusBar,
+  Image,
+  ActivityIndicator,
+  FlatList,
+} from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   moderateScale,
@@ -14,7 +21,10 @@ import * as Keychain from 'react-native-keychain';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { ImageBaseUrl } from '../utility/api';
 import FastImage from 'react-native-fast-image';
-import { clearProducts, fetchProductsList } from '../Redux/Slice/ProductListSlice';
+import {
+  clearProducts,
+  fetchProductsList,
+} from '../Redux/Slice/ProductListSlice';
 import { useDispatch } from 'react-redux';
 import SearchComponent from './Component/SearchComponent';
 import decodeHtml from '../utility/decodeHtml';
@@ -30,16 +40,16 @@ const WebViewScreen = ({ navigation, route }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
   const dispatch = useDispatch();
-
+  const searchRef = useRef(null);
+  const [searchNoResults, setSearchNoResults] = useState(false);
   // const injectedJS = `
   // (function() {
   //   const logo = document.querySelector("img[alt*='Ron'], img[src*='logo'], img[style*='1954']");
   //   if (logo) logo.remove();
 
-    
   //      const homeIcon = document.querySelector("img[alt*='Home'], img[src*='home'], i[class*='home'], svg[class*='home'], a[href*='home']");
   //   if (homeIcon) homeIcon.remove();
-     
+
   //   const btn2 = Array.from(document.querySelectorAll("button, a")).find(el =>
   //     el.innerText.includes("Product Page")
   //   );
@@ -53,7 +63,7 @@ const WebViewScreen = ({ navigation, route }) => {
   // })();
   // true;
   // `;
-const injectedJS = `
+  const injectedJS = `
 (function() {
 
   function modifyPage() {
@@ -114,10 +124,12 @@ true;
   //     .trim();
   // };
 
-
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
   const renderItem1 = ({ item }) => {
@@ -146,7 +158,7 @@ true;
             onError={handleError}
           />
         ) : (
-         <FastImage
+          <FastImage
             style={styles.itemImage}
             source={ImageData?.NOIMAGE}
             resizeMode={FastImage.resizeMode.cover}
@@ -173,10 +185,12 @@ true;
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       {results?.length > 0 ? (
         <>
@@ -201,9 +215,22 @@ true;
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
-      
           {loading && (
             <View style={styles.loaderContainer}>
               <ActivityIndicator size="large" />
@@ -253,15 +280,13 @@ true;
 
                 webViewRef.current?.injectJavaScript(postForm);
                 setSubmitted(true);
-               
               }
             }}
             onMessage={event => {
               if (event.nativeEvent.data === 'GO_BACK_PRODUCT_PAGE') {
-             
                 navigation1.goBack();
               } else {
-                  navigation1.goBack();
+                navigation1.goBack();
               }
             }}
             style={{ flex: 1 }}
@@ -318,7 +343,7 @@ const styles = ScaledSheet.create({
     backgroundColor: 'white', // optional
     zIndex: 999,
   },
-    itemRow: {
+  itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: moderateScale(8),
@@ -337,5 +362,24 @@ const styles = ScaledSheet.create({
   itemPrice: {
     fontSize: moderateScale(13),
     color: '#555',
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });

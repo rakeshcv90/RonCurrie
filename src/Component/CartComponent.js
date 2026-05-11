@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { View, Text, TouchableOpacity, Keyboard } from 'react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -14,6 +15,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { MMKVStorage } from '../utility/MmkvStore';
 import {
   fetchCartData,
+  fetchMiscData,
   setSkipAutoBack,
 } from '../Redux/Slice/CartDataShowSlice';
 import { showToast } from '../utility/showToast';
@@ -21,9 +23,13 @@ import { showToast } from '../utility/showToast';
 const CartComponent = () => {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const { cartList, loading, error, refreshKey } = useSelector(
-    state => state.cartListData,
-  );
+  const {
+    cartList,
+    loading,
+    error,
+    refreshKey,
+    miscList: reduxMiscList,
+  } = useSelector(state => state.cartListData);
 
   const [userData, setUserData] = useState(null);
   useEffect(() => {
@@ -38,6 +44,7 @@ const CartComponent = () => {
   useEffect(() => {
     if (userData?.customer_id) {
       dispatch(fetchCartData(userData.customer_id));
+      dispatch(fetchMiscData(userData?.customer_id));
     }
   }, [dispatch, userData, refreshKey]);
   useFocusEffect(
@@ -46,7 +53,6 @@ const CartComponent = () => {
     }, []),
   );
 
-  
   const calculateMatrixPrice = useCallback(item => {
     const { matrix, additional_option, cart_quantity, cart_id, mode } = item;
     const additionalOptionArray = JSON.parse(additional_option || '[]');
@@ -146,8 +152,15 @@ const CartComponent = () => {
       return item.mode === 1 || item.mode === 2 ? sum - price : sum + price;
     }, 0);
 
-    return subTotal.toFixed(2);
-  }, [cartList]);
+    const miscTotal = (reduxMiscList?.miscellaneous || []).reduce(
+      (sum, item) => sum + Number(item.misc_value || 0),
+      0,
+    );
+
+    const finalTotal = subTotal + miscTotal;
+
+    return finalTotal.toFixed(2);
+  }, [cartList, reduxMiscList]);
   const getItemCount = () => {
     const subTotal = cartList?.reduce(
       (sum, item) => sum + item?.cart_quantity,
@@ -194,7 +207,9 @@ const CartComponent = () => {
           />
           <View style={{ marginRight: 5 }}>
             <Text style={{ color: 'white', fontSize: 11 }}>
-              {cartList?.length} Groups
+              {(cartList?.length || 0) +
+                (reduxMiscList?.miscellaneous?.length || 0)}{' '}
+              Groups
             </Text>
             <Text style={{ color: 'white', fontSize: 11 }}>
               {getItemCount()} Items

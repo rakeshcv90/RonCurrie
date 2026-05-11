@@ -306,8 +306,8 @@ const styles = ScaledSheet.create({
     borderColor: Color.WHITE,
   },
   subHeaderBorder: {
-  borderTopWidth: 1,
-  borderTopColor: '#888888', // or Color.WHITE
-},
+    borderTopWidth: 1,
+    borderTopColor: '#888888', // or Color.WHITE
+  },
 });
 export default React.memo(CategoryComponent);

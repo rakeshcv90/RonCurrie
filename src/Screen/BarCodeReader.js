@@ -34,7 +34,10 @@ import { postData } from '../utility/ApiCall';
 import { Api, ImageBaseUrl } from '../utility/api';
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
 import { CommonActions } from '@react-navigation/native';
-import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
+import {
+  triggerCartRefresh,
+  triggerMiscRefresh,
+} from '../Redux/Slice/CartDataShowSlice';
 import CartComponent from '../Component/CartComponent';
 import SearchComponent from './Component/SearchComponent';
 import FastImage from 'react-native-fast-image';
@@ -52,7 +55,7 @@ const BarCodeReader = ({ navigation }) => {
   const dispatch = useDispatch();
   const camera = useRef(null);
   const devices = Camera.getAvailableCameraDevices();
-
+  const searchRef = useRef(null);
   const [currentCamera, setCurrentCamera] = useState('back');
   const [cameraReady, setCameraReady] = useState(false);
   const device = getCameraDevice(devices, currentCamera);
@@ -62,7 +65,8 @@ const BarCodeReader = ({ navigation }) => {
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
-    const [allowKeyboard, setAllowKeyboard] = useState(false);
+  const [allowKeyboard, setAllowKeyboard] = useState(false);
+  const [searchNoResults, setSearchNoResults] = useState(false);
   useEffect(() => {
     const fetchUserData = async () => {
       const data = await MMKVStorage.getItem('User_Data');
@@ -109,8 +113,9 @@ const BarCodeReader = ({ navigation }) => {
       const response = await postData(Api.BAR_CODE_SCANNER, payloadData);
 
       if (
-        response?.data?.success == true &&
-        response?.data?.data?.data?.length > 0
+        response?.data?.success == true
+        // &&
+        // response?.data?.data?.data?.length > 0
       ) {
         setMessage({ type: 'success' });
         // setBarcode(null);
@@ -122,7 +127,7 @@ const BarCodeReader = ({ navigation }) => {
           setLastScanned(null);
           setScanningEnabled(true);
           dispatch(triggerCartRefresh());
-          // navigation.navigate('AddCartScreen');
+          dispatch(triggerMiscRefresh());
           typingTimeoutRef.current?.focus();
         }, 3000);
       } else {
@@ -173,6 +178,9 @@ const BarCodeReader = ({ navigation }) => {
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
   const renderItem1 = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
@@ -200,7 +208,7 @@ const BarCodeReader = ({ navigation }) => {
             onError={handleError}
           />
         ) : (
-        <FastImage
+          <FastImage
             style={styles.itemImage}
             source={ImageData?.NOIMAGE}
             resizeMode={FastImage.resizeMode.cover}
@@ -227,10 +235,12 @@ const BarCodeReader = ({ navigation }) => {
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       {results?.length > 0 ? (
         <>
@@ -255,6 +265,20 @@ const BarCodeReader = ({ navigation }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <KeyboardAvoidingView
@@ -339,13 +363,12 @@ const BarCodeReader = ({ navigation }) => {
                   editable={true}
                   keyboardType="numeric"
                   onChangeText={handleManualInput}
-                   showSoftInputOnFocus={allowKeyboard} 
+                  showSoftInputOnFocus={allowKeyboard}
                   returnKeyType="search"
                   onSubmitEditing={() => handleSubmitBarcode(barcode)}
-
-                      onTouchStart={() => {
-            setAllowKeyboard(true); // enable keyboard when user taps
-          }}
+                  onTouchStart={() => {
+                    setAllowKeyboard(true); // enable keyboard when user taps
+                  }}
                 />
               </View>
 
@@ -587,6 +610,26 @@ const styles = ScaledSheet.create({
   itemTextContainer: {
     flex: 1,
     paddingRight: moderateScale(5),
+  },
+
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 

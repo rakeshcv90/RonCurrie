@@ -9,13 +9,14 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Keyboard,
+  Platform,
 } from 'react-native';
 import {
   moderateScale,
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -27,36 +28,55 @@ import { showToast } from '../utility/showToast';
 import { MMKVStorage } from '../utility/MmkvStore';
 import Loader from '../Component/Loader';
 
+import Recaptcha from 'react-native-recaptcha-that-works';
+const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
+const baseUrl = 'https://roncurrie.co.uk/';
 const Login = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [loader, setLoader] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const recaptcha = useRef();
+
+  const validateInput = () => {
+    if (!email.trim()) {
+      Alert.alert('Validation Error', 'Please enter your email');
+      return false;
+    }
+    if (!emailRegex.test(email)) {
+      Alert.alert('Validation Error', 'Please enter a valid email address');
+      return false;
+    }
+    if (!password.trim()) {
+      Alert.alert('Validation Error', 'Please enter your password');
+      return false;
+    }
+    if (password.length < 8) {
+      Alert.alert(
+        'Validation Error',
+        'Password must be at least 8 characters long',
+      );
+      return false;
+    }
+    return true;
+  };
+
   const loginFunction = async () => {
     try {
-      if (!email.trim()) {
-        Alert.alert('Validation Error', 'Please enter your email');
-        return;
-      }
-      if (!emailRegex.test(email)) {
-        Alert.alert('Validation Error', 'Please enter a valid email address');
-        return;
-      }
-      if (!password.trim()) {
-        Alert.alert('Validation Error', 'Please enter your password');
-        return;
-      }
-      if (password.length < 8) {
-        Alert.alert(
-          'Validation Error',
-          'Password must be at least 8 characters long',
-        );
+      if (!validateInput()) {
         return;
       }
 
       setLoader(true);
-      const response = await postData(Api.LOGIN, { email, password });
+      const response = await postData(Api.LOGIN, {
+        email,
+        password,
+        captcha_token: captchaToken,
+      });
 
       if (response?.status == 200) {
         setLoader(false);
@@ -93,6 +113,18 @@ const Login = ({ navigation }) => {
         );
       }
     }
+  };
+  const onVerify = token => {
+    console.log('reCAPTCHA verified!', token);
+    setCaptchaToken(token);
+    setCaptchaVerified(true);
+  };
+
+  const onExpire = () => {
+    console.warn('reCAPTCHA expired!');
+    setCaptchaToken(null);
+    setCaptchaVerified(false);
+    Alert.alert('Error', 'reCAPTCHA challenge expired. Please try again.');
   };
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -209,7 +241,9 @@ const Login = ({ navigation }) => {
                   blurOnSubmit={true}
                   onSubmitEditing={() => {
                     Keyboard.dismiss();
-                    loginFunction();
+                    if (captchaVerified && validateInput()) {
+                      loginFunction();
+                    }
                   }}
                 />
                 <TouchableOpacity onPress={() => setSecureText(!secureText)}>
@@ -234,12 +268,47 @@ const Login = ({ navigation }) => {
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
-
             <TouchableOpacity
-              style={styles.loginBtn}
+              style={styles.robotBox}
+              activeOpacity={0.8}
+              onPress={() => {
+                recaptcha.current.open();
+              }}
+            >
+              <View style={styles.robotRow}>
+                <Ionicons
+                  name={captchaVerified ? 'checkbox' : 'shield-checkmark-outline'}
+                  size={moderateScale(24)}
+                  color={captchaVerified ? '#4CAF50' : '#999'}
+                />
+                <Text style={styles.robotText}>
+                  {captchaVerified ? 'Verified' : 'Tap to verify'}
+                </Text>
+                <Image
+                  source={{
+                    uri: 'https://www.gstatic.com/recaptcha/api2/logo_48.png',
+                  }}
+                  style={styles.recaptchaLogo}
+                />
+              </View>
+              <Recaptcha
+                ref={recaptcha}
+                siteKey={siteKey}
+                baseUrl={baseUrl}
+                onVerify={onVerify}
+                onExpire={onExpire}
+                onError={err => console.log('reCAPTCHA error:', err)}
+                size="normal"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.loginBtn, !captchaVerified && { opacity: 0.5 }]}
+              disabled={!captchaVerified}
               onPress={() => {
                 Keyboard.dismiss();
-                loginFunction();
+                if (validateInput()) {
+                  loginFunction();
+                }
               }}
             >
               <Text style={styles.loginText}>Login</Text>
@@ -261,6 +330,7 @@ const Login = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
       <Loader visible={loader} />
     </SafeAreaView>
   );
@@ -314,7 +384,7 @@ const styles = ScaledSheet.create({
   row: {
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    marginBottom: '30@vs',
+    marginBottom: '20@vs',
   },
 
   forgotText: {
@@ -348,6 +418,32 @@ const styles = ScaledSheet.create({
     fontFamily: FONT.MEDIUM,
   },
   signupText: { color: Color.RED, fontSize: '16@ms', fontFamily: FONT.BOLD },
+
+  robotBox: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: moderateScale(4),
+    padding: moderateScale(8),
+    backgroundColor: '#fafafa',
+    marginBottom: verticalScale(10),
+  },
+  robotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  robotText: {
+    flex: 1,
+
+    marginLeft: moderateScale(8),
+    fontSize: moderateScale(16),
+    color: Color.BLACK,
+    fontFamily: FONT.MEDIUM,
+  },
+  recaptchaLogo: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    resizeMode: 'contain',
+  },
 });
 
 export default React.memo(Login);

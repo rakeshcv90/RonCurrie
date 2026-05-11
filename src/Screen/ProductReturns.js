@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,11 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScaledSheet, moderateScale, verticalScale } from 'react-native-size-matters';
+import {
+  ScaledSheet,
+  moderateScale,
+  verticalScale,
+} from 'react-native-size-matters';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
@@ -32,13 +36,13 @@ const ProductReturns = ({ navigation }) => {
   const { returnOrderList, loading, hasMore } = useSelector(
     state => state.returnlisorder,
   );
+  const searchRef = useRef(null);
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
   const [lastFetched, setLastFetched] = useState(null);
-
-
+  const [searchNoResults, setSearchNoResults] = useState(false);
   const loadData = async (pageNumber = 1) => {
     try {
       await dispatch(fetchReturnOrderList({ limit })).unwrap();
@@ -99,6 +103,9 @@ const ProductReturns = ({ navigation }) => {
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
   const renderItem = ({ item }) => {
@@ -155,43 +162,13 @@ const ProductReturns = ({ navigation }) => {
       />
 
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
-
-      {/* <View style={styles.headerContainer}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.back}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons
-            name={'arrow-back'}
-            size={moderateScale(20)}
-            color={Color.GRAY}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.leftContainer}
-          onPress={() => {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Home' }], // 👈 this becomes the new root
-              }),
-            );
-          }}
-        >
-          <Image
-            source={IconData.Logo}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-      </View> */}
 
       {results?.length > 0 ? (
         <>
@@ -215,6 +192,20 @@ const ProductReturns = ({ navigation }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer1}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           {returnOrderList?.length > 0 ? (
@@ -314,15 +305,13 @@ const ProductReturns = ({ navigation }) => {
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-         
-                <Text style={styles.emptyText}>No items available</Text>
-              
+              <Text style={styles.emptyText}>No items available</Text>
             </View>
           )}
           <TouchableOpacity
             onPress={() => navigation.replace('AccountProfile')}
             style={{
-              width:verticalScale(120),
+              width: verticalScale(120),
               justifyContent: 'center',
               alignItems: 'center',
               height: verticalScale(35),
@@ -333,7 +322,15 @@ const ProductReturns = ({ navigation }) => {
               borderRadius: 5,
             }}
           >
-            <Text style={{ color: '#fff', fontSize: moderateScale(16) ,fontFamily: FONT.SEMIBOLD}}>Continue</Text>
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: moderateScale(16),
+                fontFamily: FONT.SEMIBOLD,
+              }}
+            >
+              Continue
+            </Text>
           </TouchableOpacity>
         </>
       )}
@@ -518,6 +515,25 @@ const styles = ScaledSheet.create({
   itemPrice: {
     fontSize: moderateScale(13),
     color: '#555',
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer1: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 export default React.memo(ProductReturns);

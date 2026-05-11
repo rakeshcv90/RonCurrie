@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ import CartComponent from '../Component/CartComponent';
 import decodeHtml from '../utility/decodeHtml';
 const EditInfotmation = ({ navigation }) => {
   const dispatch = useDispatch();
-
+  const searchRef = useRef(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('Singh');
   const [email, setEmail] = useState();
@@ -38,6 +38,7 @@ const EditInfotmation = ({ navigation }) => {
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
+  const [searchNoResults, setSearchNoResults] = useState(false);
   const [defaultValues, setDefaultValues] = useState({
     firstname: '',
     lastname: '',
@@ -106,6 +107,9 @@ const EditInfotmation = ({ navigation }) => {
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
   // const decodeHtml = text => {
@@ -139,7 +143,7 @@ const EditInfotmation = ({ navigation }) => {
             style={styles.itemImage}
             source={{
               uri: imageUrl,
-             priority: FastImage.priority.high,
+              priority: FastImage.priority.high,
               cache: FastImage.cacheControl.immutable,
             }}
             resizeMode={FastImage.resizeMode.cover}
@@ -173,10 +177,12 @@ const EditInfotmation = ({ navigation }) => {
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
-         autoFocus={true}
+        autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       {results?.length > 0 ? (
         <>
@@ -200,6 +206,20 @@ const EditInfotmation = ({ navigation }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <ScrollView
@@ -288,9 +308,9 @@ const EditInfotmation = ({ navigation }) => {
           </ScrollView>
         </>
       )}
-  <View>
-            <CartComponent />
-          </View>
+      <View>
+        <CartComponent />
+      </View>
 
       <Loader visible={loader} />
     </SafeAreaView>
@@ -420,6 +440,25 @@ const styles = ScaledSheet.create({
   itemPrice: {
     fontSize: moderateScale(13),
     color: '#555',
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 

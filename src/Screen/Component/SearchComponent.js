@@ -1,15 +1,19 @@
 import {
   View,
-  Text,
   Image,
   TextInput,
   TouchableOpacity,
   Keyboard,
   StatusBar,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import {
   moderateScale,
   ScaledSheet,
@@ -24,92 +28,115 @@ import { showToast } from '../../utility/showToast';
 import Loader from '../../Component/Loader';
 import { MMKVStorage } from '../../utility/MmkvStore';
 import { useDispatch } from 'react-redux';
-import { triggerCartRefresh } from '../../Redux/Slice/CartDataShowSlice';
+import {
+  triggerCartRefresh,
+  fetchCartData,
+  setSkipAutoBack,
+  triggerMiscRefresh,
+} from '../../Redux/Slice/CartDataShowSlice';
 import CategoryComponent from './CategoryComponent';
 import { useRoute } from '@react-navigation/native';
-const SearchComponent = ({
-  onResults,
-  onLoadMoreRef,
-  navigation,
-  autoFocus = false,
-}) => {
-  const [searchText, setSearchText] = useState('');
-  const [page, setPage] = useState(1);
-  const [lastPage, setLastPage] = useState(1);
-  const [loader, setLoader] = useState(false);
-  const [results, setResults] = useState([]);
-  const [userData, setUserData] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const LIMIT = 20;
-  const searchInputRef = useRef(null);
-  const lastScannedRef = useRef('');
-  const isBarcodeScanRef = useRef(false);
-  const isProcessingBarcodeRef = useRef(false);
-  const barcodeBufferRef = useRef('');
-  const [allowKeyboard, setAllowKeyboard] = useState(false);
-  const dispatch = useDispatch();
-  const route = useRoute();
-  useEffect(() => {
-    if (searchText.length === 0) {
-      lastScannedRef.current = '';
-    }
-  }, [searchText]);
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      searchInputRef.current?.focus();
-    });
+const SearchComponent = forwardRef(
+  (
+    { onResults, onLoadMoreRef, navigation, autoFocus = false, onNoResults },
+    ref,
+  ) => {
+    const [searchText, setSearchText] = useState('');
+    const [page, setPage] = useState(1);
+    const [lastPage, setLastPage] = useState(1);
+    const [loader, setLoader] = useState(false);
+    const [results, setResults] = useState([]);
+    const [userData, setUserData] = useState(null);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [noResults, setNoResults] = useState(false);
+    const LIMIT = 20;
+    const searchInputRef = useRef(null);
+    const lastScannedRef = useRef('');
 
-    return unsubscribe;
-  }, [navigation]);
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const data = await MMKVStorage.getItem('User_Data');
-      setUserData(data);
-    };
-    searchInputRef.current?.focus();
+    const isProcessingBarcodeRef = useRef(false);
+    const barcodeBufferRef = useRef('');
+    const [allowKeyboard, setAllowKeyboard] = useState(false);
+    const dispatch = useDispatch();
+    const route = useRoute();
+    const lastValidBarcodeRef = useRef('');
+    const lastScanTimeRef = useRef(0);
+    const isNavigatingRef = useRef(false);
+    const barcodeQueueRef = useRef([]);
+    const userDataRef = useRef(userData);
 
-    fetchUserData();
-  }, []);
+    // Keep userDataRef in sync
+    useEffect(() => {
+      userDataRef.current = userData;
+    }, [userData]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!autoFocus) return;
-
-      const timer = setTimeout(() => {
+    useEffect(() => {
+      if (searchText.length === 0) {
+        lastScannedRef.current = '';
+      }
+    }, [searchText]);
+    useEffect(() => {
+      const unsubscribe = navigation.addListener('focus', () => {
         searchInputRef.current?.focus();
-      }, 300); // Android safe delay
+      });
 
-      return () => clearTimeout(timer);
-    }, [autoFocus]),
-  );
+      return unsubscribe;
+    }, [navigation]);
+    useEffect(() => {
+      const fetchUserData = async () => {
+        const data = await MMKVStorage.getItem('User_Data');
+        setUserData(data);
+      };
+      searchInputRef.current?.focus();
 
-  const handleSearch = useCallback(() => {
-    if (!searchText.trim()) {
-      showToast('danger', 'Please enter a search term');
+      fetchUserData();
+    }, []);
+
+    useFocusEffect(
+      useCallback(() => {
+        if (!autoFocus) return;
+
+        const timer = setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 300); // Android safe delay
+
+        return () => clearTimeout(timer);
+      }, [autoFocus]),
+    );
+
+    const handleSearch = useCallback(() => {
+      if (!searchText.trim()) {
+        showToast('danger', 'Please enter a search term');
+        setResults([]);
+        onResults?.([]);
+        return;
+      }
+      fetchData(searchText, 1);
+    }, [searchText]);
+    const clearSearch = useCallback(() => {
+      setSearchText('');
       setResults([]);
+      setNoResults(false);
       onResults?.([]);
-      return;
-    }
-    fetchData(searchText, 1);
-  }, [searchText]);
+      onNoResults?.(false);
+      searchInputRef.current?.clear();
+      Keyboard.dismiss();
+    }, []);
+    const fetchData = useCallback(async (query, pageNumber = 1) => {
+      try {
+        pageNumber === 1 ? setLoader(true) : setLoadingMore(true);
 
-  const fetchData = useCallback(async (query, pageNumber = 1) => {
-    try {
-      pageNumber === 1 ? setLoader(true) : setLoadingMore(true);
+        const res = await getData(
+          `${Api.SEARCH}?searchQuery=${encodeURIComponent(
+            query,
+          )}&page=${pageNumber}&limit=${LIMIT}`,
+        );
+        console.log('Test', res);
+        const response = res?.data?.data;
+        let extracted = [];
+        let currentPage = 1;
+        let last_page = 1;
 
-      const res = await getData(
-        `${Api.SEARCH}?searchQuery=${encodeURIComponent(
-          query,
-        )}&page=${pageNumber}&limit=${LIMIT}`,
-      );
-      console.log('Test', res);
-      const response = res?.data?.data;
-      let extracted = [];
-      let currentPage = 1;
-      let last_page = 1;
-      if (res?.data?.length <= 0) {
-        showToast('danger', 'Error', 'No product found');
-      } else {
+        // Extract data first
         if (Array.isArray(response?.data)) {
           extracted = response.data;
           currentPage = response.current_page || 1;
@@ -117,183 +144,296 @@ const SearchComponent = ({
         } else if (response && typeof response === 'object') {
           extracted = [response];
         }
-        CategoryComponent;
 
-        if (pageNumber === 1) {
-          setResults(extracted);
-          onResults?.(extracted);
+        // Then check if no results
+        if (extracted.length === 0) {
+          setNoResults(true);
+          onNoResults?.(query);
+          if (pageNumber === 1) {
+            setResults([]);
+            onResults?.([]);
+          }
         } else {
-          setResults(prev => {
-            const merged = [...prev, ...extracted];
-            onResults?.(merged);
-            return merged;
-          });
+          setNoResults(false);
+          onNoResults?.(false);
+
+          if (pageNumber === 1) {
+            setResults(extracted);
+            onResults?.(extracted);
+          } else {
+            setResults(prev => {
+              const merged = [...prev, ...extracted];
+              onResults?.(merged);
+              return merged;
+            });
+          }
+
+          setPage(currentPage);
+          setLastPage(last_page);
         }
-
-        setPage(currentPage);
-        setLastPage(last_page);
+      } catch (err) {
+        showToast('danger', 'Error', err.message || 'Something went wrong');
+      } finally {
+        setLoader(false);
+        setLoadingMore(false);
       }
-    } catch (err) {
-      showToast('danger', 'Error', err.message || 'Something went wrong');
-    } finally {
-      setLoader(false);
-      setLoadingMore(false);
-    }
-  }, []);
+    }, []);
 
-  const loadMore = useCallback(() => {
-    if (!loadingMore && page < lastPage) {
-      fetchData(searchText, page + 1);
-    }
-  }, [loadingMore, page, lastPage, searchText, fetchData]);
+    const loadMore = useCallback(() => {
+      if (!loadingMore && page < lastPage) {
+        fetchData(searchText, page + 1);
+      }
+    }, [loadingMore, page, lastPage, searchText, fetchData]);
 
-  useEffect(() => {
-    if (onLoadMoreRef) {
-      onLoadMoreRef(() => loadMore);
-    }
-  }, [onLoadMoreRef, loadMore]);
+    useEffect(() => {
+      if (onLoadMoreRef) {
+        onLoadMoreRef(() => loadMore);
+      }
+    }, [onLoadMoreRef, loadMore]);
 
-  const searchByBarcode = useCallback(
-    async barcode => {
-      if (!barcode || isProcessingBarcodeRef.current) return;
+    // ✅ expose clear function to parent
+    useImperativeHandle(ref, () => ({
+      clearSearch: () => {
+        setSearchText('');
+        setResults([]);
+        setNoResults(false);
+        onResults?.([]);
+        onNoResults?.(false);
+        searchInputRef.current?.clear();
+        Keyboard.dismiss();
+
+        // optional refocus
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 100);
+      },
+    }));
+    // Process a single barcode scan (internal, called by the queue processor)
+    const processSingleBarcode = useCallback(
+      async barcode => {
+        try {
+          let customerId = userDataRef.current?.customer_id;
+          if (!customerId) {
+            const storedUser = await MMKVStorage.getItem('User_Data');
+            customerId = storedUser?.customer_id;
+            if (storedUser) {
+              setUserData(storedUser);
+            }
+          }
+
+          if (!customerId) return;
+
+          const response = await postData(Api.BAR_CODE_SCANNER, {
+            customer_id: customerId,
+            bar_code: barcode,
+            order_mode: 'add',
+          });
+
+          dispatch(setSkipAutoBack(true));
+          dispatch(triggerCartRefresh());
+          dispatch(triggerMiscRefresh());
+
+          if (route.name !== 'AddCartScreen') {
+            navigation.navigate('AddCartScreen');
+          }
+
+          dispatch(fetchCartData(customerId));
+        } catch (error) {
+          const errorData = error?.response?.data;
+          if (errorData?.message) {
+            showToast('danger', 'Scan Error', errorData.message);
+          }
+        }
+      },
+      [dispatch, navigation, route.name],
+    );
+
+    // Queue processor — drains barcodes one at a time
+    const processQueue = useCallback(async () => {
+      if (isProcessingBarcodeRef.current) return;
+      if (barcodeQueueRef.current.length === 0) return;
 
       isProcessingBarcodeRef.current = true;
 
-      try {
-        const response = await postData(Api.BAR_CODE_SCANNER, {
-          customer_id: userData?.customer_id,
-          bar_code: barcode,
-          order_mode: 'add',
-        });
-        const resData = response?.data;
-        const cartItems = resData?.data?.data;
-        if (
-          resData?.success === true &&
-          resData?.responseCode === 200 &&
-          Array.isArray(cartItems) &&
-          cartItems.length > 0
-        ) {
-          dispatch(triggerCartRefresh());
-          showToast('success', 'Success!', 'Item added to cart successfully');
-        } else {
-          showToast(
-            'danger',
-            'Error',
-            resData?.message || 'Invalid barcode, please try again',
-          );
-        }
-      } catch (error) {
-        showToast('danger', 'Error', 'Something went wrong');
-      } finally {
-        isProcessingBarcodeRef.current = false;
-        barcodeBufferRef.current = '';
-        setSearchText('');
-        searchInputRef.current?.focus();
+      while (barcodeQueueRef.current.length > 0) {
+        const nextBarcode = barcodeQueueRef.current.shift();
+        await processSingleBarcode(nextBarcode);
       }
-    },
-    [userData?.customer_id, dispatch],
-  );
 
-  return (
-    <View style={styles.headerContainer}>
-      <StatusBar
-        translucent
-        backgroundColor="#F6F6F6"
-        barStyle="dark-content"
-      />
-      <View style={styles.leftContainer}>
+      isProcessingBarcodeRef.current = false;
+
+      // Clean up input after all queued scans are done
+      barcodeBufferRef.current = '';
+      setSearchText('');
+      searchInputRef.current?.clear();
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }, [processSingleBarcode]);
+
+    // Public function called by onSubmitEditing
+    const searchByBarcode = useCallback(
+      barcode => {
+        if (!barcode) return;
+
+        const trimmed = barcode.trim();
+        if (!trimmed) return;
+
+        // Deduplicate: skip if same barcode scanned within 1 second
+        const now = Date.now();
+        if (
+          trimmed === lastValidBarcodeRef.current &&
+          now - lastScanTimeRef.current < 1000
+        ) {
+          setSearchText('');
+          searchInputRef.current?.clear();
+          return;
+        }
+
+        lastValidBarcodeRef.current = trimmed;
+        lastScanTimeRef.current = now;
+
+        // Clear input immediately so scanner can buffer next code
+        setSearchText('');
+        barcodeBufferRef.current = '';
+        searchInputRef.current?.clear();
+
+        // Push to queue and start processing
+        barcodeQueueRef.current.push(trimmed);
+        processQueue();
+      },
+      [processQueue],
+    );
+
+    const handleLogoPress = useCallback(() => {
+      if (isNavigatingRef.current) return;
+
+      if (route.name !== 'Home') {
+        isNavigatingRef.current = true;
+        Keyboard.dismiss();
+
+        setTimeout(() => {
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: 'Home' }],
+            }),
+          );
+          setTimeout(() => {
+            isNavigatingRef.current = false;
+          }, 500);
+        }, 50);
+      }
+    }, [navigation, route.name]);
+
+    const handleMenuPress = useCallback(() => {
+      if (isNavigatingRef.current) return;
+
+      isNavigatingRef.current = true;
+      Keyboard.dismiss();
+
+      setTimeout(() => {
+        if (route.name === 'AccountProfile') {
+          navigation.goBack();
+        } else {
+          navigation.navigate('AccountProfile');
+        }
+        setTimeout(() => {
+          isNavigatingRef.current = false;
+        }, 500);
+      }, 50);
+    }, [navigation, route.name]);
+
+    return (
+      <View style={styles.headerContainer}>
+        <StatusBar
+          backgroundColor="#F6F6F6"
+          barStyle="dark-content"
+          translucent={false}
+        />
+        <View style={styles.leftContainer}>
+          <TouchableOpacity
+            style={styles.logoCircle}
+            onPress={handleLogoPress}
+            activeOpacity={0.7}
+            focusable={false}
+          >
+            <Image
+              source={ImageData.New_Logo}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <TextInput
+            ref={searchInputRef}
+            placeholder="Search products"
+            style={styles.searchInput}
+            placeholderTextColor="#777"
+            showSoftInputOnFocus={allowKeyboard}
+            value={searchText}
+            autoFocus={false}
+            // returnKeyType="search"
+            returnKeyType="done"
+            onChangeText={text => {
+              setSearchText(text);
+              // // barcodeBufferRef.current = text;
+
+              if (!text.trim()) {
+                setResults([]);
+                setNoResults(false);
+                onResults?.([]);
+                onNoResults?.(false);
+              }
+            }}
+            onSubmitEditing={e => {
+              const code = e.nativeEvent.text.trim();
+
+              if (code?.length >= 12) {
+                searchByBarcode(code);
+              } else {
+                Keyboard.dismiss();
+              }
+            }}
+            onTouchStart={() => {
+              setAllowKeyboard(true); // enable keyboard when user taps
+            }}
+          />
+          <TouchableOpacity
+            style={styles.redSearchBtn}
+            onPress={() => {
+              Keyboard.dismiss();
+              handleSearch();
+            }}
+          >
+            <Ionicons name="search" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity
-          style={styles.logoCircle}
+          style={styles.menuBtn}
           onPress={() => {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Home' }],
-              }),
-            );
+            if (route.name === 'AccountProfile') {
+              navigation.goBack();
+            } else {
+              navigation.navigate('AccountProfile');
+            }
           }}
         >
-          <Image
-            source={ImageData.New_Logo}
-            style={styles.logo}
-            resizeMode="contain"
+          <Ionicons
+            name={route.name === 'AccountProfile' ? 'close' : 'menu'}
+            size={25}
+            color="#000"
           />
         </TouchableOpacity>
+        <Loader visible={loader} />
       </View>
+    );
+  },
+);
 
-      <View style={styles.searchContainer}>
-        <TextInput
-          ref={searchInputRef}
-          placeholder="Search products"
-          style={styles.searchInput}
-          placeholderTextColor="#777"
-          showSoftInputOnFocus={allowKeyboard}
-          value={searchText}
-          autoFocus={false}
-          returnKeyType="search"
-          onChangeText={text => {
-            setSearchText(text);
-            barcodeBufferRef.current = text;
-
-            if (!text.trim()) {
-              setResults([]);
-              onResults?.([]);
-            }
-          }}
-          onSubmitEditing={() => {
-            Keyboard.dismiss();
-            const value = barcodeBufferRef.current.trim();
-
-            if (value.length >= 13) {
-              searchByBarcode(value);
-              return;
-            }
-
-            handleSearch();
-          }}
-          onTouchStart={() => {
-            setAllowKeyboard(true); // enable keyboard when user taps
-          }}
-        />
-        <TouchableOpacity
-          style={styles.redSearchBtn}
-          onPress={() => {
-            handleSearch(), Keyboard.dismiss();
-          }}
-        >
-          <Ionicons name="search" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-      {/* 
-      <TouchableOpacity
-        style={styles.menuBtn}
-        onPress={() => {
-          navigation.navigate('AccountProfile');
-        }}
-      >
-        <Ionicons name="menu" size={25} color="#000" />
-      </TouchableOpacity> */}
-
-      <TouchableOpacity
-        style={styles.menuBtn}
-        onPress={() => {
-          if (route.name === 'AccountProfile') {
-            navigation.goBack();
-          } else {
-            navigation.navigate('AccountProfile');
-          }
-        }}
-      >
-        <Ionicons
-          name={route.name === 'AccountProfile' ? 'close' : 'menu'}
-          size={25}
-          color="#000"
-        />
-      </TouchableOpacity>
-      <Loader visible={loader} />
-    </View>
-  );
-};
 const styles = ScaledSheet.create({
   headerContainer: {
     flexDirection: 'row',

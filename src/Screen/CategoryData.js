@@ -5,7 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CartComponent from '../Component/CartComponent';
@@ -33,22 +33,15 @@ const CategoryData = ({ route }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
 
-  // const decodeHtml = text => {
-  //   if (!text) return '';
-  //   return text
-  //     .replace(/&quot;/g, '')
-  //     .replace(/&apos;/g, '')
-  //     .replace(/&amp;/g, '&')
-  //     .replace(/&lt;/g, '<')
-  //     .replace(/&gt;/g, '>')
-  //     .replace(/["']/g, '')
-  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-  //     .trim();
-  // };
-  const handleItemPress = item => {
+  const [searchNoResults, setSearchNoResults] = useState(false);
+  const searchRef = useRef(null);
 
+  const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
   const renderItem1 = ({ item }) => {
@@ -98,7 +91,6 @@ const CategoryData = ({ route }) => {
     );
   };
   const renderItem = ({ item }) => {
-  
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 
     const hasError = imageErrorMap[item.id] || false;
@@ -125,15 +117,15 @@ const CategoryData = ({ route }) => {
               }
             />
           ) : (
-           <FastImage
-            style={styles.itemImage}
-            source={ImageData?.NOIMAGE}
-            resizeMode={FastImage.resizeMode.cover}
-            // onError={handleError}
-          />
+            <FastImage
+              style={styles.itemImage}
+              source={ImageData?.NOIMAGE}
+              resizeMode={FastImage.resizeMode.cover}
+              // onError={handleError}
+            />
           )}
         </View>
-        <View style={{ width: '100%', backgroundColor: '#F5F5F5',padding:2 }}>
+        <View style={{ width: '100%', backgroundColor: '#F5F5F5', padding: 2 }}>
           <Text
             style={styles.productName}
             numberOfLines={2} // 👈 breaks into next line
@@ -148,7 +140,7 @@ const CategoryData = ({ route }) => {
               { textAlign: 'center', color: Color.RED, fontFamily: FONT.BOLD },
             ]}
           >
-       {item?.has_option === 1 && "From"} £{Number(item.price).toFixed(2)}
+            {item?.has_option === 1 && 'From'} £{Number(item.price).toFixed(2)}
           </Text>
         </View>
       </TouchableOpacity>
@@ -163,10 +155,12 @@ const CategoryData = ({ route }) => {
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       {results?.length > 0 ? (
         <>
@@ -191,6 +185,34 @@ const CategoryData = ({ route }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <View
@@ -318,6 +340,25 @@ const styles = ScaledSheet.create({
     fontSize: moderateScale(12),
     color: '#666',
     fontFamily: FONT.MEDIUM,
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 

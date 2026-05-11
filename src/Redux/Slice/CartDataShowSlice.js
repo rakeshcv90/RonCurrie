@@ -14,13 +14,28 @@ export const fetchCartData = createAsyncThunk(
     }
   },
 );
+
+export const fetchMiscData = createAsyncThunk(
+  'cartData/fetchMiscData',
+  async (payload, { rejectWithValue }) => {
+    try {
+      // const response = await getData(`${Api.GET_MISC}?customer_id=${payload}`);
+      const response = await getData(`${Api.GET_MISC}/${payload}`);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error);
+    }
+  },
+);
 const CartDataShowSlice = createSlice({
   name: 'cartList',
   initialState: {
     cartList: [],
+    miscList: [],
     loading: false,
     error: null,
     refreshKey: 0,
+    miscRefreshKey: 0,
     skipAutoBack: false,
   },
   reducers: {
@@ -30,6 +45,9 @@ const CartDataShowSlice = createSlice({
     },
     triggerCartRefresh: state => {
       state.refreshKey += 1; // 🔁 increments value each time you add item
+    },
+    triggerMiscRefresh: state => {
+      state.miscRefreshKey += 1;
     },
     setSkipAutoBack: (state, action) => {
       // ✅ ADDED
@@ -49,10 +67,20 @@ const CartDataShowSlice = createSlice({
       .addCase(fetchCartData.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Something went wrong';
+      })
+      .addCase(fetchMiscData.fulfilled, (state, action) => {
+        state.miscList = action?.payload?.data || [];
+      })
+      .addCase(fetchMiscData.rejected, (state, action) => {
+        state.error = action.payload || 'Failed to fetch misc data';
       });
   },
 });
 
-export const { clearcartProducts, triggerCartRefresh, setSkipAutoBack } =
-  CartDataShowSlice.actions;
+export const {
+  clearcartProducts,
+  triggerCartRefresh,
+  triggerMiscRefresh,
+  setSkipAutoBack,
+} = CartDataShowSlice.actions;
 export default CartDataShowSlice.reducer;

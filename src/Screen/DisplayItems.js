@@ -1,3 +1,5 @@
+/* eslint-disable react-native/no-inline-styles */
+/* eslint-disable react-hooks/exhaustive-deps */
 import {
   View,
   Text,
@@ -9,7 +11,13 @@ import {
   FlatList,
   RefreshControl,
 } from 'react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useDispatch, useSelector } from 'react-redux';
@@ -33,7 +41,10 @@ import { postData } from '../utility/ApiCall';
 import { MMKVStorage } from '../utility/MmkvStore';
 import FastImage from 'react-native-fast-image';
 import CartComponent from '../Component/CartComponent';
-import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
+import {
+  triggerCartRefresh,
+  triggerMiscRefresh,
+} from '../Redux/Slice/CartDataShowSlice';
 import SearchComponent from './Component/SearchComponent';
 import { Dimensions } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
@@ -60,13 +71,14 @@ const DisplayItems = ({ navigation, route }) => {
   const [price, setPrice] = useState(null);
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
+  const [searchNoResults, setSearchNoResults] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [payload, setPayload] = useState(null);
   const [matchedMatrix, setMatchedMatrix] = useState(null);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
-
+  const searchRef = useRef(null);
   const [value, setValue] = useState(null);
   const [selectedValue, setSelectedValue] = useState(null);
   const [optionError, setOptionError] = useState(false);
@@ -304,7 +316,7 @@ const DisplayItems = ({ navigation, route }) => {
           return {
             customer_id: userData?.customer_id,
             product_id: item.product_id,
-            option: optionString, // ✅ EXACT format you want
+            option: optionString,
             quantity,
             ...modeObj,
           };
@@ -364,16 +376,15 @@ const DisplayItems = ({ navigation, route }) => {
       );
       return;
     }
-    if (optionError) {
-      showToast(
-        'danger',
-        'Selection required',
-        'Please select the required option before continuing.',
-      );
+    // if (optionError) {
+    //   showToast(
+    //     'danger',
+    //     'Selection required',
+    //     'Please select the required option before continuing.',
+    //   );
 
-      return;
-    }
-    console.log('Test Payload', items);
+    //   return;
+    // }
 
     setLoader(true);
 
@@ -382,14 +393,16 @@ const DisplayItems = ({ navigation, route }) => {
 
       const resData = response?.data;
       if (resData?.success && resData?.responseCode === 200) {
-        showToast(
-          'success',
-          'Success',
-          resData.message || 'Items added to cart successfully.',
-        );
+        // showToast(
+        //   'success',
+        //   'Success',
+        //   resData.message || 'Items added to cart successfully.',
+        // );
+        navigation.replace('Home');
         setRowQuantities({});
         setCustomLength('');
         dispatch(triggerCartRefresh());
+        dispatch(triggerMiscRefresh());
         setSelectedValue(null);
       } else {
         // showToast(
@@ -518,15 +531,17 @@ const DisplayItems = ({ navigation, route }) => {
 
       const resData = response?.data;
       if (resData?.success && resData?.responseCode === 200) {
-        showToast(
-          'success',
-          'Success',
-          resData.message || 'Items added to cart successfully.',
-        );
+        // showToast(
+        //   'success',
+        //   'Success',
+        //   resData.message || 'Items added to cart successfully.',
+        // );
+
         setRowQuantities({});
         setCustomLength('');
         setLoader(false);
         dispatch(triggerCartRefresh());
+        navigation.goBack();
       } else {
         setLoader(false);
         dispatch(triggerCartRefresh());
@@ -550,6 +565,9 @@ const DisplayItems = ({ navigation, route }) => {
       setPayload(prev => ({ ...prev, product_id: item?.id }));
       dispatch(fetchProductsList(item?.slug));
       setResults([]);
+      setTimeout(() => {
+        searchRef.current?.clearSearch();
+      }, 200);
     },
     [dispatch],
   );
@@ -644,10 +662,12 @@ const DisplayItems = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       <KeyboardAvoidingView
         style={{ flex: 1, marginVertical: verticalScale(10) }}
@@ -731,6 +751,20 @@ const DisplayItems = ({ navigation, route }) => {
               }
             />
           </>
+        ) : searchNoResults ? (
+          <View style={styles.emptyContainer1}>
+            <FastImage
+              source={ImageData.NORESULT}
+              style={styles.gif}
+              resizeMode={FastImage.resizeMode.contain}
+            />
+            <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+            <Text style={styles.noResultSubText}>
+              Try adjusting your search term and search again
+            </Text>
+          </View>
         ) : (
           <>
             {loading ? (
@@ -1311,7 +1345,7 @@ const DisplayItems = ({ navigation, route }) => {
                               renderItem={renderItem3}
                             />
                           </View>
-                          {optionError && (
+                          {/* {optionError && (
                             <Text
                               style={{
                                 color: 'red',
@@ -1328,7 +1362,7 @@ const DisplayItems = ({ navigation, route }) => {
                                   ?.name
                               }
                             </Text>
-                          )}
+                          )} */}
                         </>
                       )}
                   </>
@@ -1999,6 +2033,22 @@ const styles = ScaledSheet.create({
   textItem: {
     flex: 1,
     fontSize: 16,
+  },
+
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
+  },
+  emptyContainer1: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 // export default DisplayItems;

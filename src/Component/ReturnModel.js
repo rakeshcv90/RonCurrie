@@ -8,14 +8,14 @@ import {
   Image,
   FlatList,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   moderateScale,
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { Color, IconData, ImageData } from './Image';
+import { Color, FONT, IconData, ImageData } from './Image';
 
 import { useNavigation } from '@react-navigation/native';
 import SearchComponent from '../Screen/Component/SearchComponent';
@@ -32,10 +32,14 @@ const ReturnModel = ({ visible, onClose }) => {
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
-
+  const [searchNoResults, setSearchNoResults] = useState(false);
+  const searchRef = useRef(null);
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
   // const decodeHtml = text => {
@@ -105,10 +109,12 @@ const ReturnModel = ({ visible, onClose }) => {
     >
       <View style={styles.fullScreenContainer}>
         <SearchComponent
+          ref={searchRef}
           onResults={setResults}
           onLoadMoreRef={setLoadMoreFunc}
           navigation={navigation}
           autoFocus={true}
+          onNoResults={setSearchNoResults}
         />
 
         {results?.length > 0 ? (
@@ -133,6 +139,20 @@ const ReturnModel = ({ visible, onClose }) => {
               }
             />
           </>
+        ) : searchNoResults ? (
+          <View style={styles.emptyContainer}>
+            <FastImage
+              source={ImageData.NORESULT}
+              style={styles.gif}
+              resizeMode={FastImage.resizeMode.contain}
+            />
+            <Text style={styles.noResultText}>
+              No result Found for "{searchNoResults}"
+            </Text>
+            <Text style={styles.noResultSubText}>
+              Try adjusting your search term and search again
+            </Text>
+          </View>
         ) : (
           <ScrollView style={styles.contentContainer}>
             <Text style={styles.title}>Product Returns</Text>
@@ -209,6 +229,28 @@ const styles = ScaledSheet.create({
   itemPrice: {
     fontSize: moderateScale(13),
     color: '#555',
+  },
+
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '18@s',
+    fontFamily: FONT.REGULAR,
+    lineHeight: verticalScale(30),
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    lineHeight: verticalScale(30),
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 export default ReturnModel;

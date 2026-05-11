@@ -3,23 +3,16 @@ import {
   Text,
   StatusBar,
   TouchableOpacity,
-  Image,
   Linking,
   Platform,
   Alert,
   FlatList,
   Keyboard,
 } from 'react-native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CommonActions, useFocusEffect } from '@react-navigation/native';
-import {
-  Color,
-  companyDetails,
-  FONT,
-  IconData,
-  ImageData,
-} from '../Component/Image';
+import { useFocusEffect } from '@react-navigation/native';
+import { Color, companyDetails, FONT, ImageData } from '../Component/Image';
 import {
   moderateScale,
   ScaledSheet,
@@ -29,12 +22,7 @@ import {
 
 import LottieView from 'lottie-react-native';
 import { useDispatch, useSelector } from 'react-redux';
-
-import { showToast } from '../utility/showToast';
-import {
-  clearA4Products,
-  fetchA4PrintDetails,
-} from '../Redux/Slice/A4PrintSlice';
+import { fetchA4PrintDetails } from '../Redux/Slice/A4PrintSlice';
 import RNPrint from 'react-native-print';
 import {
   clearcartProducts,
@@ -45,26 +33,21 @@ import SearchComponent from './Component/SearchComponent';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import { ImageBaseUrl } from '../utility/api';
 import FastImage from 'react-native-fast-image';
-import Ionicons from '@react-native-vector-icons/ionicons';
 import decodeHtml from '../utility/decodeHtml';
 
 const OrderSuccessFull = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const data = route?.params?.resData;
-  console.log('Test cosxddsdsfds', data);
   const [isDetailsLoaded, setIsDetailsLoaded] = useState(false);
-
   const { a4PrintDetails } = useSelector(state => state.a4PrintData);
   const orderIdFromParam = data?.data?.order_id;
-
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
-
   const [imageErrorMap, setImageErrorMap] = useState({});
-
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-
+  const searchRef = useRef(null);
+  const [searchNoResults, setSearchNoResults] = useState(false);
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', () => {
       setIsKeyboardOpen(true);
@@ -123,21 +106,7 @@ const OrderSuccessFull = ({ navigation, route }) => {
 
   useEffect(() => {
     if (
-      a4PrintDetails &&
-      a4PrintDetails?.order_id &&
-      a4PrintDetails?.order_id == orderIdFromParam &&
-      Array.isArray(a4PrintDetails?.products) &&
-      a4PrintDetails?.products.length > 0
-    ) {
-      setTimeout(() => {
-        handlePrint('80mm');
-      }, 600);
-    } else {
-    }
-  }, [a4PrintDetails, orderIdFromParam]);
-  useEffect(() => {
-    if (
-      isDetailsLoaded && // ⬅️ MUST BE TRUE
+      isDetailsLoaded &&
       a4PrintDetails &&
       a4PrintDetails?.order_id &&
       a4PrintDetails?.order_id == orderIdFromParam &&
@@ -388,15 +357,28 @@ const OrderSuccessFull = ({ navigation, route }) => {
       })()}
       <br/>
   
-      <b>Telephone:</b> ${companyDetails?.mobile}  <b>VAT#</b> ${
-      companyDetails?.companyVat
-    }<br/>
+      <b>Telephone:</b> ${
+        a4PrintDetails?.settings?.config_telephone
+      }  <b>VAT#</b> ${a4PrintDetails?.settings?.config_vat_number}<br/>
            
             <b>Payment Method:</b> ${a4PrintDetails?.payment_method}<br/>
                     <b>Delivery Method:</b> 
  <span style="color: red;">
    ${a4PrintDetails?.shipping_method || ''}
- </span>
+ </span><br/>
+
+    ${
+      a4PrintDetails?.shipping_method != 'Collection'
+        ? `<b>Est. Delivery Date:</b> 
+ <span style="color: red;">
+   ${a4PrintDetails?.order_date || ''}
+ </span>`
+        : ''
+    }
+
+
+ 
+ 
           </td>
         </tr>
       </table>
@@ -574,19 +556,7 @@ const OrderSuccessFull = ({ navigation, route }) => {
          </td>
        </tr>
 
-          ${
-            a4PrintDetails?.shipping_method == 'Collection'
-              ? `
-        <tr>
-         <td colspan="5" class="right" style="font-weight:bold; font-size:13px;">
-          Collection
-         </td>
-         <td class="right">
-             £0.00
-         </td>
-       </tr>`
-              : ''
-          }
+          
  
        <!-- WEIGHT + TOTAL ROWS -->
        ${a4PrintDetails?.totals
@@ -613,15 +583,15 @@ const OrderSuccessFull = ({ navigation, route }) => {
              </td>
  
              <!-- TOTAL LABEL -->
-             <td colspan="2" class="right" style="font-weight:bold; font-size:13px;">
+             <td colspan="2" class="right" style="font-weight:500; font-size:13px;">
                ${item.title}
                ${item.code === 'total' ? ` (VAT £${vatAmount})` : ''}
              </td>
  
              <!-- TOTAL VALUE -->
-             <td class="right">
+             <td class="right" style="font-weight:600;">
                £${Number(item.value || 0).toFixed(2)}
-             </td>
+             </td>Suc
            </tr>
          `,
          )
@@ -712,7 +682,6 @@ const OrderSuccessFull = ({ navigation, route }) => {
   `;
   };
 
-
   const generate80mmInvoice = () => {
     const totalsMap = Object.fromEntries(
       (a4PrintDetails?.totals || []).map(item => [
@@ -720,39 +689,99 @@ const OrderSuccessFull = ({ navigation, route }) => {
         Number(item.value || 0).toFixed(2),
       ]),
     );
+    console.log('a4PrintDetails', a4PrintDetails);
+    const decodeHtml = text => {
+      if (!text) return '';
 
-    // Products HTML
+      const htmlEntities = {
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&apos;': "'",
+      };
+
+      return text.replace(
+        /&amp;|&lt;|&gt;|&quot;|&#39;|&apos;/g,
+        match => htmlEntities[match],
+      );
+    };
+    const shippingItem = a4PrintDetails?.totals?.find(
+      item => item.code === 'shipping',
+    );
+    const shippingAmount = shippingItem
+      ? Number(shippingItem.value).toFixed(2)
+      : '0.00';
+
+    const miscellaneousItems =
+      a4PrintDetails?.totals?.filter(
+        item =>
+          item.code === 'miscellaneous' &&
+          item.title !== 'undefined' &&
+          item.value !== '0.0000',
+      ) || [];
+
+    const shippingTitle = shippingItem ? shippingItem.title : 'Collection';
     const productsHtml = (a4PrintDetails?.products || [])
       .map(product => {
         return `
-        <tr>
-          <td>
-            ${product.name}
-        ${
-          Array.isArray(product?.order_options) &&
-          product.order_options.length > 0
-            ? product.order_options
-                .map(
-                  opt => `
-            <span class="product-sub">
-              - ${opt.name}: ${opt.value}
-            </span><br/>
-          `,
-                )
-                .join('')
-            : ''
-        }
+      <tr>
 
-          </td>
-          <td class="qty">${product.quantity}</td>
-          <td class="price">£${Number(product.price).toFixed(2)}</td>
-          <td class="total">£${Number(product.total).toFixed(2)}</td>
-        </tr>
-      `;
+        <td class="product-name">
+     
+${decodeHtml(product?.product_details?.isbn)}
+${
+  Array.isArray(product?.order_options) && product.order_options.length > 0
+    ? product.order_options
+        .map(
+          opt => `
+        <div class="product-sub" style="white-space: ${
+          opt.name === 'Length' ? 'nowrap' : 'normal'
+        };">
+          - ${opt.name}: ${opt.value}
+        </div>
+      `,
+        )
+        .join('')
+    : ''
+}
+
+        </td>
+
+        <td class="qty">${product.quantity}</td>
+
+        <td class="price">£${Number(product.price).toFixed(2)}</td>
+
+     <td class="total ${product?.refund == 1 ? 'redPrice' : ''}">
+£${product?.refund == 1 ? '-' : ''}${Number(product.total).toFixed(2)}
+</td>
+
+      </tr>
+    `;
       })
       .join('');
+    const miscellaneousHtml = miscellaneousItems
+      ?.map(item => {
+        return `
+      <tr>
 
-    // Date logic
+        <td class="product-name">
+          ${item.title}
+
+
+        </td>
+
+        <td class="qty"></td>
+
+        <td class="price"></td>
+
+        <td class="total">£${Number(item.value).toFixed(2)}</td>
+
+      </tr>
+    `;
+      })
+      .join('');
     const dateAdded = (() => {
       const rawDate =
         a4PrintDetails?.shipping_method === 'Delivery'
@@ -762,6 +791,7 @@ const OrderSuccessFull = ({ navigation, route }) => {
       if (!rawDate) return '-';
 
       const d = new Date(rawDate);
+
       const day = String(d.getDate()).padStart(2, '0');
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const year = d.getFullYear();
@@ -769,103 +799,293 @@ const OrderSuccessFull = ({ navigation, route }) => {
       return `${day}/${month}/${year}`;
     })();
 
-    // Return HTML
     return `
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta charset="UTF-8" />
+
+<meta charset="UTF-8"/>
+
 <style>
-@page { margin: 0; }
 
-html, body {
-  width: 80mm;
-  margin: 0;
-  padding: 0;
+@page{
+  margin:0;
 }
 
-body {
-  padding: 6px;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #000;
+html, body{
+  width:145mm;
+  margin:0;
+  padding:10px;
 }
 
-.order-id { font-size: 16px; font-weight: 900; margin-top: 10px; }
-.company-title { font-size: 23px; font-weight: 900; line-height: 1.2; }
-.company-title .red { color: #b22222; }
-.company-title .black { color: #000; }
-.company-details { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-.bold-label { font-weight: 900; margin: 6px 0; font-size: 14px; }
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 6px 0;
+body{
+  font-family: Arial, sans-serif;
+  font-size:30px;
+  color:#000;
+  padding:5px;
+  line-height:1.3;
 }
 
-th, td {
-  border: 1px solid #e6e6e6;
-  padding: 6px;
-  font-size: 16px;
-  font-weight: 700;
+/* HEADER */
+
+.order-id{
+  font-size:50px;
+  font-weight:600;
+  margin-bottom:2px;
+}
+.redPrice{
+  color:red;
+  font-weight:600;
+}
+.company-title{
+  font-size:45px;
+  font-weight:600;
 }
 
-th { font-weight: 900; }
-.qty, .price, .total { text-align: center; font-weight: 900; }
-.summary-row td { font-weight: 900; text-align: right; font-size: 14px; }
+.company-details{
+  font-size:30px;
+  margin-bottom:2px;
+}
+
+.bold-label{
+  font-size:30px;
+  margin-bottom:6px;
+}
+
+/* TABLE */
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+  
+}
+
+th{
+  font-size:30px;
+  text-align:left;
+  padding:4px 2px;
+  font-weight:600;
+    overflow:hidden;
+
+}
+
+td{
+  font-size:27px;
+  padding:3px 2px;
+  vertical-align:top;
+  word-break:break-word;
+    overflow:hidden;
+
+}
+
+/* COLUMN WIDTH */
+
+.product-name{
+  width:40%;
+
+
+}
+
+.qty{
+  width:10%;
+  text-align:center;
+
+}
+
+.price{
+  width:22%;
+  text-align:right;
+  white-space: nowrap;
+  
+}
+
+.total{
+  width:22%;
+  text-align:right;
+  white-space: nowrap;
+
+}
+
+
+
+.product-sub{
+  font-size:22px;
+   width:52%;
+}
+.nowrap {
+  white-space: nowrap;
+}
+/* SUMMARY */
+
+.summary-row td{
+ 
+  padding-top:4px;
+}
+
+.summary-label{
+  text-align:right;
+  font-weight:600;
+}
+.summary-label1{
+  text-align:right;
+   font-size:30px;
+
+}
+.summary-right{
+  text-align:right;
+  font-weight:500;
+  white-space: nowrap;
+}
+.summary-right1{
+  text-align:right;
+  font-weight:700;
+  white-space: nowrap;
+}
+/* PRINT FIX */
+
+*{
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
 </style>
+
 </head>
 
 <body>
 
-<div class="order-id">Order Id: ${a4PrintDetails?.order_id}</div>
+<div class="order-id">
+Order ID: ${a4PrintDetails?.order_id}
+</div>
 
 <div class="company-title">
-  <span class="red">Ron Currie & Sons</span>
-  <span class="black"> Ltd</span>
+Ron Currie & Sons Ltd
 </div>
 
 <div class="company-details">
-  Tel: ${a4PrintDetails?.settings?.config_telephone}<br>
-  VAT: ${companyDetails?.companyVat}
+  <span style="font-weight:600; margin-right:5px;">Tel:</span> ${
+    a4PrintDetails?.settings?.config_telephone
+  }, 
+  
+  <span style="font-weight:600;">VAT#</span>${
+    a4PrintDetails?.settings?.config_vat_number
+  }
 </div>
 
-<div class="bold-label">Date Added: ${dateAdded}</div>
+<div class="bold-label">
+  <span style="font-weight:600;">Date Added:</span> ${dateAdded}
+</div>
+${
+  a4PrintDetails?.shipping_method !== 'Collection' &&
+  a4PrintDetails?.epos_customer_name
+    ? `<div class="bold-label">
+        <span style="font-weight:600;">Customer Name:</span> ${a4PrintDetails.epos_customer_name}
+      </div>`
+    : ''
+}
+${
+  a4PrintDetails?.shipping_method !== 'Collection' &&
+  (a4PrintDetails?.shipping_company ||
+    a4PrintDetails?.shipping_address_1 ||
+    a4PrintDetails?.shipping_city)
+    ? `<div class="bold-label">
+        <span style="font-weight:600;">Address:</span> 
+        ${[
+          a4PrintDetails?.shipping_company,
+          a4PrintDetails?.shipping_address_1,
+          a4PrintDetails?.shipping_address_2,
+          a4PrintDetails?.shipping_city,
+          a4PrintDetails?.shipping_postcode,
+          a4PrintDetails?.shipping_country,
+          a4PrintDetails?.shipping_zone,
+        ]
+          .filter(item => item && item.trim())
+          .join(', ')}
+      </div>`
+    : ''
+}
+
+${
+  a4PrintDetails?.shipping_method !== 'Collection' &&
+  a4PrintDetails?.epos_customer_number?.trim()
+    ? `<div class="bold-label">
+        <span style="font-weight:600;">Tel:</span> ${a4PrintDetails.epos_customer_number}
+      </div>`
+    : ''
+}
+  ${
+    a4PrintDetails?.shipping_method != 'Collection'
+      ? `<div class="bold-label">
+  <span style="font-weight:600;">Est. Delivery Date:</span> ${a4PrintDetails?.order_date}
+</div>`
+      : ''
+  }
+
+
+
 
 <table>
+
 <tr>
-  <th>Product</th>
-  <th>Qty</th>
-  <th>Price</th>
-  <th>Total</th>
+<th class="product-name">Product</th>
+<th class="qty">Qty</th>
+<th class="price">Price</th>
+<th class="total">Total</th>
 </tr>
 
 ${productsHtml}
+${miscellaneousHtml}
 
 <tr class="summary-row">
-  <td colspan="3">Groups</td>
-  <td style="text-align:left;">${a4PrintDetails?.products?.length || 0}</td>
-</tr>
+<td colspan="3" class="summary-label1">Groups =</td>
+<td class="summary-right">
+${a4PrintDetails?.products?.length || 0}
+</td>
+</tr>   
 
-<tr class="summary-row">
-  <td colspan="3">Inc VAT Sub-Total</td>
-  <td>£${totalsMap.sub_total || '0.00'}</td>
-</tr>
+${
+  shippingTitle !== 'Collection' ? (
+    <tr>
+      <td colspan="3" class="summary-label">
+        ${shippingTitle}
+      </td>
+      <td class="summary-right">£${shippingAmount}</td>
+    </tr>
+  ) : (
+    ''
+  )
+}
 
-<tr class="summary-row">
-  <td colspan="3">Total (VAT £${totalsMap.tax || '0.00'})</td>
-  <td>£${totalsMap.total || '0.00'}</td>
+<tr>
+<td colspan="3" class="summary-label1">
+Total (VAT £${totalsMap.tax || '0.00'})
+</td>
+<td class="summary-right1">
+£${totalsMap.total || '0.00'}
+</td>
 </tr>
-
+${
+  a4PrintDetails?.comment?.trim()
+    ? `
+<tr>
+  <td  style="font-weight:600; text-align:left;">
+    Notes
+  </td>
+  <td colspan="3" style="text-align:left;">
+    ${a4PrintDetails.comment}
+  </td>
+</tr>
+`
+    : ''
+}
 </table>
 
 </body>
 </html>
 `;
   };
-
   const printWithStarPassPRNT = async html => {
     try {
       const encodedHTML = encodeURIComponent(html);
@@ -918,24 +1138,14 @@ ${productsHtml}
       console.log('Print error:', error);
     }
   };
-
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
-  // const decodeHtml = text => {
-  //   if (!text) return '';
-  //   return text
-  //     .replace(/&quot;/g, '')
-  //     .replace(/&apos;/g, '')
-  //     .replace(/&amp;/g, '&')
-  //     .replace(/&lt;/g, '<')
-  //     .replace(/&gt;/g, '>')
-  //     .replace(/["']/g, '')
-  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-  //     .trim();
-  // };
   const renderItem = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 
@@ -1002,31 +1212,13 @@ ${productsHtml}
         barStyle="dark-content"
       />
 
-      {/* <View style={styles.headerContainer}>
-        <TouchableOpacity
-          style={styles.leftContainer}
-          onPress={() => {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Home' }],
-              }),
-            );
-          }}
-        >
-          <Image
-            source={IconData.Logo}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-      </View> */}
-
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       {results?.length > 0 ? (
         <>
@@ -1050,6 +1242,20 @@ ${productsHtml}
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <View
@@ -1247,6 +1453,26 @@ const styles = ScaledSheet.create({
   itemPrice: {
     fontSize: moderateScale(13),
     color: '#555',
+  },
+
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 

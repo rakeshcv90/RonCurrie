@@ -1,4 +1,7 @@
-import React, { useCallback, useState } from 'react';
+/* eslint-disable react-native/no-inline-styles */
+/* eslint-disable no-catch-shadow */
+/* eslint-disable no-shadow */
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +12,11 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScaledSheet, moderateScale, verticalScale } from 'react-native-size-matters';
+import {
+  ScaledSheet,
+  moderateScale,
+  verticalScale,
+} from 'react-native-size-matters';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
@@ -39,6 +46,8 @@ const ReturnRequestDetails = ({ navigation, route }) => {
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
+  const searchRef = useRef(null);
+  const [searchNoResults, setSearchNoResults] = useState(false);
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
@@ -64,33 +73,40 @@ const ReturnRequestDetails = ({ navigation, route }) => {
   );
 
   const formatDate = dateString => {
+    if (!dateString) return '';
     const date = new Date(dateString);
+    // Check if valid date
+    if (isNaN(date.getTime())) return '';
+
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
 
-// const decodeHtml = text => {
-//   if (!text) return '';
+  // const decodeHtml = text => {
+  //   if (!text) return '';
 
-//   return text
-//     // remove HTML tags like <p>, <div>, etc.
-//     .replace(/<\/?[^>]+(>|$)/g, '')
-//     // decode entities
-//     .replace(/&quot;/g, '')
-//     .replace(/&apos;/g, '')
-//     .replace(/&amp;/g, '&')
-//     .replace(/&lt;/g, '<')
-//     .replace(/&gt;/g, '>')
-//     // optional cleanup
-//     .replace(/["']/g, '')
-//     .trim();
-// };
+  //   return text
+  //     // remove HTML tags like <p>, <div>, etc.
+  //     .replace(/<\/?[^>]+(>|$)/g, '')
+  //     // decode entities
+  //     .replace(/&quot;/g, '')
+  //     .replace(/&apos;/g, '')
+  //     .replace(/&amp;/g, '&')
+  //     .replace(/&lt;/g, '<')
+  //     .replace(/&gt;/g, '>')
+  //     // optional cleanup
+  //     .replace(/["']/g, '')
+  //     .trim();
+  // };
 
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
   const renderItem = ({ item }) => {
@@ -139,7 +155,6 @@ const ReturnRequestDetails = ({ navigation, route }) => {
     );
   };
 
-  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -148,10 +163,12 @@ const ReturnRequestDetails = ({ navigation, route }) => {
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       {results?.length > 0 ? (
         <>
@@ -175,6 +192,20 @@ const ReturnRequestDetails = ({ navigation, route }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <ScrollView
           style={styles.container1}
@@ -280,14 +311,14 @@ const ReturnRequestDetails = ({ navigation, route }) => {
                     <Text style={[styles.value, { flex: 1 }]}>
                       {formatDate(item?.date_added) || '-'}
                     </Text>
-{console.log("Order ",item)}
+                    {console.log('Order ', item)}
                     <Text style={[styles.value, { flex: 1 }]}>
                       {item?.return_status?.name}
                     </Text>
 
                     <Text style={[styles.value, { flex: 1 }]}>
                       {/* {item?.comment || '-'} */}
-                     { decodeHtml(item?.comment)||'-' }
+                      {decodeHtml(item?.comment) || '-'}
                     </Text>
                   </View>
                 ))
@@ -462,6 +493,25 @@ const styles = ScaledSheet.create({
   itemPrice: {
     fontSize: moderateScale(13),
     color: '#555',
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 

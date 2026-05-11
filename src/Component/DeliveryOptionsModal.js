@@ -43,27 +43,58 @@ const DeliveryOptionsModal = ({
       .split(',')
       .map(item => item.trim());
 
-    let addressObj = {};
+    let addressObj = {
+      company: '',
+      address1: '',
+      address2: '',
+      city: '',
+    };
 
-    if (parts?.length === 2) {
-      addressObj = {
-        address1: parts[0],
-        city: parts[1],
-      };
-    } else if (parts?.length === 3) {
-      addressObj = {
-        company: parts[0],
-        address1: parts[1],
-        city: parts[2],
-      };
-    } else if (parts?.length === 4) {
-      addressObj = {
-        company: parts[0],
-        address1: parts[1],
-        address2: parts[2],
-        city: parts[3],
-      };
+    if (parts.length > 0) {
+      addressObj.city = parts.pop();
     }
+    if (parts.length > 0) {
+      const first = parts[0].toLowerCase();
+
+      if (
+        first.includes('pvt') ||
+        first.includes('ltd') ||
+        first.includes('private') ||
+        first.includes('company')
+      ) {
+        addressObj.company = parts.shift();
+      }
+    }
+
+    // 👉 Address 1
+    if (parts.length > 0) {
+      addressObj.address1 = parts.shift();
+    }
+
+    // 👉 Address 2 (remaining)
+    if (parts.length > 0) {
+      addressObj.address2 = parts.join(', ');
+    }
+
+    // if (parts?.length === 2) {
+    //   addressObj = {
+    //     address1: parts[0],
+    //     city: parts[1],
+    //   };
+    // } else if (parts?.length === 3) {
+    //   addressObj = {
+    //     company: parts[0],
+    //     address1: parts[1],
+    //     city: parts[2],
+    //   };
+    // } else if (parts?.length === 4) {
+    //   addressObj = {
+    //     company: parts[0],
+    //     address1: parts[1],
+    //     address2: parts[2],
+    //     city: parts[3],
+    //   };
+    // }
 
     try {
       const payloadData = {
@@ -124,7 +155,7 @@ const DeliveryOptionsModal = ({
       };
 
       const response = await postData(Api.GET_SHIPPING, payloadData);
-console.log("dfdsfsdfdsfds", payloadData);
+
       if (response?.status === 200) {
         const shippingList = response.data?.data?.ocaaspro?.quote ?? [];
         setListData(shippingList);
@@ -208,10 +239,12 @@ console.log("dfdsfsdfdsfds", payloadData);
                 <Text style={styles.subtitle}>
                   Please select the preferred delivery method
                 </Text>
-                {listData?.length > 0 ? (
+                {/* {listData?.length > 0 ? (
                   <>
                     {listData.map((item, idx) => {
                       const estimate = item?.delivery_dates?.delivery_estimate;
+
+                      console.log('ESTIMATE DATA:', estimate);
 
                       return (
                         <View key={idx}>
@@ -220,7 +253,7 @@ console.log("dfdsfsdfdsfds", payloadData);
                             onPress={() => {
                               setSelected(item.detail_id);
 
-                              // SAVE NAME & PRICE
+                          
                               setSelectedName(item.title);
                               setSelectedPrice(item.text);
 
@@ -251,7 +284,7 @@ console.log("dfdsfsdfdsfds", payloadData);
                             </Text>
                           </TouchableOpacity>
 
-                          {/* IF ESTIMATE ARRAY → SHOW DROPDOWN */}
+                        
                           {Array.isArray(estimate) && (
                             <>
                               <Text style={styles.label}>
@@ -354,6 +387,170 @@ console.log("dfdsfsdfdsfds", payloadData);
                       No Delivery options are available
                     </Text>
                   </>
+                )} */}
+                {listData?.length > 0 ? (
+                  <>
+                    {listData.map((item, idx) => {
+                      const estimate = item?.delivery_dates?.delivery_estimate;
+
+                      return (
+                        <View key={idx}>
+                          {/* ✅ OPTION SELECT */}
+                          <TouchableOpacity
+                            style={styles.optionRow}
+                            onPress={() => {
+                              setSelected(item.detail_id);
+
+                              setSelectedName(item.title);
+                              setSelectedPrice(item.text);
+
+                              // ✅ HANDLE ALL CASES
+                              if (Array.isArray(estimate)) {
+                                setSelectedDates(prev => ({
+                                  ...prev,
+                                  [item.detail_id]: estimate[0],
+                                }));
+                              } else if (typeof estimate === 'string') {
+                                // ✅ SAVE FULL STRING (IMPORTANT)
+                                setSelectedDates(prev => ({
+                                  ...prev,
+                                  [item.detail_id]: estimate,
+                                }));
+                              } else if (typeof estimate === 'object') {
+                                setSelectedDates(prev => ({
+                                  ...prev,
+                                  [item.detail_id]: estimate?.estimate,
+                                }));
+                              }
+                            }}
+                          >
+                            <Ionicons
+                              name={
+                                selected === item.detail_id
+                                  ? 'radio-button-on'
+                                  : 'radio-button-off'
+                              }
+                              size={20}
+                              color="#b20000"
+                            />
+                            <Text style={styles.optionText}>
+                              {item.title} - {item.text}
+                            </Text>
+                          </TouchableOpacity>
+
+                          {/* ✅ ARRAY → DROPDOWN */}
+                          {Array.isArray(estimate) && (
+                            <>
+                              <Text style={styles.label}>
+                                Select Preferred Date
+                              </Text>
+
+                              <TouchableOpacity
+                                style={styles.dropdown}
+                                onPress={() =>
+                                  setOpenDrop(openDrop === idx ? null : idx)
+                                }
+                              >
+                                <Text style={styles.dropdownText}>
+                                  {selectedDates[item.detail_id] ||
+                                    'Select date'}
+                                </Text>
+                                <Ionicons name="chevron-down" size={18} />
+                              </TouchableOpacity>
+
+                              {openDrop === idx && (
+                                <View style={styles.dateList}>
+                                  {estimate.map((dt, i) => (
+                                    <TouchableOpacity
+                                      key={i}
+                                      style={styles.dateItem}
+                                      onPress={() => {
+                                        setSelectedDates(prev => ({
+                                          ...prev,
+                                          [item.detail_id]: dt,
+                                        }));
+                                        setOpenDrop(null);
+                                      }}
+                                    >
+                                      <Text style={styles.dateText}>{dt}</Text>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                              )}
+                            </>
+                          )}
+
+                          {/* ✅ STRING → SHOW TEXT ONLY */}
+                          {typeof estimate === 'string' && (
+                            <View>
+                              <Text style={styles.label}>
+                                Estimated Delivery:
+                              </Text>
+                              <Text style={styles.estimate}>{estimate}</Text>
+                            </View>
+                          )}
+
+                          {/* ✅ OBJECT → SHOW VALUES */}
+                          {typeof estimate === 'object' &&
+                            !Array.isArray(estimate) && (
+                              <View>
+                                <Text style={styles.label}>
+                                  Estimated Delivery:
+                                </Text>
+
+                                {Object.entries(estimate).map(
+                                  ([key, value]) => (
+                                    <Text key={key} style={styles.estimate}>
+                                      {value}
+                                    </Text>
+                                  ),
+                                )}
+                              </View>
+                            )}
+
+                          <View style={styles.divider} />
+                        </View>
+                      );
+                    })}
+
+                    {/* ✅ BUTTONS */}
+                    <View style={styles.buttonRow}>
+                      <TouchableOpacity
+                        style={styles.cancelBtn}
+                        onPress={onClose}
+                      >
+                        <Text style={styles.cancelText}>Cancel</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.applyBtn}
+                        onPress={() =>
+                          onApply({
+                            id: selected,
+                            date: selectedDates[selected],
+                            name: selectedName,
+                            price: selectedPrice,
+                          })
+                        }
+                      >
+                        <Text style={styles.applyText}>Apply To Order</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <Text
+                    style={[
+                      styles.subtitle,
+                      {
+                        fontSize: 18,
+                        color: Color.RED,
+                        fontFamily: FONT.BOLD,
+                        textAlign: 'center',
+                      },
+                    ]}
+                  >
+                    No Delivery options are available
+                  </Text>
                 )}
               </ScrollView>
             )}
@@ -521,15 +718,15 @@ const styles = ScaledSheet.create({
     color: '#222',
   },
   headerRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: '5@ms',
-},
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '5@ms',
+  },
 
-closeBtn: {
-  padding: 5,
-},
+  closeBtn: {
+    padding: 5,
+  },
 });
 
 export default DeliveryOptionsModal;

@@ -7,7 +7,7 @@ import {
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { getData } from '../../utility/ApiCall';
 import { Api, ImageBaseUrl } from '../../utility/api';
 import { showToast } from '../../utility/showToast';
@@ -33,14 +33,14 @@ const CategoryList = ({ route, navigation }) => {
   const { width } = useWindowDimensions();
   const dispatch = useDispatch();
   const catData = route?.params.listDAta;
-
+  const searchRef = useRef(null);
   const [loader, setLoader] = useState(false);
   const [listproduct, setListProduct] = useState([]);
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
-
+  const [searchNoResults, setSearchNoResults] = useState(false);
   const getProductList = async dataItem => {
     setLoader(true);
     try {
@@ -58,7 +58,6 @@ const CategoryList = ({ route, navigation }) => {
         } else if (res?.data?.pageName == 'categoryPage') {
           navigation.navigate('CategoryPage', { listDAta: res?.data });
         } else if (res?.data?.pageName == 'productPage') {
-       
           // navigation.navigate('DisplayItems', { itemData: item });
         }
       } else {
@@ -98,6 +97,9 @@ const CategoryList = ({ route, navigation }) => {
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
   const renderItem1 = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
@@ -209,8 +211,7 @@ const CategoryList = ({ route, navigation }) => {
         style={styles.card}
         activeOpacity={0.8}
         onPress={() => {
-           
-              navigation.navigate('DisplayItems', { itemData: item });
+          navigation.navigate('DisplayItems', { itemData: item });
           // getProductList(item);
         }}
       >
@@ -287,10 +288,12 @@ const CategoryList = ({ route, navigation }) => {
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
 
       {results?.length > 0 ? (
@@ -316,6 +319,20 @@ const CategoryList = ({ route, navigation }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <ScrollView
           style={{ flex: 1 }}
@@ -477,6 +494,25 @@ const styles = ScaledSheet.create({
     fontSize: moderateScale(12),
     color: '#666',
     fontFamily: FONT.MEDIUM,
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 export default CategoryList;

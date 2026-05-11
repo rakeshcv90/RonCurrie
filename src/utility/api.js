@@ -1,6 +1,5 @@
-export const BaseUrl =
-  'https://roncurry.co.uk/roncurry/public/api/v1/frontend/'; //New Live Server
-export const ImageBaseUrl = 'https://roncurry.co.uk/roncurry/public/image/';
+export const BaseUrl = 'https://api.roncurrie.co.uk/api/v1/frontend/'; //New Live Server
+export const ImageBaseUrl = 'https://api.roncurrie.co.uk/image/';
 
 export const Api = {
   LOGIN: 'login',
@@ -31,4 +30,6 @@ export const Api = {
   ORDER_PLACE: 'epos/checkout/save-order',
   GET_SHIPPING: 'get-shipping',
   CATEGORIES: 'categories',
+  GET_MISC: 'epos/miscellaneous',
+  ADD_MISC: 'epos/miscellaneous',
 };

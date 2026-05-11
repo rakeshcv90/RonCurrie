@@ -17,11 +17,16 @@ const apiClient = axios.create({
   },
 });
 
+let isAppConnected = true;
+
+NetInfo.addEventListener(state => {
+  isAppConnected = state.isConnected;
+});
+
 apiClient.interceptors.request.use(
   async config => {
     try {
-      const state = await NetInfo.fetch();
-      if (!state.isConnected) {
+      if (!isAppConnected) {
         showToast(
           'danger',
           'No Internet',
@@ -50,9 +55,10 @@ apiClient.interceptors.request.use(
 );
 
 const handleApiError = async error => {
-  console.log('API Error:', error);
+  const status = error?.response?.status;
+  const data = error?.response?.data;
+
   if (error?.response) {
-    const { status, data } = error.response;
     try {
       if (status === 403) {
         await MMKVStorage.clearAllData();
@@ -62,10 +68,23 @@ const handleApiError = async error => {
       } else if (status === 404) {
         showToast('danger', 'Data List', data?.message);
       } else if (status === 422) {
-
         const messagesObj = data?.messages;
-        const messagesArray = Object.values(messagesObj).flat().join('\n');
-        showToast('danger', 'Validation Error', messagesArray);
+
+        console.log('Test Message', messagesObj, data);
+
+        let messagesArray = '';
+
+        if (Array.isArray(messagesObj)) {
+          messagesArray = messagesObj.join('\n');
+        } else if (messagesObj) {
+          messagesArray = Object.values(messagesObj).flat().join('\n');
+        }
+
+        showToast(
+          'danger',
+          'Validation Error',
+          messagesArray || 'Something went wrong',
+        );
       } else if (status === 400) {
         showToast('danger', 'Validation Error', data?.message);
         return;
@@ -93,11 +112,11 @@ const handleApiError = async error => {
   } else {
     console.log('Unknown error', error.message);
 
-    showToast('danger', 'Error', error.message || 'Something went wrong');
+    showToast('danger', 'Error', data?.message || 'Something went wrong');
 
     throw {
       type: 'unknown',
-      message: error.message || 'Something went wrong',
+      message: data?.message || 'Something went wrong',
     };
   }
 };
@@ -121,9 +140,7 @@ export const postData = async (endpoint, body = {}) => {
 
     return response;
   } catch (error) {
-    console.log('rrrrrrr', error?.response);
-    handleApiError(error);
-    // throw error
+    throw error;
   }
 };
 // ✅ UPDATE wrapper

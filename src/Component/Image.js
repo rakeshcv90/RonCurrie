@@ -11,6 +11,7 @@ export const ImageData = {
   Profile: require('../assets/image/profile.png'),
   New_Logo: require('../assets/image/newLogo.png'),
   NOIMAGE: require('../assets/image/noImage.png'),
+  NORESULT: require('../assets/image/noresult.png'),
 };
 export const IconData = {
   Eye: require('../assets/icon/eye.png'),
@@ -47,7 +48,7 @@ export const Color = {
   GRAY6: '#D9D9D9',
   WHITE: '#FFFFFF',
   GREEN: '#009427',
-  GREEN2:'#00ad45',
+  GREEN2: '#00ad45',
   RED2: '#ff0000',
 };
 
@@ -56,5 +57,5 @@ export const companyDetails = {
   address: '22 Kirkby Folly Road,Sutton In Ashfield,Nottinghamshire,NG17 5HN',
   email: 'akash9958@gmail.com',
   comnpanyName: 'Ron Currie Sons Ltd',
-  companyVat: '1183885755',
+  companyVat: '118385755',
 };

@@ -5,7 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CartComponent from '../Component/CartComponent';
@@ -37,19 +37,19 @@ const SubProductList2 = ({ route }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
   const [loader, setLoader] = useState(false);
+  const searchRef = useRef(null);
+  const [searchNoResults, setSearchNoResults] = useState(false);
+  useEffect(() => {
+    if (listData) {
+      getProductList(listData);
+    }
+  }, [listData]);
 
-useEffect(() => {
-  if (listData) {
-    getProductList(listData);
-  }
-}, [listData]);
-
-
-useFocusEffect(
-  React.useCallback(() => {
-    setLoader(false);
-  }, [])
-);
+  useFocusEffect(
+    React.useCallback(() => {
+      setLoader(false);
+    }, []),
+  );
   const getProductList = async dataItem => {
     setLoader(true);
     try {
@@ -89,7 +89,6 @@ useFocusEffect(
       );
       if (res?.success == true && res?.responseCode == 200) {
         setLoader(true);
-     
 
         if (res?.data?.pageName == 'productList') {
           navigation.navigate('CategoryData', { listDAta: res?.data });
@@ -135,6 +134,9 @@ useFocusEffect(
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
   const renderItem1 = ({ item }) => {
@@ -156,14 +158,14 @@ useFocusEffect(
             style={styles.itemImage}
             source={{
               uri: imageUrl,
-             priority: FastImage.priority.high,
+              priority: FastImage.priority.high,
               cache: FastImage.cacheControl.immutable,
             }}
             resizeMode={FastImage.resizeMode.cover}
             onError={handleError}
           />
         ) : (
-         <FastImage
+          <FastImage
             style={styles.itemImage}
             source={ImageData?.NOIMAGE}
             resizeMode={FastImage.resizeMode.cover}
@@ -203,19 +205,19 @@ useFocusEffect(
               style={styles.image}
               source={{
                 uri: imageUrl,
-              priority: FastImage.priority.high,
+                priority: FastImage.priority.high,
                 cache: FastImage.cacheControl.immutable,
               }}
               resizeMode={FastImage.resizeMode.cover}
               onError={handleError}
             />
           ) : (
-           <FastImage
-            style={styles.itemImage}
-            source={ImageData?.NOIMAGE}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
+            <FastImage
+              style={styles.itemImage}
+              source={ImageData?.NOIMAGE}
+              resizeMode={FastImage.resizeMode.cover}
+              onError={handleError}
+            />
           )}
         </View>
 
@@ -238,10 +240,12 @@ useFocusEffect(
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
 
       {results?.length > 0 ? (
@@ -267,6 +271,20 @@ useFocusEffect(
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <View
@@ -393,6 +411,25 @@ const styles = ScaledSheet.create({
     fontSize: moderateScale(12),
     color: '#666',
     fontFamily: FONT.MEDIUM,
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 export default SubProductList2;

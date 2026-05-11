@@ -278,15 +278,28 @@ const PrintModel = ({ visible, onClose, printData }) => {
       })()}
       <br/>
   
-      <b>Telephone:</b> ${companyDetails?.mobile}  <b>VAT#</b> ${
-      companyDetails?.companyVat
-    }<br/>
+      <b>Telephone:</b> ${
+        a4PrintDetails?.settings?.config_telephone
+      }  <b>VAT#</b> ${a4PrintDetails?.settings?.config_vat_number}<br/>
            
             <b>Payment Method:</b> ${a4PrintDetails?.payment_method}<br/>
                     <b>Delivery Method:</b> 
  <span style="color: red;">
    ${a4PrintDetails?.shipping_method || ''}
- </span>
+ </span><br/>
+
+    ${
+      a4PrintDetails?.shipping_method != 'Collection'
+        ? `<b>Est. Delivery Date:</b> 
+ <span style="color: red;">
+   ${a4PrintDetails?.order_date || ''}
+ </span>`
+        : ''
+    }
+
+
+ 
+ 
           </td>
         </tr>
       </table>
@@ -464,19 +477,7 @@ const PrintModel = ({ visible, onClose, printData }) => {
          </td>
        </tr>
 
-          ${
-            a4PrintDetails?.shipping_method == 'Collection'
-              ? `
-        <tr>
-         <td colspan="5" class="right" style="font-weight:bold; font-size:13px;">
-          Collection
-         </td>
-         <td class="right">
-             £0.00
-         </td>
-       </tr>`
-              : ''
-          }
+          
  
        <!-- WEIGHT + TOTAL ROWS -->
        ${a4PrintDetails?.totals
@@ -503,15 +504,15 @@ const PrintModel = ({ visible, onClose, printData }) => {
              </td>
  
              <!-- TOTAL LABEL -->
-             <td colspan="2" class="right" style="font-weight:bold; font-size:13px;">
+             <td colspan="2" class="right" style="font-weight:500; font-size:13px;">
                ${item.title}
                ${item.code === 'total' ? ` (VAT £${vatAmount})` : ''}
              </td>
  
              <!-- TOTAL VALUE -->
-             <td class="right">
+             <td class="right" style="font-weight:600;">
                £${Number(item.value || 0).toFixed(2)}
-             </td>
+             </td>Suc
            </tr>
          `,
          )
@@ -609,39 +610,99 @@ const PrintModel = ({ visible, onClose, printData }) => {
         Number(item.value || 0).toFixed(2),
       ]),
     );
+    console.log('a4PrintDetails', a4PrintDetails);
+    const decodeHtml = text => {
+      if (!text) return '';
 
-    // Products HTML
+      const htmlEntities = {
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&apos;': "'",
+      };
+
+      return text.replace(
+        /&amp;|&lt;|&gt;|&quot;|&#39;|&apos;/g,
+        match => htmlEntities[match],
+      );
+    };
+    const shippingItem = a4PrintDetails?.totals?.find(
+      item => item.code === 'shipping',
+    );
+    const shippingAmount = shippingItem
+      ? Number(shippingItem.value).toFixed(2)
+      : '0.00';
+
+    const miscellaneousItems =
+      a4PrintDetails?.totals?.filter(
+        item =>
+          item.code === 'miscellaneous' &&
+          item.title !== 'undefined' &&
+          item.value !== '0.0000',
+      ) || [];
+
+    const shippingTitle = shippingItem ? shippingItem.title : 'Collection';
     const productsHtml = (a4PrintDetails?.products || [])
       .map(product => {
         return `
-          <tr>
-            <td>
-              ${product.name}
-          ${
-            Array.isArray(product?.order_options) &&
-            product.order_options.length > 0
-              ? product.order_options
-                  .map(
-                    opt => `
-              <span class="product-sub">
-                - ${opt.name}: ${opt.value}
-              </span><br/>
-            `,
-                  )
-                  .join('')
-              : ''
-          }
+      <tr>
 
-            </td>
-            <td class="qty">${product.quantity}</td>
-            <td class="price">£${Number(product.price).toFixed(2)}</td>
-            <td class="total">£${Number(product.total).toFixed(2)}</td>
-          </tr>
-        `;
+        <td class="product-name">
+     
+${decodeHtml(product?.product_details?.isbn)}
+${
+  Array.isArray(product?.order_options) && product.order_options.length > 0
+    ? product.order_options
+        .map(
+          opt => `
+        <div class="product-sub" style="white-space: ${
+          opt.name === 'Length' ? 'nowrap' : 'normal'
+        };">
+          - ${opt.name}: ${opt.value}
+        </div>
+      `,
+        )
+        .join('')
+    : ''
+}
+
+        </td>
+
+        <td class="qty">${product.quantity}</td>
+
+        <td class="price">£${Number(product.price).toFixed(2)}</td>
+
+     <td class="total ${product?.refund == 1 ? 'redPrice' : ''}">
+£${product?.refund == 1 ? '-' : ''}${Number(product.total).toFixed(2)}
+</td>
+
+      </tr>
+    `;
       })
       .join('');
+    const miscellaneousHtml = miscellaneousItems
+      ?.map(item => {
+        return `
+      <tr>
 
-    // Date logic
+        <td class="product-name">
+          ${item.title}
+
+
+        </td>
+
+        <td class="qty"></td>
+
+        <td class="price"></td>
+
+        <td class="total">£${Number(item.value).toFixed(2)}</td>
+
+      </tr>
+    `;
+      })
+      .join('');
     const dateAdded = (() => {
       const rawDate =
         a4PrintDetails?.shipping_method === 'Delivery'
@@ -651,6 +712,7 @@ const PrintModel = ({ visible, onClose, printData }) => {
       if (!rawDate) return '-';
 
       const d = new Date(rawDate);
+
       const day = String(d.getDate()).padStart(2, '0');
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const year = d.getFullYear();
@@ -658,103 +720,293 @@ const PrintModel = ({ visible, onClose, printData }) => {
       return `${day}/${month}/${year}`;
     })();
 
-    // Return HTML
     return `
-  <!DOCTYPE html>
-  <html>
-  <head>
-  <meta charset="UTF-8" />
-  <style>
-  @page { margin: 0; }
+<!DOCTYPE html>
+<html>
 
-  html, body {
-    width: 80mm;
-    margin: 0;
-    padding: 0;
+<head>
+
+<meta charset="UTF-8"/>
+
+<style>
+
+@page{
+  margin:0;
+}
+
+html, body{
+  width:145mm;
+  margin:0;
+  padding:10px;
+}
+
+body{
+  font-family: Arial, sans-serif;
+  font-size:30px;
+  color:#000;
+  padding:5px;
+  line-height:1.3;
+}
+
+/* HEADER */
+
+.order-id{
+  font-size:50px;
+  font-weight:600;
+  margin-bottom:2px;
+}
+.redPrice{
+  color:red;
+  font-weight:600;
+}
+.company-title{
+  font-size:45px;
+  font-weight:600;
+}
+
+.company-details{
+  font-size:30px;
+  margin-bottom:2px;
+}
+
+.bold-label{
+  font-size:30px;
+  margin-bottom:6px;
+}
+
+/* TABLE */
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+  
+}
+
+th{
+  font-size:30px;
+  text-align:left;
+  padding:4px 2px;
+  font-weight:600;
+    overflow:hidden;
+
+}
+
+td{
+  font-size:27px;
+  padding:3px 2px;
+  vertical-align:top;
+  word-break:break-word;
+    overflow:hidden;
+
+}
+
+/* COLUMN WIDTH */
+
+.product-name{
+  width:40%;
+
+
+}
+
+.qty{
+  width:10%;
+  text-align:center;
+
+}
+
+.price{
+  width:22%;
+  text-align:right;
+  white-space: nowrap;
+  
+}
+
+.total{
+  width:22%;
+  text-align:right;
+  white-space: nowrap;
+
+}
+
+
+
+.product-sub{
+  font-size:22px;
+   width:52%;
+}
+.nowrap {
+  white-space: nowrap;
+}
+/* SUMMARY */
+
+.summary-row td{
+ 
+  padding-top:4px;
+}
+
+.summary-label{
+  text-align:right;
+  font-weight:600;
+}
+.summary-label1{
+  text-align:right;
+   font-size:30px;
+
+}
+.summary-right{
+  text-align:right;
+  font-weight:500;
+  white-space: nowrap;
+}
+.summary-right1{
+  text-align:right;
+  font-weight:700;
+  white-space: nowrap;
+}
+/* PRINT FIX */
+
+*{
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="order-id">
+Order ID: ${a4PrintDetails?.order_id}
+</div>
+
+<div class="company-title">
+Ron Currie & Sons Ltd
+</div>
+
+<div class="company-details">
+  <span style="font-weight:600; margin-right:5px;">Tel:</span> ${
+    a4PrintDetails?.settings?.config_telephone
+  }, 
+  
+  <span style="font-weight:600;">VAT#</span>${
+    a4PrintDetails?.settings?.config_vat_number
+  }
+</div>
+
+<div class="bold-label">
+  <span style="font-weight:600;">Date Added:</span> ${dateAdded}
+</div>
+${
+  a4PrintDetails?.shipping_method !== 'Collection' &&
+  a4PrintDetails?.epos_customer_name
+    ? `<div class="bold-label">
+        <span style="font-weight:600;">Customer Name:</span> ${a4PrintDetails.epos_customer_name}
+      </div>`
+    : ''
+}
+${
+  a4PrintDetails?.shipping_method !== 'Collection' &&
+  (a4PrintDetails?.shipping_company ||
+    a4PrintDetails?.shipping_address_1 ||
+    a4PrintDetails?.shipping_city)
+    ? `<div class="bold-label">
+        <span style="font-weight:600;">Address:</span> 
+        ${[
+          a4PrintDetails?.shipping_company,
+          a4PrintDetails?.shipping_address_1,
+          a4PrintDetails?.shipping_address_2,
+          a4PrintDetails?.shipping_city,
+          a4PrintDetails?.shipping_postcode,
+          a4PrintDetails?.shipping_country,
+          a4PrintDetails?.shipping_zone,
+        ]
+          .filter(item => item && item.trim())
+          .join(', ')}
+      </div>`
+    : ''
+}
+
+${
+  a4PrintDetails?.shipping_method !== 'Collection' &&
+  a4PrintDetails?.epos_customer_number?.trim()
+    ? `<div class="bold-label">
+        <span style="font-weight:600;">Tel:</span> ${a4PrintDetails.epos_customer_number}
+      </div>`
+    : ''
+}
+  ${
+    a4PrintDetails?.shipping_method != 'Collection'
+      ? `<div class="bold-label">
+  <span style="font-weight:600;">Est. Delivery Date:</span> ${a4PrintDetails?.order_date}
+</div>`
+      : ''
   }
 
-  body {
-    padding: 6px;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 16px;
-    font-weight: 600;
-    color: #000;
-  }
 
-  .order-id { font-size: 16px; font-weight: 900; margin-top: 10px; }
-  .company-title { font-size: 23px; font-weight: 900; line-height: 1.2; }
-  .company-title .red { color: #b22222; }
-  .company-title .black { color: #000; }
-  .company-details { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-  .bold-label { font-weight: 900; margin: 6px 0; font-size: 14px; }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 6px 0;
-  }
 
-  th, td {
-    border: 1px solid #dddddd;
-    padding: 6px;
-    font-size: 16px;
-    font-weight: 700;
-  }
+<table>
 
-  th { font-weight: 900; }
-  .qty, .price, .total { text-align: center; font-weight: 900; }
-  .summary-row td { font-weight: 900; text-align: right; font-size: 14px; }
-  </style>
-  </head>
+<tr>
+<th class="product-name">Product</th>
+<th class="qty">Qty</th>
+<th class="price">Price</th>
+<th class="total">Total</th>
+</tr>
 
-  <body>
+${productsHtml}
+${miscellaneousHtml}
 
-  <div class="order-id">Order Id: ${a4PrintDetails?.order_id}</div>
+<tr class="summary-row">
+<td colspan="3" class="summary-label1">Groups =</td>
+<td class="summary-right">
+${a4PrintDetails?.products?.length || 0}
+</td>
+</tr>   
 
-  <div class="company-title">
-    <span class="red">Ron Currie & Sons</span>
-    <span class="black"> Ltd</span>
-  </div>
+${
+  shippingTitle !== 'Collection' ? (
+    <tr>
+      <td colspan="3" class="summary-label">
+        ${shippingTitle}
+      </td>
+      <td class="summary-right">£${shippingAmount}</td>
+    </tr>
+  ) : (
+    ''
+  )
+}
 
-  <div class="company-details">
-    Tel: ${a4PrintDetails?.settings?.config_telephone}<br>
-    VAT: ${companyDetails?.companyVat}
-  </div>
+<tr>
+<td colspan="3" class="summary-label1">
+Total (VAT £${totalsMap.tax || '0.00'})
+</td>
+<td class="summary-right1">
+£${totalsMap.total || '0.00'}
+</td>
+</tr>
+${
+  a4PrintDetails?.comment?.trim()
+    ? `
+<tr>
+  <td  style="font-weight:600; text-align:left;">
+    Notes
+  </td>
+  <td colspan="3" style="text-align:left;">
+    ${a4PrintDetails.comment}
+  </td>
+</tr>
+`
+    : ''
+}
+</table>
 
-  <div class="bold-label">Date Added: ${dateAdded}</div>
-
-  <table>
-  <tr>
-    <th>Product</th>
-    <th>Qty</th>
-    <th>Price</th>
-    <th>Total</th>
-  </tr>
-
-  ${productsHtml}
-
-  <tr class="summary-row">
-    <td colspan="3">Groups</td>
-    <td style="text-align:left;">${a4PrintDetails?.products?.length || 0}</td>
-  </tr>
-
-  <tr class="summary-row">
-    <td colspan="3">Inc VAT Sub-Total</td>
-    <td>£${totalsMap.sub_total || '0.00'}</td>
-  </tr>
-
-  <tr class="summary-row">
-    <td colspan="3">Total (VAT £${totalsMap.tax || '0.00'})</td>
-    <td>£${totalsMap.total || '0.00'}</td>
-  </tr>
-
-  </table>
-
-  </body>
-  </html>
-  `;
+</body>
+</html>
+`;
   };
-
   const printWithStarPassPRNT = async html => {
     try {
       const encodedHTML = encodeURIComponent(html);

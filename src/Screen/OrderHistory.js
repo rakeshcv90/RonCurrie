@@ -25,7 +25,10 @@ import { CommonActions } from '@react-navigation/native';
 
 import { postData } from '../utility/ApiCall';
 import { Api, ImageBaseUrl } from '../utility/api';
-import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
+import {
+  triggerCartRefresh,
+  triggerMiscRefresh,
+} from '../Redux/Slice/CartDataShowSlice';
 import SearchComponent from './Component/SearchComponent';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import CartComponent from '../Component/CartComponent';
@@ -43,8 +46,9 @@ const OrderHistory = ({ navigation }) => {
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
-   const hasInitialLoaded = useRef(false);
-
+  const hasInitialLoaded = useRef(false);
+  const searchRef = useRef(null);
+  const [searchNoResults, setSearchNoResults] = useState(false);
   const loadData = async (pageNumber = 1, searchTerm = '') => {
     try {
       await dispatch(
@@ -74,7 +78,8 @@ const OrderHistory = ({ navigation }) => {
 
     useCallback(() => {
       const fiveMinutes = 5 * 60 * 1000;
-      const shouldRefresh = !lastFetched || Date.now() - lastFetched > fiveMinutes;
+      const shouldRefresh =
+        !lastFetched || Date.now() - lastFetched > fiveMinutes;
 
       if (!hasInitialLoaded.current || shouldRefresh) {
         hasInitialLoaded.current = true;
@@ -130,6 +135,7 @@ const OrderHistory = ({ navigation }) => {
         if (responseData?.status == 200) {
           showToast('success', 'Success!', responseData?.data?.message);
           dispatch(triggerCartRefresh());
+          dispatch(triggerMiscRefresh());
         } else {
           showToast('danger', 'Network Error', 'Something went wrong');
         }
@@ -153,6 +159,9 @@ const OrderHistory = ({ navigation }) => {
   const handleItemPress = useCallback(item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   }, []);
 
   // const decodeHtml = text => {
@@ -231,10 +240,12 @@ const OrderHistory = ({ navigation }) => {
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       {results?.length > 0 ? (
         <>
@@ -258,6 +269,20 @@ const OrderHistory = ({ navigation }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer1}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <View style={styles.header}>
@@ -281,6 +306,7 @@ const OrderHistory = ({ navigation }) => {
               />
             </View>
           </View>
+
           {orderList?.length > 0 ? (
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>Order History</Text>
@@ -298,6 +324,9 @@ const OrderHistory = ({ navigation }) => {
 
                   <View style={styles.cell}>
                     <Text style={styles.headerText}>DATE</Text>
+                  </View>
+                  <View style={styles.cell}>
+                    <Text style={styles.headerText}>Delivery Method</Text>
                   </View>
                   <View style={styles.cell}>
                     <Text style={styles.headerText}>RE-ORDER</Text>
@@ -342,6 +371,14 @@ const OrderHistory = ({ navigation }) => {
                       <View style={[styles.cell, styles.dateColumn]}>
                         <Text style={styles.date}>
                           {formatDate(item.date_added)} {}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.cell, styles.dateColumn1]}>
+                        <Text style={styles.customer}>
+                          {item?.shipping_method == 'Collection'
+                            ? item?.shipping_method
+                            : 'Shipping'}
                         </Text>
                       </View>
                       <TouchableOpacity
@@ -471,7 +508,7 @@ const styles = ScaledSheet.create({
     borderColor: '#F6F6F6',
   },
   headerText: {
-    fontSize: moderateScale(13),
+    fontSize: moderateScale(11),
     fontFamily: FONT.SEMIBOLD,
     color: Color.GRAY4,
   },
@@ -483,16 +520,16 @@ const styles = ScaledSheet.create({
   customer: {
     color: Color.BLACK2,
     fontFamily: FONT.SEMIBOLD,
-    fontSize: 12,
+    fontSize: 11,
   },
   date: {
     color: Color.BLACK2,
     fontFamily: FONT.SEMIBOLD,
-    fontSize: 12,
+    fontSize: 11,
   },
 
   orderIdColumn: {
-    width: '25%', // wider for readability
+    width: '25%',
     borderRightWidth: 1,
     borderColor: '#F6F6F6',
   },
@@ -506,8 +543,13 @@ const styles = ScaledSheet.create({
     borderRightWidth: 1,
     borderColor: '#F6F6F6',
   },
+  dateColumn1: {
+    width: '32%',
+    borderRightWidth: 1,
+    borderColor: '#F6F6F6',
+  },
   reorderColumn: {
-    width: '20%',
+    width: '15%',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Color.GRAY5,
@@ -519,7 +561,7 @@ const styles = ScaledSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    height: 350, // or whatever height you prefer
+    height: 350,
   },
   emptyText: {
     fontSize: 20,
@@ -546,6 +588,25 @@ const styles = ScaledSheet.create({
   itemPrice: {
     fontSize: moderateScale(13),
     color: '#555',
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer1: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 

@@ -1,3 +1,4 @@
+/* eslint-disable no-catch-shadow */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -5,10 +6,12 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
-
   LayoutAnimation,
   RefreshControl,
   Dimensions,
+  Platform,
+  BackHandler,
+  Modal,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import {
@@ -36,11 +39,15 @@ import CategoryComponent from './Component/CategoryComponent';
 import { fetchCategories } from '../Redux/Slice/CategoriesSlice';
 import { MMKVStorage } from '../utility/MmkvStore';
 import { fetchCartData } from '../Redux/Slice/CartDataShowSlice';
+import RNExitApp from 'react-native-exit-app';
 
 const screenW = Dimensions.get('window').width;
 const COLUMNS = 6;
-const totalHorizontalMargin = moderateScale(7) * COLUMNS;
-const itemWidth = (screenW - totalHorizontalMargin) / COLUMNS;
+const PADDING_HORIZONTAL = 5;
+const MARGIN_HORIZONTAL = 1;
+const itemWidth =
+  (screenW - PADDING_HORIZONTAL * 2 - MARGIN_HORIZONTAL * 2 * COLUMNS) /
+  COLUMNS;
 
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -56,6 +63,10 @@ const Home = ({ navigation }) => {
   const [expanded, setExpanded] = useState(0);
   const [category, setCategory] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [barcodeProcessing, setBarcodeProcessing] = useState(false);
+  const [searchNoResults, setSearchNoResults] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const searchRef = useRef(null);
   useEffect(() => {
     const fetchUserData = async () => {
       const data = await MMKVStorage.getItem('User_Data');
@@ -67,11 +78,21 @@ const Home = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          setShowExitModal(true);
+          return true;
+        },
+      );
+      return () => backHandler.remove();
+    }, []),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
       const fetchData = async () => {
         try {
-          // await dispatch(fetchProducts()).unwrap(); // unwrap gives real error
-          // await dispatch(fetchCategories()).unwrap(); // unwrap gives real error
-
           await Promise.all([
             dispatch(fetchProducts()).unwrap(),
             dispatch(fetchCategories()).unwrap(),
@@ -102,7 +123,11 @@ const Home = ({ navigation }) => {
   const handleItemPress = useCallback(
     item => {
       dispatch(clearProducts());
+
       navigation.navigate('DisplayItems', { itemData: item });
+      setTimeout(() => {
+        searchRef.current?.clearSearch();
+      }, 200);
     },
     [dispatch, navigation],
   );
@@ -166,15 +191,21 @@ const Home = ({ navigation }) => {
 
     setRefreshing(false);
   }, [dispatch, userData]);
-
+  const handleBarcodeScan = useCallback(isProcessing => {
+    setBarcodeProcessing(isProcessing);
+  }, []);
   return (
     <SafeAreaView style={styles.container}>
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus
+        onBarcodeScan={handleBarcodeScan}
+        onNoResults={setSearchNoResults}
       />
+
       {results?.length > 0 ? (
         <>
           <FlatList
@@ -197,6 +228,20 @@ const Home = ({ navigation }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <ScrollView
           style={{ flex: 1 }}
@@ -259,21 +304,18 @@ const Home = ({ navigation }) => {
 
               {expanded === (category.id || index) &&
                 category?.product_data?.length > 0 && (
-                  <FlatList
-                    data={category?.product_data}
-                    numColumns={COLUMNS}
-                    keyExtractor={(item, idx) => idx.toString()}
-                    scrollEnabled={expanded === (category.id || index)}
-                    nestedScrollEnabled={true}
-                    showsVerticalScrollIndicator={true}
-                    removeClippedSubviews
-                    windowSize={5}
-                    initialNumToRender={18}
-                    maxToRenderPerBatch={18}
-                    style={{ maxHeight: moderateScale(350) }}
-                    contentContainerStyle={{ paddingBottom: moderateScale(10) }}
-                    renderItem={({ item }) => (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      flexWrap: 'wrap',
+                      paddingTop: moderateScale(5),
+                      paddingHorizontal: PADDING_HORIZONTAL,
+                      paddingBottom: moderateScale(10),
+                    }}
+                  >
+                    {category?.product_data?.map((item, idx) => (
                       <TouchableOpacity
+                        key={idx}
                         style={[
                           styles.itemBox,
                           {
@@ -289,8 +331,8 @@ const Home = ({ navigation }) => {
                             : ''}
                         </Text>
                       </TouchableOpacity>
-                    )}
-                  />
+                    ))}
+                  </View>
                 )}
             </View>
           ))}
@@ -340,6 +382,61 @@ const Home = ({ navigation }) => {
       <CartComponent />
 
       {loading && products?.length === 0 && <Loader visible />}
+
+      {/* Exit App Modal */}
+      <Modal
+        transparent
+        visible={showExitModal}
+        animationType="fade"
+        onRequestClose={() => setShowExitModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            {/* Icon Header */}
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="power" size={moderateScale(36)} color="#fff" />
+            </View>
+
+            <Text style={styles.modalTitle}>Exit App</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to exit the application?
+            </Text>
+
+            <View style={styles.modalDivider} />
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalBtnStay}
+                activeOpacity={0.8}
+                onPress={() => setShowExitModal(false)}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={moderateScale(16)}
+                  color={Color.RED}
+                />
+                <Text style={styles.modalBtnStayText}>Stay</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalBtnExit}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setShowExitModal(false);
+                  setTimeout(() => RNExitApp.exitApp(), 400);
+                }}
+              >
+                <Ionicons
+                  name="log-out-outline"
+                  size={moderateScale(16)}
+                  color="#fff"
+                />
+                <Text style={styles.modalBtnExitText}>Exit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -377,14 +474,14 @@ const styles = ScaledSheet.create({
   },
 
   itemBox: {
-    marginHorizontal: moderateScale(3),
-    marginVertical: moderateScale(3),
-    marginLeft: 4,
-    height: moderateScale(45),
+    marginHorizontal: MARGIN_HORIZONTAL,
+    marginVertical: MARGIN_HORIZONTAL,
+    height: moderateScale(60),
     backgroundColor: '#f4c69f',
-    borderRadius: moderateScale(6),
+    borderRadius: 2,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 1,
   },
   itemText: {
     fontSize: '12@ms',
@@ -416,6 +513,107 @@ const styles = ScaledSheet.create({
   itemTextContainer: {
     flex: 1,
     paddingRight: moderateScale(15),
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
+  },
+
+  // Exit Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(30),
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(20),
+    alignItems: 'center',
+    paddingBottom: moderateScale(24),
+    overflow: 'hidden',
+    elevation: 10,
+  },
+  modalIconWrap: {
+    width: '100%',
+    backgroundColor: Color.RED,
+    paddingVertical: moderateScale(24),
+    alignItems: 'center',
+    marginBottom: moderateScale(16),
+  },
+  modalTitle: {
+    fontSize: '22@ms',
+    fontFamily: FONT.BOLD,
+    color: Color.BLACK,
+    marginBottom: moderateScale(8),
+  },
+  modalMessage: {
+    fontSize: '14@ms',
+    fontFamily: FONT.REGULAR,
+    color: Color.GRAY,
+    textAlign: 'center',
+    paddingHorizontal: moderateScale(16),
+    lineHeight: 22,
+  },
+  modalDivider: {
+    width: '85%',
+    height: 1,
+    backgroundColor: '#eee',
+    marginVertical: moderateScale(20),
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: moderateScale(12),
+    paddingHorizontal: moderateScale(16),
+    width: '100%',
+  },
+  modalBtnStay: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: moderateScale(6),
+    borderWidth: 1.5,
+    borderColor: Color.RED,
+    borderRadius: moderateScale(12),
+    paddingVertical: moderateScale(12),
+  },
+  modalBtnStayText: {
+    fontSize: '15@ms',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.RED,
+  },
+  modalBtnExit: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: moderateScale(6),
+    backgroundColor: Color.RED,
+    borderRadius: moderateScale(12),
+    paddingVertical: moderateScale(12),
+  },
+  modalBtnExitText: {
+    fontSize: '15@ms',
+    fontFamily: FONT.SEMIBOLD,
+    color: '#fff',
   },
 });
 

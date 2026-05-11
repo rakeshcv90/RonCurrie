@@ -23,15 +23,20 @@ import {
 import { Color, FONT, ImageData } from '../../Component/Image';
 import CartComponent from '../../Component/CartComponent';
 import decodeHtml from '../../utility/decodeHtml';
+import { clearProducts } from '../../Redux/Slice/ProductListSlice';
+import { useDispatch } from 'react-redux';
 
 const WebScreen = ({ route, navigation }) => {
+  const dispatch = useDispatch();
   const data = route?.params?.url;
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
+  const searchRef = useRef(null);
   const webViewRef = useRef(null);
+  const [searchNoResults, setSearchNoResults] = useState(false);
   // const decodeHtml = text => {
   //   if (!text) return '';
   //   return text
@@ -50,6 +55,9 @@ const WebScreen = ({ route, navigation }) => {
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
   const renderItem1 = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
@@ -142,10 +150,12 @@ true;
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
 
       {results?.length > 0 ? (
@@ -171,6 +181,20 @@ true;
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <View
@@ -319,6 +343,25 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
     backgroundColor: 'white', // optional
     zIndex: 999,
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 export default WebScreen;

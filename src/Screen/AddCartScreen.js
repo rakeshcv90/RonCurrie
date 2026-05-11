@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import {
   View,
   Text,
@@ -12,8 +13,15 @@ import {
   ScrollView,
   Keyboard,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from 'react';
 import {
   moderateScale,
   scale,
@@ -28,6 +36,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Api, ImageBaseUrl } from '../utility/api';
 import { getData, postData } from '../utility/ApiCall';
 import { showToast } from '../utility/showToast';
+import { MMKVStorage } from '../utility/MmkvStore';
 import CartComponent from '../Component/CartComponent';
 import RenderItem from '../Component/RenderItem';
 import { CommonActions } from '@react-navigation/native';
@@ -35,7 +44,12 @@ import SearchComponent from './Component/SearchComponent';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import FastImage from 'react-native-fast-image';
 import Loader from '../Component/Loader';
-import { setSkipAutoBack } from '../Redux/Slice/CartDataShowSlice';
+import {
+  triggerCartRefresh,
+  triggerMiscRefresh,
+  fetchMiscData,
+  setSkipAutoBack,
+} from '../Redux/Slice/CartDataShowSlice';
 import { Dropdown } from 'react-native-element-dropdown';
 import DeliveryOptionsModal from '../Component/DeliveryOptionsModal';
 import { fetchA4PrintDetails } from '../Redux/Slice/A4PrintSlice';
@@ -47,56 +61,212 @@ const AddCartScreen = ({ navigation }) => {
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [carDetails, setCarDetails] = useState('');
+  const [userData, setUserData] = useState(null);
   const dispatch = useDispatch();
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
   const [phoneError, setPhoneError] = useState('');
-  const { cartList, loading, error, refreshKey, skipAutoBack } = useSelector(
-    state => state.cartListData,
-  );
+  const [searchNoResults, setSearchNoResults] = useState(false);
+  const {
+    cartList,
+    miscList: reduxMiscList,
+    loading,
+    error,
+    refreshKey,
+    miscRefreshKey,
+    skipAutoBack,
+  } = useSelector(state => state.cartListData);
   const [miscList, setMiscList] = useState([
     { id: Date.now(), description: '', price: '', isNegative: false },
   ]);
-
+  const debounceTimerRef = useRef(null);
+  console.log('Miss ds');
   const [selectedTab, setSelectedTab] = useState('Collect From Store');
   const [hasNavigatedBack, setHasNavigatedBack] = useState(false);
   const [addressData, setAddressData] = useState([]);
-  const [postcode, setPostcode] = useState('MK62QD');
+  const [postcode, setPostcode] = useState('');
   const [selectedAddress, setSelectedAddress] = useState('');
   const [value, setValue] = useState(null);
   const [isFocus, setIsFocus] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [deliveryType, setDeliveryType] = useState(null);
   const [notes, setNotes] = useState('');
+  const searchRef = useRef(null);
+
   useEffect(() => {
-    if (skipAutoBack) return;
-    if (cartList?.length === 0 && !hasNavigatedBack) {
-      setHasNavigatedBack(true);
-      navigation.goBack();
-    } else if (cartList?.length > 0 && hasNavigatedBack) {
-      setHasNavigatedBack(false);
+    const handleCartEmpty = async () => {
+      if (cartList?.length === 0 && !loading && !hasNavigatedBack) {
+        if (skipAutoBack) {
+          dispatch(setSkipAutoBack(false));
+          return;
+        }
+
+        // ✅ wait for API to clear misc
+        await syncMiscellaneous([], true);
+
+        setHasNavigatedBack(true);
+
+        // ✅ navigate AFTER API completes
+        navigation.replace('Home');
+      } else if (cartList?.length > 0 && hasNavigatedBack) {
+        setHasNavigatedBack(false);
+      }
+    };
+
+    handleCartEmpty();
+  }, [cartList, navigation, skipAutoBack, loading]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const data = await MMKVStorage.getItem('User_Data');
+      setUserData(data);
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    if (userData?.customer_id) {
+      dispatch(fetchMiscData(userData.customer_id));
     }
-  }, [cartList, navigation]);
+  }, [userData, miscRefreshKey, dispatch]);
+
+  const hasSyncedMisc = useRef(false);
+
+  useEffect(() => {
+    if (
+      reduxMiscList?.miscellaneous &&
+      reduxMiscList.miscellaneous.length > 0 &&
+      !hasSyncedMisc.current
+    ) {
+      const formattedMisc = reduxMiscList.miscellaneous.map(item => ({
+        id: Date.now() + Math.random(), // better unique id
+        description: item.misc_name || '',
+        price: Math.abs(Number(item.misc_value || 0)).toString(),
+        isNegative: Number(item.misc_value || 0) < 0,
+      }));
+
+      setMiscList(formattedMisc);
+      hasSyncedMisc.current = true;
+    } else if (
+      (!reduxMiscList?.miscellaneous ||
+        reduxMiscList.miscellaneous.length === 0) &&
+      !hasSyncedMisc.current &&
+      !loading
+    ) {
+      hasSyncedMisc.current = true;
+    }
+  }, [reduxMiscList, loading]);
   const handleAddMisc = () => {
     setMiscList(prev => [
       ...prev,
       {
-        id: Date.now() + Math.random(), // UNIQUE KEY (important!)
+        id: Date.now() + Math.random(),
         description: '',
         price: '',
-        isNegative: false, // always default
+        isNegative: false,
       },
     ]);
   };
 
   const handleChange = (id, field, value) => {
-    setMiscList(prev =>
-      prev.map(item => (item.id === id ? { ...item, [field]: value } : item)),
-    );
+    setMiscList(prev => {
+      const newList = prev.map(item => {
+        if (item.id !== id) return item;
+
+        let updated = { ...item, [field]: value };
+
+        if (field === 'price') {
+          updated.isNegative = value.startsWith('-');
+        }
+
+        return updated;
+      });
+
+      triggerDebouncedSync(newList);
+      return newList;
+    });
+  };
+  const triggerDebouncedSync = newList => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      syncMiscellaneous(newList);
+    }, 1000);
   };
 
+  const syncMiscellaneous = async currentList => {
+    const validItems = currentList
+      .filter(
+        item =>
+          item.description.trim() !== '' &&
+          item.price !== null &&
+          item.price !== undefined &&
+          item.price.toString().trim() !== '',
+      )
+      .map(item => {
+        const amount = Math.abs(Number(item.price) || 0);
+        return {
+          misc_name: item.description.trim(),
+          misc_value: item.isNegative ? -amount : amount,
+        };
+      });
+
+    try {
+      const userData = await MMKVStorage.getItem('User_Data');
+
+      const payload = {
+        customer_id: userData?.customer_id || 0,
+        miscellaneous: validItems.length === 0 ? [] : validItems, // ✅ always send
+      };
+
+      const response = await postData(Api.ADD_MISC, payload);
+
+      if (response?.data?.success && response?.data?.responseCode === 200) {
+        dispatch(fetchMiscData(userData?.customer_id));
+        dispatch(triggerMiscRefresh());
+        dispatch(triggerCartRefresh());
+      }
+    } catch (error) {
+      console.error('Misc Sync Error:', error);
+    }
+  };
+
+  // const toggleSign = id => {
+  //   setMiscList(prev => {
+  //     const newList = prev.map(item =>
+  //       item.id === id ? { ...item, isNegative: !item.isNegative } : item,
+  //     );
+  //     triggerDebouncedSync(newList);
+  //     return newList;
+  //   });
+  // };
+  const toggleSign = id => {
+    setMiscList(prev => {
+      const newList = prev.map(item => {
+        if (item.id !== id) return item;
+
+        let price = item.price || '';
+
+        if (price.startsWith('-')) {
+          price = price.slice(1); // remove -
+        } else {
+          price = '-' + price; // add -
+        }
+
+        return {
+          ...item,
+          price,
+          isNegative: price.startsWith('-'),
+        };
+      });
+
+      triggerDebouncedSync(newList);
+      return newList;
+    });
+  };
   const calculateMatrixPrice = useCallback(item => {
     const { matrix, additional_option, cart_quantity, cart_id } = item;
     const additionalOptionArray = JSON.parse(additional_option || '[]');
@@ -188,33 +358,38 @@ const AddCartScreen = ({ navigation }) => {
   }, []);
 
   const totalPrice = useMemo(() => {
-    if (!cartList?.length) return '0.00';
-
-    const subTotal = cartList.reduce((sum, item) => {
+    const subTotal = (cartList || []).reduce((sum, item) => {
       const price = calculateMatrixPrice(item);
       return item.mode === 1 || item.mode === 2 ? sum - price : sum + price;
     }, 0);
 
-    const miscTotal = miscList.reduce((sum, misc) => {
+    const miscTotal = (miscList || []).reduce((sum, misc) => {
       const amt = parseFloat(misc.price) || 0;
-      return misc.isNegative ? sum - amt : sum + amt;
+      console.log('Xcvcvxcvxcvxvxcvvc', amt);
+      return sum + amt;
     }, 0);
-
+    // const miscTotal = (reduxMiscList?.miscellaneous || []).reduce(
+    //   (sum, item) => sum + Number(item.misc_value || 0),
+    //   0,
+    // );
     return (subTotal + miscTotal).toFixed(2);
   }, [cartList, miscList]);
 
   const handleDeleteMisc = id => {
-    setMiscList(prev => prev.filter(item => item.id !== id));
+    setMiscList(prev => {
+      const newList = prev.filter(item => item.id !== id);
+      triggerDebouncedSync(newList);
+      return newList;
+    });
   };
-  useEffect(() => {
-    if (cartList?.length === 0) {
-      navigation.goBack();
-    }
-  }, [cartList, navigation]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
   const handleImageError = useCallback(id => {
@@ -362,11 +537,11 @@ const AddCartScreen = ({ navigation }) => {
       const resData = response;
 
       if (resData?.data?.success && resData?.data?.responseCode === 200) {
-        showToast(
-          'success',
-          'Success',
-          resData?.data?.message || 'Items added successfully.',
-        );
+        // showToast(
+        //   'success',
+        //   'Success',
+        //   resData?.data?.message || 'Items added successfully.',
+        // );
 
         dispatch(setSkipAutoBack(true));
         dispatch(fetchA4PrintDetails(resData?.data?.data?.order_id)).unwrap();
@@ -382,37 +557,45 @@ const AddCartScreen = ({ navigation }) => {
       setLoader(false);
     }
   };
+
   const onCreateDeliverOrder = async () => {
     const parts = selectedAddress?.originalAddress
       .split(',')
       .map(item => item.trim());
 
-    let addressObj = {};
+    let addressObj = {
+      company: '',
+      address1: '',
+      address2: '',
+      city: '',
+    };
 
-    if (parts?.length === 2) {
-      addressObj = {
-        address1: parts[0],
-        city: parts[1],
-      };
-    } else if (parts?.length === 3) {
-      addressObj = {
-        company: parts[0],
-        address1: parts[1],
-        city: parts[2],
-      };
-    } else if (parts?.length === 4) {
-      addressObj = {
-        company: parts[0],
-        address1: parts[1],
-        address2: parts[2],
-        city: parts[3],
-      };
+    if (parts.length > 0) {
+      addressObj.city = parts.pop();
     }
-    // let validations = [];
+    if (parts.length > 0) {
+      const first = parts[0].toLowerCase();
 
-    // validations = [
-    //   { field: 'phone', message: 'Please enter your phone number' },
-    // ];
+      if (
+        first.includes('pvt') ||
+        first.includes('ltd') ||
+        first.includes('private') ||
+        first.includes('company')
+      ) {
+        addressObj.company = parts.shift();
+      }
+    }
+
+    // 👉 Address 1
+    if (parts.length > 0) {
+      addressObj.address1 = parts.shift();
+    }
+
+    // 👉 Address 2 (remaining)
+    if (parts.length > 0) {
+      addressObj.address2 = parts.join(', ');
+    }
+
     const hasInvalidMisc = miscList?.some(item => {
       const hasDescription =
         typeof item.description === 'string' &&
@@ -442,46 +625,16 @@ const AddCartScreen = ({ navigation }) => {
       carDetails: carDetails.trim(),
     };
 
-    // for (let i = 0; i < validations.length; i++) {
-    //   const { field, message } = validations[i];
-
-    //   // if (!formData[field]) {
-    //   //   Alert.alert('Validation Error', message);
-    //   //   return;
-    //   // }
-    //   if (field === 'phone') {
-    //     if (formData.phone.length < 10) {
-    //       Alert.alert(
-    //         'Validation Error',
-    //         'Phone number must be at least 10 digits.',
-    //       );
-    //       return;
-    //     } else if (formData.phone.length > 15) {
-    //       Alert.alert(
-    //         'Validation Error',
-    //         'Phone number cannot be more than 15 digits.',
-    //       );
-    //       return;
-    //     }
-    //   }
-    // }
-    // Phone validation only
     if (!contactNumber || contactNumber.trim() === '') {
       setPhoneError('Please enter your phone number');
       return;
     }
-
-    // if (contactNumber.length < 10) {
-    //   setPhoneError('Phone number must be at least 10 digits');
-    //   return;
-    // }
 
     if (contactNumber.length > 16) {
       setPhoneError('Phone number cannot be more than 16 digits');
       return;
     }
 
-    // ✅ Clear error if valid
     setPhoneError('');
 
     const hasMisc = miscList?.some(item => {
@@ -550,11 +703,11 @@ const AddCartScreen = ({ navigation }) => {
       const resData = response;
 
       if (resData?.data?.success && resData?.data?.responseCode === 200) {
-        showToast(
-          'success',
-          'Success',
-          resData?.data?.message || 'Items added successfully.',
-        );
+        // showToast(
+        //   'success',
+        //   'Success',
+        //   resData?.data?.message || 'Items added successfully.',
+        // );
 
         dispatch(setSkipAutoBack(true));
 
@@ -563,6 +716,7 @@ const AddCartScreen = ({ navigation }) => {
         });
       } else {
       }
+      // eslint-disable-next-line no-catch-shadow
     } catch (error) {
       console.log('Error adding to basket:', error);
       showToast('danger', 'Error', error.message || 'Something went wrong.');
@@ -586,7 +740,7 @@ const AddCartScreen = ({ navigation }) => {
 
       setLoader(false);
       if (res?.responseCode === 200) {
-        showToast('success', 'Success!', res?.message || 'Address found');
+        // showToast('success', 'Success!', res?.message || 'Address found');
         const transformedData =
           res.data?.map((address, index) => ({
             label: address,
@@ -604,19 +758,22 @@ const AddCartScreen = ({ navigation }) => {
       } else {
         setAddressData([]);
       }
+      // eslint-disable-next-line no-catch-shadow
     } catch (error) {
       setLoader(false);
       setAddressData([]);
-      console.log('Find Address Error:', error);
+
       if (error.type === 'network') {
         showToast('danger', 'Network Error', error.message);
       } else if (error.type === 'response') {
         showToast('danger', 'Login Failed', error.message);
+      } else if (error?.response?.status === 404) {
+        showToast('danger', 'Data List', error?.response?.data?.message);
       } else {
         showToast(
           'danger',
           'Unexpected Error',
-          error.message || 'Something went wrong',
+          error?.response?.data?.message || 'Something went wrong',
         );
       }
     }
@@ -640,17 +797,6 @@ const AddCartScreen = ({ navigation }) => {
     return total.toFixed(2);
   };
 
-  const toggleSign = id => {
-    setMiscList(prev =>
-      prev.map(item =>
-        item.id === id ? { ...item, isNegative: !item.isNegative } : item,
-      ),
-    );
-  };
-  // useEffect(() => {
-  //   setDeliveryType(null);
-  // }, [cartList,]);
-
   useEffect(() => {
     if (!cartList || cartList?.length === 0) {
       setDeliveryType(null);
@@ -665,10 +811,12 @@ const AddCartScreen = ({ navigation }) => {
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       {results?.length > 0 ? (
         <>
@@ -693,6 +841,20 @@ const AddCartScreen = ({ navigation }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <KeyboardAvoidingView
@@ -712,7 +874,11 @@ const AddCartScreen = ({ navigation }) => {
               </TouchableOpacity>
 
               <View style={styles.tab}>
-                <Text style={styles.groupText}>Groups= {cartList?.length}</Text>
+                <Text style={styles.groupText}>
+                  Groups={' '}
+                  {(cartList?.length || 0) +
+                    (reduxMiscList?.miscellaneous?.length || 0)}
+                </Text>
                 <Text style={styles.groupText}>
                   {' '}
                   Cluster= {getTotalCluster()}
@@ -745,7 +911,7 @@ const AddCartScreen = ({ navigation }) => {
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.totalLabel}>TITLE</Text>
+                    <Text style={styles.totalLabel}>Misc Product</Text>
 
                     <View
                       style={[
@@ -758,8 +924,8 @@ const AddCartScreen = ({ navigation }) => {
                     >
                       <TextInput
                         style={styles.cashInput1}
-                        placeholder="Enter title"
-                        placeholderTextColor={'#000'}
+                        placeholder="Enter Misc Product"
+                        // placeholderTextColor={'#000'}
                         value={item.description}
                         onChangeText={text =>
                           handleChange(item.id, 'description', text)
@@ -769,7 +935,7 @@ const AddCartScreen = ({ navigation }) => {
                     </View>
                   </View>
                   <View>
-                    <Text style={styles.cashLabel}>AMOUNT</Text>
+                    <Text style={styles.cashLabel}>Amount</Text>
                     <View style={[styles.cashBox]}>
                       <View style={[styles.cashInputRow]}>
                         <View
@@ -803,7 +969,7 @@ const AddCartScreen = ({ navigation }) => {
                                   { color: Color.RED },
                                 ]}
                               >
-                                {item.isNegative ? '-' : '-'}
+                                -
                               </Text>
                             </View>
                           </TouchableOpacity>
@@ -821,11 +987,7 @@ const AddCartScreen = ({ navigation }) => {
                           }}
                         >
                           <Text style={styles.cashSymbol}>£</Text>
-                          <Text style={styles.cashSymbol}>
-                            {item.isNegative && (
-                              <Text style={styles.cashSymbol}>-</Text>
-                            )}
-                          </Text>
+
                           <TextInput
                             style={[
                               styles.cashInput1,
@@ -1136,7 +1298,7 @@ const AddCartScreen = ({ navigation }) => {
                           </Text>
                         </>
                       )}
-                      <View style={{ marginTop: 10, }}>
+                      <View style={{ marginTop: 10 }}>
                         <Text style={styles.label}>CUSTOMER NAME</Text>
                         <TextInput
                           style={styles.input2}
@@ -1229,7 +1391,7 @@ const AddCartScreen = ({ navigation }) => {
                             style={{
                               color: Color.GRAY,
                               fontFamily: FONT.BOLD,
-                              fontSize: 16,
+                              fontSize: 18,
                               lineHeight: 24,
                             }}
                           >
@@ -1239,7 +1401,7 @@ const AddCartScreen = ({ navigation }) => {
                             style={{
                               color: Color.BLACK,
                               fontFamily: FONT.BOLD,
-                              fontSize: 16,
+                              fontSize: 18,
                               lineHeight: 24,
                             }}
                           >
@@ -1371,7 +1533,7 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
   },
   cashSymbol: { fontSize: 16, marginRight: 5 },
-  cashInput1: { fontSize: 16, width: moderateScale(130) },
+  cashInput1: { fontSize: 16, width: moderateScale(130), color: Color.BLACK2 },
   bottomBtn: {
     backgroundColor: Color.GRAY3,
     padding: moderateScale(5),
@@ -1462,7 +1624,7 @@ const styles = ScaledSheet.create({
     fontSize: moderateScale(14),
     width: '100%',
     paddingHorizontal: 10,
-    fontFamily: FONT.SEMIBOLD,
+    // fontFamily: FONT.SEMIBOLD,
     color: Color.BLACK2,
     marginTop: verticalScale(5),
     marginBottom: verticalScale(5),
@@ -1538,6 +1700,26 @@ const styles = ScaledSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     top: -1,
+  },
+
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 

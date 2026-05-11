@@ -1,5 +1,6 @@
+/* eslint-disable react-native/no-inline-styles */
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   moderateScale,
   ScaledSheet,
@@ -11,15 +12,29 @@ import { MMKVStorage } from '../utility/MmkvStore';
 import { Api } from '../utility/api';
 import { deleteData, putData } from '../utility/ApiCall';
 import { useDispatch } from 'react-redux';
-import { fetchCartData } from '../Redux/Slice/CartDataShowSlice';
+import {
+  fetchCartData,
+  triggerCartRefresh,
+  triggerMiscRefresh,
+} from '../Redux/Slice/CartDataShowSlice';
 import { showToast } from '../utility/showToast';
 import Loader from './Loader';
 import decodeHtml from '../utility/decodeHtml';
+import debounce from 'lodash.debounce';
 const RenderItem = ({ item, navigation }) => {
   const [userData, setUserData] = useState(null);
   const [loader, setLoader] = useState(false);
   const [inputQty, setInputQty] = useState('');
+
+  // --- Optimistic local quantity with debounced API ---
+  const [localQty, setLocalQty] = useState(item?.cart_quantity ?? 1);
+  const debounceTimerRef = useRef(null);
+  const latestQtyRef = useRef(localQty);
+
+  // Sync localQty when server data (item.cart_quantity) changes
   useEffect(() => {
+    setLocalQty(item?.cart_quantity ?? 1);
+    latestQtyRef.current = item?.cart_quantity ?? 1;
     setInputQty(String(item?.cart_quantity ?? 1));
   }, [item?.cart_quantity]);
   const dispatch = useDispatch();
@@ -117,7 +132,11 @@ const RenderItem = ({ item, navigation }) => {
       parsedOption = [];
     }
 
-    const values = Object.values(optionData)
+    // const values = Object?.values(optionData)
+    //   .map(Number)
+    //   .filter(v => !isNaN(v));
+
+    const values = Object.values(optionData || {})
       .map(Number)
       .filter(v => !isNaN(v));
 
@@ -160,9 +179,10 @@ const RenderItem = ({ item, navigation }) => {
       const response = await deleteData(Api.DELETE_CART, itemData);
 
       dispatch(fetchCartData(userData.customer_id));
-
+      dispatch(triggerCartRefresh());
+      dispatch(triggerMiscRefresh());
       if (response?.status == 200) {
-        showToast('success', 'Success!', response?.data?.message);
+        // showToast('success', 'Success!', response?.data?.message);
       } else {
       }
       setLoader(false);
@@ -171,10 +191,71 @@ const RenderItem = ({ item, navigation }) => {
       console.error('Error updating quantity:', error);
     }
   };
-  const handleIncrement = async (item, type) => {
+  // --- Debounced API call: fires 500ms after user stops tapping ---
+  const debouncedApiCall = useCallback(
+    (newQty, cartId, mode) => {
+      // Clear any pending debounce
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(async () => {
+        if (newQty <= 0) {
+          // Delete item from cart
+          const itemData = {
+            customer_id: userData?.customer_id,
+            cart_id: cartId,
+            ...(mode && { mode: mode }),
+          };
+          try {
+            const response = await deleteData(Api.DELETE_CART, itemData);
+            dispatch(fetchCartData(userData.customer_id));
+          } catch (error) {
+            console.error('Error deleting cart item:', error);
+            // Rollback on error
+            setLocalQty(item?.cart_quantity ?? 1);
+            setInputQty(String(item?.cart_quantity ?? 1));
+          }
+        } else {
+          // Update quantity
+          const itemData = {
+            customer_id: userData?.customer_id,
+            quantity: newQty,
+            mode: mode,
+          };
+          try {
+            const end_point = `${Api.UPDATE_CART}/${cartId}`;
+            const response = await putData(end_point, itemData);
+            dispatch(fetchCartData(userData.customer_id));
+            if (response?.status !== 200) {
+              // Rollback on failure
+              setLocalQty(item?.cart_quantity ?? 1);
+              setInputQty(String(item?.cart_quantity ?? 1));
+            }
+          } catch (error) {
+            console.error('Error updating quantity:', error);
+            // Rollback on error
+            setLocalQty(item?.cart_quantity ?? 1);
+            setInputQty(String(item?.cart_quantity ?? 1));
+          }
+        }
+      }, 500);
+    },
+    [userData, item, dispatch],
+  );
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleIncrement = (item, type) => {
     let availableQty = 0;
 
-    const currentQty = item?.cart_quantity || 0;
     if (type == 'no_option') {
       availableQty = item?.quantity || 0;
     } else if (type == 'custom') {
@@ -185,78 +266,29 @@ const RenderItem = ({ item, navigation }) => {
       availableQty = item?.options?.[0]?.values?.[0]?.quantity || 0;
     }
 
+    const currentQty = latestQtyRef.current;
+
     if (availableQty > currentQty) {
       const newQty = currentQty + 1;
-      const itemData = {
-        customer_id: userData?.customer_id,
-        quantity: newQty,
-        mode: item?.mode,
-      };
-
-      try {
-        const end_point = `${Api.UPDATE_CART}/${item?.cart_id}`;
-        const response = await putData(end_point, itemData);
-
-        dispatch(fetchCartData(userData.customer_id));
-        if (response?.status == 200) {
-          showToast('success', 'Success!', 'Cart update successfully');
-        } else {
-        }
-      } catch (error) {
-        console.error('Error updating quantity:', error);
-      }
-    } else {
-      // Toast.show({
-      //   type: 'error',
-      //   text1: 'Out of Stock',
-      //   text2: `Only ${availableQty} item(s) available.`,
-      // });
+      // Update locally immediately
+      setLocalQty(newQty);
+      setInputQty(String(newQty));
+      latestQtyRef.current = newQty;
+      // Schedule debounced API call
+      debouncedApiCall(newQty, item?.cart_id, item?.mode);
     }
   };
 
-  const handleDecrement = async (item, type) => {
-    const currentQty = Number(item?.cart_quantity) || 0;
+  const handleDecrement = item => {
+    const currentQty = latestQtyRef.current;
     const newQty = currentQty - 1;
 
-    if (newQty > 0) {
-      const itemData = {
-        customer_id: userData?.customer_id,
-        quantity: newQty,
-        mode: item?.mode,
-      };
-
-      try {
-        const end_point = `${Api.UPDATE_CART}/${item?.cart_id}`;
-        const response = await putData(end_point, itemData);
-
-        dispatch(fetchCartData(userData.customer_id));
-        if (response?.status == 200) {
-          showToast('success', 'Success!', 'Cart update successfully');
-        } else {
-        }
-      } catch (error) {
-        console.error('Error updating quantity:', error);
-      }
-    } else {
-      const itemData = {
-        customer_id: userData?.customer_id,
-        cart_id: item?.cart_id,
-        ...(item?.mode && { mode: item?.mode }), // ✅ only adds 'mode' if it exists
-      };
-
-      try {
-        const response = await deleteData(Api.DELETE_CART, itemData);
-
-        dispatch(fetchCartData(userData.customer_id));
-
-        if (response?.status == 200) {
-          showToast('success', 'Success!', response?.data?.message);
-        } else {
-        }
-      } catch (error) {
-        console.error('Error updating quantity:', error);
-      }
-    }
+    // Update locally immediately
+    setLocalQty(Math.max(newQty, 0));
+    setInputQty(String(Math.max(newQty, 1)));
+    latestQtyRef.current = Math.max(newQty, 0);
+    // Schedule debounced API call
+    debouncedApiCall(newQty, item?.cart_id, item?.mode);
   };
   const { matrix, additional_option, cart_quantity, cart_id } = item;
   let parsedOption;
@@ -307,9 +339,23 @@ const RenderItem = ({ item, navigation }) => {
     if (!qty || qty <= 0) qty = 1;
 
     // ✅ stock check
-    if (qty > item?.stock) {
-      toast.show('Out of stock');
-      qty = item?.stock;
+
+    console.log('Blurred with text:', qty, item?.quantity);
+    // if (qty > item?.quantity) {
+    //   showToast('danger', 'Cart Update Failed', 'Out of stock');
+    //   qty = item?.quantity;
+    //   // setInputQty(String(qty));
+    //   return
+    // }
+
+    if (qty > item?.quantity) {
+      showToast('danger', 'Cart Update Failed', 'Out of stock');
+
+      // ✅ reset to actual available or previous cart qty
+      const validQty = item?.cart_quantity;
+
+      setInputQty(String(validQty)); // ✅ update UI immediately
+      return;
     }
 
     // ✅ update input + UI
@@ -330,7 +376,6 @@ const RenderItem = ({ item, navigation }) => {
 
       dispatch(fetchCartData(userData.customer_id));
       if (response?.status == 200) {
-        showToast('success', 'Success!', 'Cart update successfully');
       } else {
       }
     } catch (error) {
@@ -388,7 +433,6 @@ const RenderItem = ({ item, navigation }) => {
                     fontFamily: FONT.REGULAR,
                   }}
                 >
-                
                   {item?.options[0]?.option_descriptions?.name}:{' '}
                   {item?.options[0]?.values[0]?.option_values_name[0]?.name}
                 </Text>
@@ -400,7 +444,6 @@ const RenderItem = ({ item, navigation }) => {
                       fontFamily: FONT.REGULAR,
                     }}
                   >
-                 
                     {item?.options[1]?.option_descriptions?.name}:{' '}
                     {item?.options[1]?.values[0]?.option_values_name[0]?.name}
                   </Text>
@@ -440,7 +483,7 @@ const RenderItem = ({ item, navigation }) => {
                   style={styles.qtyInput}
                   value={inputQty}
                   keyboardType="numeric"
-                  maxLength={3}
+                  maxLength={5}
                   onChangeText={text => {
                     const cleaned = text.replace(/[^0-9]/g, '');
                     setInputQty(cleaned);
@@ -472,8 +515,6 @@ const RenderItem = ({ item, navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* PRICE GROUP */}
-
               <View style={styles.priceGroup}>
                 <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
@@ -504,8 +545,7 @@ const RenderItem = ({ item, navigation }) => {
                     {(
                       (Number(item?.options?.[0]?.values?.[0]?.price) > 0
                         ? Number(item?.options?.[0]?.values?.[0]?.price)
-                        : Number(item?.price)) *
-                      Number(item?.cart_quantity || 0)
+                        : Number(item?.price)) * Number(localQty || 0)
                     ).toFixed(2)}
                   </Text>
                 </View>
@@ -528,7 +568,7 @@ const RenderItem = ({ item, navigation }) => {
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => removeItem(item)}>
-                <Ionicons name="trash-outline" size={22} color="#4472c4"  />
+                <Ionicons name="trash-outline" size={22} color="#4472c4" />
               </TouchableOpacity>
             </View>
 
@@ -553,7 +593,7 @@ const RenderItem = ({ item, navigation }) => {
                 {/* MINUS BUTTON */}
                 <TouchableOpacity
                   style={[styles.sidePanel, { backgroundColor: Color.GREEN2 }]}
-                  onPress={() => handleDecrement(item, optionType)}
+                  onPress={() => handleDecrement(item)}
                 >
                   <View
                     style={[
@@ -602,7 +642,6 @@ const RenderItem = ({ item, navigation }) => {
                 </TouchableOpacity>
               </View>
 
-         
               <View style={styles.priceGroup}>
                 <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
@@ -611,7 +650,6 @@ const RenderItem = ({ item, navigation }) => {
                 </View>
 
                 <View style={styles.divider} />
-            
 
                 <View style={styles.priceHalf}>
                   <Text
@@ -626,9 +664,7 @@ const RenderItem = ({ item, navigation }) => {
                     ]}
                   >
                     £ {(item?.mode === 1 || item?.mode === 2) && '-'}
-                    {(
-                      parseFloat(item?.price || 0) * item?.cart_quantity
-                    ).toFixed(2)}
+                    {(parseFloat(item?.price || 0) * localQty).toFixed(2)}
                   </Text>
                 </View>
               </View>
@@ -640,7 +676,6 @@ const RenderItem = ({ item, navigation }) => {
         <>
           <View style={styles.cartRowWrapper}>
             <View style={styles.topRow}>
-          
               <TouchableOpacity
                 style={{ flex: 1 }}
                 onPress={() =>
@@ -708,7 +743,7 @@ const RenderItem = ({ item, navigation }) => {
                 {/* MINUS BUTTON */}
                 <TouchableOpacity
                   style={[styles.sidePanel, { backgroundColor: Color.GREEN2 }]}
-                  onPress={() => handleDecrement(item, optionType)}
+                  onPress={() => handleDecrement(item)}
                 >
                   <View
                     style={[
@@ -722,7 +757,6 @@ const RenderItem = ({ item, navigation }) => {
                   </View>
                 </TouchableOpacity>
 
-            
                 <TextInput
                   style={styles.qtyInput}
                   value={inputQty}
@@ -763,8 +797,6 @@ const RenderItem = ({ item, navigation }) => {
               {/* PRICE GROUP */}
 
               <View style={styles.priceGroup}>
-           
-
                 <View style={styles.priceHalf}>
                   <Text style={styles.priceText}>
                     x £{additionalOptionPrice.toFixed(2)}
@@ -772,8 +804,6 @@ const RenderItem = ({ item, navigation }) => {
                 </View>
 
                 <View style={styles.divider} />
-
-        
 
                 <View style={styles.priceHalf}>
                   <Text
@@ -792,7 +822,7 @@ const RenderItem = ({ item, navigation }) => {
                       parseFloat(
                         secondValue * item?.options?.[0]?.bespoke_factor_val ||
                           0,
-                      ) * item?.cart_quantity
+                      ) * localQty
                     ).toFixed(2)}
                   </Text>
                 </View>
@@ -815,7 +845,7 @@ const RenderItem = ({ item, navigation }) => {
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => removeItem(item)}>
-                <Ionicons name="trash-outline" size={22} color="#4472c4"  />
+                <Ionicons name="trash-outline" size={22} color="#4472c4" />
               </TouchableOpacity>
             </View>
 
@@ -875,7 +905,7 @@ const RenderItem = ({ item, navigation }) => {
                   </View>
                 </TouchableOpacity>
 
-                <Text style={styles.qtyNumber}>{item?.cart_quantity}</Text>
+                <Text style={styles.qtyNumber}>{localQty}</Text>
 
                 <TouchableOpacity
                   style={[

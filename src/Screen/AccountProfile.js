@@ -7,7 +7,7 @@ import {
   ScrollView,
   FlatList,
 } from 'react-native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import {
@@ -56,11 +56,12 @@ const AccountProfile = ({ navigation, route }) => {
   const [logoutVisible, setLogoutVisible] = useState(false);
   const dispatch = useDispatch();
   const [userData, setUserData] = useState(null);
-
+  const [searchNoResults, setSearchNoResults] = useState(false);
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
+  const searchRef = useRef(null);
   const firstInitial = userData?.firstname
     ? userData.firstname.charAt(0).toUpperCase()
     : '';
@@ -82,6 +83,9 @@ const AccountProfile = ({ navigation, route }) => {
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
 
   // const decodeHtml = text => {
@@ -150,10 +154,12 @@ const AccountProfile = ({ navigation, route }) => {
       />
 
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
       {results?.length > 0 ? (
         <>
@@ -177,6 +183,20 @@ const AccountProfile = ({ navigation, route }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <ScrollView
@@ -333,13 +353,13 @@ const styles = ScaledSheet.create({
     fontSize: moderateScale(18),
     fontFamily: FONT.BOLD,
     color: Color.BLACK,
-     marginTop: moderateScale(0),
+    marginTop: moderateScale(0),
   },
   userEmail: {
     fontSize: moderateScale(14),
     fontFamily: FONT.MEDIUM,
     color: Color.BLACK,
-     marginTop: moderateScale(4),
+    marginTop: moderateScale(4),
   },
   userPhone: {
     fontSize: moderateScale(14),
@@ -443,6 +463,26 @@ const styles = ScaledSheet.create({
     color: '#fff',
     fontSize: moderateScale(30),
     fontWeight: 'bold',
+  },
+
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 

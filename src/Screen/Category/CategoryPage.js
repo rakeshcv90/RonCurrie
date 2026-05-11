@@ -44,7 +44,8 @@ const CategoryPage = ({ route, navigation }) => {
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
-
+  const [searchNoResults, setSearchNoResults] = useState(false);
+  const searchRef = useRef(null);
   // const decodeHtml = text => {
   //   if (!text) return '';
   //   return text
@@ -63,6 +64,9 @@ const CategoryPage = ({ route, navigation }) => {
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
   };
   const renderItem1 = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
@@ -128,10 +132,12 @@ const CategoryPage = ({ route, navigation }) => {
         barStyle="dark-content"
       />
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
 
       {results?.length > 0 ? (
@@ -157,6 +163,20 @@ const CategoryPage = ({ route, navigation }) => {
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <ScrollView
           style={{ flex: 1, padding: verticalScale(10) }}
@@ -341,6 +361,25 @@ const styles = ScaledSheet.create({
     fontSize: moderateScale(12),
     color: '#666',
     fontFamily: FONT.MEDIUM,
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 

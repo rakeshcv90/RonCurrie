@@ -1,3 +1,5 @@
+/* eslint-disable no-catch-shadow */
+/* eslint-disable no-shadow */
 import {
   View,
   Text,
@@ -7,7 +9,7 @@ import {
   ScrollView,
   FlatList,
 } from 'react-native';
-import React, { memo, useCallback, useState } from 'react';
+import React, { memo, useCallback, useRef, useState } from 'react';
 import {
   moderateScale,
   ScaledSheet,
@@ -27,7 +29,10 @@ import Loader from '../Component/Loader';
 import { postData } from '../utility/ApiCall';
 import { Api, ImageBaseUrl } from '../utility/api';
 import PrintModel from './Component/PrintModel';
-import { triggerCartRefresh } from '../Redux/Slice/CartDataShowSlice';
+import {
+  triggerCartRefresh,
+  triggerMiscRefresh,
+} from '../Redux/Slice/CartDataShowSlice';
 import DownloadPdf from './DownloadPdf';
 import ReturnModel from '../Component/ReturnModel';
 import CartComponent from '../Component/CartComponent';
@@ -37,7 +42,7 @@ import decodeHtml from '../utility/decodeHtml';
 
 const OrderHistoryDetails = ({ navigation, route }) => {
   const order_id = route?.params?.orderItem;
-
+  const searchRef = useRef(null);
   const [loader, setLoader] = useState(false);
   const [printVisible, setPrintVisible] = useState(false);
   const [downloadVisible, setDownloadVisible] = useState(false);
@@ -47,6 +52,7 @@ const OrderHistoryDetails = ({ navigation, route }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
   const dispatch = useDispatch();
+  const [searchNoResults, setSearchNoResults] = useState(false);
   const { orderDisplay, loading, error } = useSelector(
     state => state.displorder,
   );
@@ -90,6 +96,7 @@ const OrderHistoryDetails = ({ navigation, route }) => {
         if (responseData?.status == 200) {
           showToast('success', 'Success!', responseData?.data?.message);
           dispatch(triggerCartRefresh());
+          dispatch(triggerMiscRefresh());
         } else {
           showToast('danger', 'Network Error', 'Something went wrong');
         }
@@ -148,13 +155,13 @@ const OrderHistoryDetails = ({ navigation, route }) => {
     return `${firstname} ${lastname} ${company} ${address_1} ${address_2} ${city} ${postcode} ${zone} ${country}`;
   };
 
-const handleItemPress = useCallback(
-  item => {
+  const handleItemPress = useCallback(item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
-  },
-  [],
-);
+    setTimeout(() => {
+      searchRef.current?.clearSearch();
+    }, 200);
+  }, []);
 
   // const decodeHtml = text => {
   //   if (!text) return '';
@@ -235,10 +242,12 @@ const handleItemPress = useCallback(
       />
 
       <SearchComponent
+        ref={searchRef}
         onResults={setResults}
         onLoadMoreRef={setLoadMoreFunc}
         navigation={navigation}
         autoFocus={true}
+        onNoResults={setSearchNoResults}
       />
 
       {results?.length > 0 ? (
@@ -263,6 +272,20 @@ const handleItemPress = useCallback(
             }
           />
         </>
+      ) : searchNoResults ? (
+        <View style={styles.emptyContainer}>
+          <FastImage
+            source={ImageData.NORESULT}
+            style={styles.gif}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+          <Text style={styles.noResultText}>
+            No result Found for "{searchNoResults}"
+          </Text>
+          <Text style={styles.noResultSubText}>
+            Try adjusting your search term and search again
+          </Text>
+        </View>
       ) : (
         <>
           <View style={styles.header}>
@@ -312,6 +335,11 @@ const handleItemPress = useCallback(
                 Payment Address:{' '}
                 {getPaymentAddressText(orderDisplay?.payment_address)}
               </Text>
+              {orderDisplay?.shipping_method !== 'Collection' && (
+                <Text style={styles.orderText}>
+                  Est. Delivery Date: {orderDisplay?.delivery_date}
+                </Text>
+              )}
             </View>
 
             {orderDisplay?.products?.map((item, index) => {
@@ -365,7 +393,7 @@ const handleItemPress = useCallback(
                       >
                         <Image
                           source={IconData.CART}
-                        style={{ width: 15, height: 15 }}
+                          style={{ width: 15, height: 15 }}
                           resizeMode="contain"
                           tintColor={Color.WHITE}
                         />
@@ -381,7 +409,7 @@ const handleItemPress = useCallback(
                           source={IconData.REORDER}
                           style={{ width: 15, height: 15 }}
                           resizeMode="contain"
-                             tintColor={Color.WHITE}
+                          tintColor={Color.WHITE}
                         />
                       </TouchableOpacity>
                     </View>
@@ -588,10 +616,10 @@ const styles = ScaledSheet.create({
     height: moderateScale(32),
     borderWidth: 1,
     borderColor: Color.GRAY3,
-    borderRadius:moderateScale(16),
+    borderRadius: moderateScale(16),
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor:'#6d6d6d',
+    backgroundColor: '#6d6d6d',
     marginLeft: moderateScale(6),
   },
   summaryBox: {
@@ -616,7 +644,7 @@ const styles = ScaledSheet.create({
   },
   totalAmount: { color: Color.RED, fontFamily: FONT.SEMIBOLD },
 
-    itemRow1: {
+  itemRow1: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: moderateScale(8),
@@ -639,6 +667,36 @@ const styles = ScaledSheet.create({
   itemTextContainer1: {
     flex: 1,
     paddingRight: moderateScale(15),
+  },
+
+  itemImage: {
+    width: moderateScale(70),
+    height: moderateScale(70),
+    borderRadius: moderateScale(5),
+    marginRight: moderateScale(10),
+  },
+  itemName: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  gif: {
+    width: 200,
+    height: 200,
+  },
+  emptyContainer: {
+    width: '100%',
+    height: '60%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultText: {
+    fontSize: '20@s',
+    fontFamily: FONT.SEMIBOLD,
+  },
+  noResultSubText: {
+    fontSize: '14@s',
+    fontFamily: FONT.SEMIBOLD,
+    color: Color.GRAY,
   },
 });
 
