@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   Image,
   StatusBar,
 } from 'react-native';
@@ -11,11 +10,21 @@ import { moderateScale, ScaledSheet } from 'react-native-size-matters';
 
 import { Color, FONT, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from '@react-native-vector-icons/ionicons';
+
 import FastImage from 'react-native-fast-image';
 import { MMKVStorage } from '../utility/MmkvStore';
 
 const WelcomeScreen = ({ navigation }) => {
+  const handleContinue = async () => {
+
+    const userData = await MMKVStorage.getItem('User_Data');
+    if (!userData) {
+      navigation.replace('Login');
+    } else {
+      navigation.replace('Home');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -24,11 +33,6 @@ const WelcomeScreen = ({ navigation }) => {
         barStyle={'default'}
       />
       <View style={styles.topContainer}>
-        {/* <Image
-          source={ImageData.Main}
-          style={styles.topImage}
-          resizeMode="stretch"
-        /> */}
         <FastImage
           source={ImageData.Main}
           style={styles.topImage}
@@ -52,23 +56,12 @@ const WelcomeScreen = ({ navigation }) => {
 
         <View style={styles.button}>
           <Text style={styles.buttonText}>Continue</Text>
-          <TouchableOpacity
-            onPress={async () => {
-              const userData = await MMKVStorage.getItem('User_Data');
-
-              if (!userData) {
-                navigation.replace('Login');
-              } else {
-                navigation.replace('Home');
-              }
-            }}
-          >
+          <TouchableOpacity onPress={handleContinue}>
             <Image
               source={ImageData.Next}
               style={{ width: 70, height: 70 }}
               resizeMode="contain"
             />
-            {/* <Ionicons name="arrow-forward" size={20} color="red" /> */}
           </TouchableOpacity>
         </View>
       </View>

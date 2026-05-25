@@ -1,13 +1,11 @@
 import { BaseUrl } from './api';
 import axios from 'axios';
-import * as Keychain from 'react-native-keychain';
-import { createNavigationContainerRef } from '@react-navigation/native';
 import { MMKVStorage } from './MmkvStore';
-
 import { resetRoot } from '../Navigation/NavigationService';
 import NetInfo from '@react-native-community/netinfo';
 import { showToast } from './showToast';
-export const navigationRef = createNavigationContainerRef();
+import { showGlobalModal } from './modalService';
+import * as Keychain from 'react-native-keychain';
 
 const apiClient = axios.create({
   baseURL: BaseUrl,
@@ -57,7 +55,8 @@ apiClient.interceptors.request.use(
 const handleApiError = async error => {
   const status = error?.response?.status;
   const data = error?.response?.data;
-
+  console.log(status, 'status');
+  console.log(data, 'data');
   if (error?.response) {
     try {
       if (status === 403) {
@@ -89,7 +88,22 @@ const handleApiError = async error => {
         showToast('danger', 'Validation Error', data?.message);
         return;
       } else if (status === 401) {
-        showToast('danger', 'Validation Error', data?.message);
+        if (data?.message === 'Unauthenticated.') {
+          showGlobalModal({
+            title: 'Session Expired',
+            message:
+              'Your session has expired. Please log in again to continue.',
+            type: 'error',
+            buttonText: 'Logout',
+            onPress: async () => {
+              await MMKVStorage.clearAllData();
+              await Keychain.resetGenericPassword();
+              resetRoot([{ name: 'Welcome' }]);
+            },
+          });
+        } else {
+          showToast('danger', 'Validation Error', data?.message);
+        }
       }
     } catch (logoutError) {
       console.log('Logout cleanup failed:', logoutError);
@@ -137,9 +151,9 @@ export const getData = async (endpoint, params = {}) => {
 export const postData = async (endpoint, body = {}) => {
   try {
     const response = await apiClient.post(endpoint, body);
-
     return response;
   } catch (error) {
+    handleApiError(error);
     throw error;
   }
 };

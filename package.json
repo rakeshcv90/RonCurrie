@@ -26,6 +26,7 @@
     "lottie-react-native": "^7.3.4",
     "react": "19.1.0",
     "react-native": "0.80.0",
+    "react-native-blob-util": "^0.24.9",
     "react-native-element-dropdown": "^2.12.4",
     "react-native-exit-app": "^2.0.0",
     "react-native-fast-image": "^8.6.3",

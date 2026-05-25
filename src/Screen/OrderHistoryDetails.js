@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
+  Platform,
 } from 'react-native';
 import React, { memo, useCallback, useRef, useState } from 'react';
 import {
@@ -27,7 +28,7 @@ import {
 } from '../Redux/Slice/OrderDisplaySlice';
 import Loader from '../Component/Loader';
 import { postData } from '../utility/ApiCall';
-import { Api, ImageBaseUrl } from '../utility/api';
+import { Api, BaseUrl, ImageBaseUrl } from '../utility/api';
 import PrintModel from './Component/PrintModel';
 import {
   triggerCartRefresh,
@@ -39,9 +40,11 @@ import CartComponent from '../Component/CartComponent';
 import SearchComponent from './Component/SearchComponent';
 import FastImage from 'react-native-fast-image';
 import decodeHtml from '../utility/decodeHtml';
-
+import ReactNativeBlobUtil from 'react-native-blob-util';
+import * as Keychain from 'react-native-keychain';
 const OrderHistoryDetails = ({ navigation, route }) => {
   const order_id = route?.params?.orderItem;
+  console.log('xzcxcxcvxvcvxccxvcvxcvxcxvcxv', order_id);
   const searchRef = useRef(null);
   const [loader, setLoader] = useState(false);
   const [printVisible, setPrintVisible] = useState(false);
@@ -233,6 +236,101 @@ const OrderHistoryDetails = ({ navigation, route }) => {
 
     return `${day}-${month}-${year}`;
   };
+
+  const downloadInvoice = async item => {
+    setLoader(true);
+    try {
+      const order_id = item;
+      const credentials = await Keychain.getGenericPassword();
+      const token = credentials ? credentials.password : '';
+
+      const { config, fs } = ReactNativeBlobUtil;
+      const downloadDir =
+        Platform.OS === 'ios' ? fs.dirs.DocumentDir : fs.dirs.DownloadDir;
+      const fileName = `invoice-${order_id}.pdf`;
+      const filePath = `${downloadDir}/${fileName}`;
+
+      const options = {
+        fileCache: true,
+        path: filePath,
+        addAndroidDownloads:
+          Platform.OS === 'android'
+            ? {
+                useDownloadManager: true,
+                notification: true,
+                title: fileName,
+                description: 'Downloading invoice...',
+                mime: 'application/pdf',
+                mediaScannable: true,
+                path: filePath,
+              }
+            : undefined,
+      };
+
+      const res = await config(options).fetch(
+        'GET',
+        `${BaseUrl}epos/account/order/${order_id}/invoice/download`,
+        {
+          Authorization: `Bearer ${token}`,
+        },
+      );
+
+      setLoader(false);
+      showToast('success', 'Success!', `Invoice downloaded successfully`);
+
+      if (Platform.OS === 'ios') {
+        ReactNativeBlobUtil.ios.previewDocument(res.path());
+      }
+    } catch (error) {
+      setLoader(false);
+      showToast('danger', 'Error', 'Failed to download invoice');
+      console.log('Download error', error);
+    }
+  };
+
+  const sendEmailInvoice = async item => {
+    setLoader(true);
+    try {
+      const order_id = item;
+      const responseData = await postData(
+        `epos/account/order/${order_id}/invoice/email`,
+        {},
+      );
+
+      setLoader(false);
+
+      if (
+        responseData?.status === 200 ||
+        responseData?.data?.status === 'success'
+      ) {
+        showToast(
+          'success',
+          'Success!',
+          responseData?.data?.message ||
+            'Invoice sent to your email successfully',
+        );
+      } else {
+        showToast(
+          'danger',
+          'Error',
+          responseData?.data?.message || 'Failed to send email',
+        );
+      }
+    } catch (error) {
+      setLoader(false);
+      if (error.type === 'network') {
+        showToast('danger', 'Network Error', error.message);
+      } else if (error.type === 'response') {
+        showToast('danger', 'Request Failed', error.message);
+      } else {
+        showToast(
+          'danger',
+          'Unexpected Error',
+          error.message || 'Something went wrong',
+        );
+      }
+    }
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -302,13 +400,43 @@ const OrderHistoryDetails = ({ navigation, route }) => {
 
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={styles.orderBtn}
+                style={styles.actionIconBtn}
+                activeOpacity={0.7}
+                onPress={() => setPrintVisible(true)}
+              >
+                <Ionicons
+                  name="print-outline"
+                  size={moderateScale(18)}
+                  color={Color.WHITE}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionIconBtn, { backgroundColor: '#27ae60' }]}
                 activeOpacity={0.7}
                 onPress={() => {
-                  setPrintVisible(true);
+                  downloadInvoice(order_id?.order_id);
                 }}
               >
-                <Text style={styles.btnText}>Print</Text>
+                <Ionicons
+                  name="download-outline"
+                  size={moderateScale(18)}
+                  color={Color.WHITE}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionIconBtn, { backgroundColor: '#3498db' }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  sendEmailInvoice(order_id?.order_id);
+                }}
+              >
+                <Ionicons
+                  name="mail-outline"
+                  size={moderateScale(18)}
+                  color={Color.WHITE}
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -485,11 +613,11 @@ const OrderHistoryDetails = ({ navigation, route }) => {
         onClose={() => setPrintVisible(false)}
         printData={order_id?.order_id}
       />
-      <DownloadPdf
+      {/* <DownloadPdf
         visible={downloadVisible}
         onClose={() => setDownloadVisible(false)}
         printData={order_id?.order_id}
-      />
+      /> */}
       <ReturnModel
         visible={returnVisible}
         onClose={() => setReturnVisible(false)}
@@ -526,7 +654,20 @@ const styles = ScaledSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonRow: { flexDirection: 'row' },
+  buttonRow: { flexDirection: 'row', gap: moderateScale(10) },
+  actionIconBtn: {
+    width: moderateScale(38),
+    height: moderateScale(38),
+    borderRadius: moderateScale(19),
+    backgroundColor: Color.RED,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   resetBtn: {
     paddingHorizontal: 15,
     backgroundColor: Color.BLACK3,

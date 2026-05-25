@@ -6,8 +6,11 @@ import ToastMessage from './src/utility/ToastMessage';
 import { Provider } from 'react-redux';
 import store from './src/Redux/store';
 import {navigationRef} from './src/Navigation/NavigationService'
+import AttractiveModal from './src/Component/AttractiveModal';
+import NetworkStatus from './src/Component/NetworkStatus';
 
 export const toastRef = createRef();
+export const modalRef = createRef();
 
 const App = () => {
   return (
@@ -18,6 +21,8 @@ const App = () => {
         </NavigationContainer>
 
         <ToastMessage ref={toastRef} />
+        <AttractiveModal ref={modalRef} />
+        <NetworkStatus />
       </View>
     </Provider>
   );

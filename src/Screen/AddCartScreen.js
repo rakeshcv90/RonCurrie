@@ -82,7 +82,7 @@ const AddCartScreen = ({ navigation }) => {
     { id: Date.now(), description: '', price: '', isNegative: false },
   ]);
   const debounceTimerRef = useRef(null);
-  console.log('Miss ds');
+
   const [selectedTab, setSelectedTab] = useState('Collect From Store');
   const [hasNavigatedBack, setHasNavigatedBack] = useState(false);
   const [addressData, setAddressData] = useState([]);
@@ -365,7 +365,7 @@ const AddCartScreen = ({ navigation }) => {
 
     const miscTotal = (miscList || []).reduce((sum, misc) => {
       const amt = parseFloat(misc.price) || 0;
-      console.log('Xcvcvxcvxcvxvxcvvc', amt);
+
       return sum + amt;
     }, 0);
     // const miscTotal = (reduxMiscList?.miscellaneous || []).reduce(
@@ -931,7 +931,6 @@ const AddCartScreen = ({ navigation }) => {
                           handleChange(item.id, 'description', text)
                         }
                       />
-                      {/* </View> */}
                     </View>
                   </View>
                   <View>
@@ -991,12 +990,18 @@ const AddCartScreen = ({ navigation }) => {
                           <TextInput
                             style={[
                               styles.cashInput1,
-                              { flex: 1, textAlign: 'left', left: -5 },
+                              {
+                                flex: 1,
+                                textAlign: 'left',
+                                left: -5,
+                                opacity: !item.description?.trim() ? 0.5 : 1,
+                              },
                             ]}
                             placeholder="0.00"
                             keyboardType="numeric"
                             placeholderTextColor={'#000'}
                             value={item.price}
+                            editable={!!item.description?.trim()}
                             onChangeText={text =>
                               handleChange(item.id, 'price', text)
                             }

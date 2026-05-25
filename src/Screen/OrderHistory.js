@@ -2,14 +2,13 @@ import {
   View,
   Text,
   StatusBar,
-  Image,
   TouchableOpacity,
   TextInput,
   FlatList,
   RefreshControl,
   Platform,
 } from 'react-native';
-import React, { memo, useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Loader from '../Component/Loader';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -21,10 +20,11 @@ import { fetchOrderList } from '../Redux/Slice/OrderListSlice';
 import { showToast } from '../utility/showToast';
 import debounce from 'lodash.debounce';
 import FastImage from 'react-native-fast-image';
-import { CommonActions } from '@react-navigation/native';
 
-import { postData } from '../utility/ApiCall';
-import { Api, ImageBaseUrl } from '../utility/api';
+import { postData, getData } from '../utility/ApiCall';
+import { Api, ImageBaseUrl, BaseUrl } from '../utility/api';
+import ReactNativeBlobUtil from 'react-native-blob-util';
+import * as Keychain from 'react-native-keychain';
 import {
   triggerCartRefresh,
   triggerMiscRefresh,
@@ -33,6 +33,7 @@ import SearchComponent from './Component/SearchComponent';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import CartComponent from '../Component/CartComponent';
 import decodeHtml from '../utility/decodeHtml';
+import ActionBottomSheet from '../Component/ActionBottomSheet';
 const OrderHistory = ({ navigation }) => {
   const dispatch = useDispatch();
   const [search, setSearch] = useState('');
@@ -48,6 +49,7 @@ const OrderHistory = ({ navigation }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const hasInitialLoaded = useRef(false);
   const searchRef = useRef(null);
+  const bottomSheetRef = useRef(null);
   const [searchNoResults, setSearchNoResults] = useState(false);
   const loadData = async (pageNumber = 1, searchTerm = '') => {
     try {
@@ -164,18 +166,6 @@ const OrderHistory = ({ navigation }) => {
     }, 200);
   }, []);
 
-  // const decodeHtml = text => {
-  //   if (!text) return '';
-  //   return text
-  //     .replace(/&quot;/g, '')
-  //     .replace(/&apos;/g, '')
-  //     .replace(/&amp;/g, '&')
-  //     .replace(/&lt;/g, '<')
-  //     .replace(/&gt;/g, '>')
-  //     .replace(/["']/g, '')
-  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-  //     .trim();
-  // };
   const renderItem = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 
@@ -232,6 +222,101 @@ const OrderHistory = ({ navigation }) => {
 
     return `${day}/${month}/${year}`;
   }, []);
+
+  const downloadInvoice = async item => {
+    setLoader(true);
+    try {
+      const order_id = item?.order_id;
+      const credentials = await Keychain.getGenericPassword();
+      const token = credentials ? credentials.password : '';
+
+      const { config, fs } = ReactNativeBlobUtil;
+      const downloadDir =
+        Platform.OS === 'ios' ? fs.dirs.DocumentDir : fs.dirs.DownloadDir;
+      const fileName = `invoice-${order_id}.pdf`;
+      const filePath = `${downloadDir}/${fileName}`;
+
+      const options = {
+        fileCache: true,
+        path: filePath,
+        addAndroidDownloads:
+          Platform.OS === 'android'
+            ? {
+                useDownloadManager: true,
+                notification: true,
+                title: fileName,
+                description: 'Downloading invoice...',
+                mime: 'application/pdf',
+                mediaScannable: true,
+                path: filePath,
+              }
+            : undefined,
+      };
+
+      const res = await config(options).fetch(
+        'GET',
+        `${BaseUrl}epos/account/order/${order_id}/invoice/download`,
+        {
+          Authorization: `Bearer ${token}`,
+        },
+      );
+
+      setLoader(false);
+      showToast('success', 'Success!', `Invoice downloaded successfully`);
+
+      if (Platform.OS === 'ios') {
+        ReactNativeBlobUtil.ios.previewDocument(res.path());
+      }
+    } catch (error) {
+      setLoader(false);
+      showToast('danger', 'Error', 'Failed to download invoice');
+      console.log('Download error', error);
+    }
+  };
+
+  const sendEmailInvoice = async item => {
+    setLoader(true);
+    try {
+      const order_id = item?.order_id;
+      const responseData = await postData(
+        `epos/account/order/${order_id}/invoice/email`,
+        {},
+      );
+
+      setLoader(false);
+
+      if (
+        responseData?.status === 200 ||
+        responseData?.data?.status === 'success'
+      ) {
+        showToast(
+          'success',
+          'Success!',
+          responseData?.data?.message ||
+            'Invoice sent to your email successfully',
+        );
+      } else {
+        showToast(
+          'danger',
+          'Error',
+          responseData?.data?.message || 'Failed to send email',
+        );
+      }
+    } catch (error) {
+      setLoader(false);
+      if (error.type === 'network') {
+        showToast('danger', 'Network Error', error.message);
+      } else if (error.type === 'response') {
+        showToast('danger', 'Request Failed', error.message);
+      } else {
+        showToast(
+          'danger',
+          'Unexpected Error',
+          error.message || 'Something went wrong',
+        );
+      }
+    }
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -329,7 +414,7 @@ const OrderHistory = ({ navigation }) => {
                     <Text style={styles.headerText}>Delivery Method</Text>
                   </View>
                   <View style={styles.cell}>
-                    <Text style={styles.headerText}>RE-ORDER</Text>
+                    <Text style={styles.headerText}>Action</Text>
                   </View>
                 </View>
 
@@ -384,13 +469,52 @@ const OrderHistory = ({ navigation }) => {
                       <TouchableOpacity
                         style={[styles.cell, styles.reorderColumn]}
                         onPress={() => {
-                          reOrder(item);
+                          bottomSheetRef.current?.show({
+                            item,
+                            options: [
+                              {
+                                label: 'Re-Order',
+                                description: 'Add to cart again',
+                                icon: IconData.CART,
+                                gradientColors: ['#940000', '#c0392b'],
+                                onPress: selectedItem => reOrder(selectedItem),
+                              },
+                              {
+                                label: 'View Details',
+                                description: 'See full order',
+                                icon: IconData.Eye,
+                                gradientColors: ['#8e44ad', '#9b59b6'],
+                                onPress: selectedItem =>
+                                  navigation.navigate('OrderHistoryDetails', {
+                                    orderItem: selectedItem,
+                                  }),
+                              },
+                              {
+                                label: 'Download',
+                                description: 'Download invoice',
+                                icon: IconData.REORDER,
+                                gradientColors: ['#27ae60', '#2ecc71'],
+                                onPress: selectedItem => {
+                                  downloadInvoice(selectedItem);
+                                },
+                              },
+                              {
+                                label: 'Email',
+                                description: 'Send to email',
+                                icon: IconData.Mail,
+                                gradientColors: ['#2c3e50', '#3498db'],
+                                onPress: selectedItem => {
+                                  sendEmailInvoice(selectedItem);
+                                },
+                              },
+                            ],
+                          });
                         }}
                       >
-                        <Image
-                          source={IconData.CART}
-                          style={{ width: 24, height: 24 }}
-                          resizeMode="contain"
+                        <Ionicons
+                          name="ellipsis-vertical"
+                          size={moderateScale(18)}
+                          color={Color.GRAY4}
                         />
                       </TouchableOpacity>
                     </View>
@@ -422,6 +546,7 @@ const OrderHistory = ({ navigation }) => {
           {orderList?.length <= 0 ||
             (loader && <Loader visible={loading || loader} />)}
           <CartComponent />
+          <ActionBottomSheet ref={bottomSheetRef} />
         </>
       )}
     </SafeAreaView>

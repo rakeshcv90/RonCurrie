@@ -23,7 +23,7 @@ const PrintModel = ({ visible, onClose, printData }) => {
   const { a4PrintDetails, loading, error } = useSelector(
     state => state.a4PrintData,
   );
-
+  console.log('xvdddddd', a4PrintDetails?.products[0]);
   const STAR_PASSPRNT_SCHEME = 'starpassprnt://';
   const [selectedOption, setSelectedOption] = useState('A4');
 
@@ -1050,8 +1050,8 @@ ${
         format === '80mm' ? await generate80mmInvoice() : await generatePDF();
 
       if (format === '80mm') {
-        // await printWithStarPassPRNT(html); // ✅ Star PassPRNT
-        await RNPrint.print({ html });
+        await printWithStarPassPRNT(html); // ✅ Star PassPRNT
+        // await RNPrint.print({ html });
       } else {
         await RNPrint.print({ html }); // ✅ A4 print
       }
