@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   FlatList,
+  Keyboard,
 } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -60,6 +61,8 @@ const BarCodeReader = ({ navigation }) => {
   const [cameraReady, setCameraReady] = useState(false);
   const device = getCameraDevice(devices, currentCamera);
   const typingTimeoutRef = useRef(null);
+  const scrollViewRef = useRef(null);
+  const inputLayoutRef = useRef(null);
 
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
@@ -67,6 +70,7 @@ const BarCodeReader = ({ navigation }) => {
   const [imageErrorMap, setImageErrorMap] = useState({});
   const [allowKeyboard, setAllowKeyboard] = useState(false);
   const [searchNoResults, setSearchNoResults] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   useEffect(() => {
     const fetchUserData = async () => {
       const data = await MMKVStorage.getItem('User_Data');
@@ -75,6 +79,36 @@ const BarCodeReader = ({ navigation }) => {
     typingTimeoutRef.current?.focus();
 
     fetchUserData();
+  }, []);
+
+  // Scroll to input when keyboard opens & track visibility
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent =
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+      // Scroll so the input label is near the top of the visible area
+      if (inputLayoutRef.current != null && scrollViewRef.current) {
+        const scrollTarget = Math.max(0, inputLayoutRef.current - 10);
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({
+            y: scrollTarget,
+            animated: true,
+          });
+        }, 100);
+      }
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+      // Scroll back to top when keyboard closes
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   const onCameraReady = () => {
@@ -111,16 +145,10 @@ const BarCodeReader = ({ navigation }) => {
 
     try {
       const response = await postData(Api.BAR_CODE_SCANNER, payloadData);
-
-      if (
-        response?.data?.success == true
-        // &&
-        // response?.data?.data?.data?.length > 0
-      ) {
+      console.log('dsfvdsfsdfsdfsdfdsf', response);
+      if (response?.data?.message !== 'Product not found!!') {
         setMessage({ type: 'success' });
-        // setBarcode(null);
-        // setLastScanned(null);
-        // setScanningEnabled(true);
+
         setTimeout(() => {
           setMessage(null);
           setBarcode(null);
@@ -151,30 +179,8 @@ const BarCodeReader = ({ navigation }) => {
   };
   const handleManualInput = text => {
     setBarcode(text);
-
-    // if (typingTimeoutRef.current) {
-    //   clearTimeout(typingTimeoutRef.current);
-    // }
-
-    // // Wait 700ms after user stops typing
-    // typingTimeoutRef.current = setTimeout(() => {
-    //   if (text.length >= 10) {
-    //     handleSubmitBarcode(text);
-    //   }
-    // }, 2000);
   };
-  // const decodeHtml = text => {
-  //   if (!text) return '';
-  //   return text
-  //     .replace(/&quot;/g, '')
-  //     .replace(/&apos;/g, '')
-  //     .replace(/&amp;/g, '&')
-  //     .replace(/&lt;/g, '<')
-  //     .replace(/&gt;/g, '>')
-  //     .replace(/["']/g, '')
-  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-  //     .trim();
-  // };
+
   const handleItemPress = item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
@@ -283,8 +289,8 @@ const BarCodeReader = ({ navigation }) => {
         <>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            behavior={'padding'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
             <View style={styles.header}>
               <TouchableOpacity
@@ -321,38 +327,44 @@ const BarCodeReader = ({ navigation }) => {
               </View>
             </View>
 
-            <View style={styles.cameraContainer}>
-              {!hasPermission ? (
-                <Text style={{ color: 'red', textAlign: 'center' }}>
-                  Camera permission is required
-                </Text>
-              ) : device ? (
-                <Camera
-                  ref={camera}
-                  style={{ flex: 1 }}
-                  device={device}
-                  isActive={true}
-                  // photo={true}
-                  photo={false}
-                  video={false}
-                  enableZoomGesture
-                  codeScanner={codeScanner}
-                  onInitialized={onCameraReady}
-                  focusable={true}
-                  preset="high"
-                />
-              ) : (
-                <Text>Loading camera...</Text>
-              )}
-            </View>
-
             <ScrollView
+              ref={scrollViewRef}
               scrollEnabled={hasPermission}
-              contentContainerStyle={{ flexGrow: 1 }}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 200 }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              <View style={styles.inputSection}>
+              <View style={styles.cameraContainer}>
+                {!hasPermission ? (
+                  <Text style={{ color: 'red', textAlign: 'center' }}>
+                    Camera permission is required
+                  </Text>
+                ) : device ? (
+                  <Camera
+                    ref={camera}
+                    style={{ flex: 1 }}
+                    device={device}
+                    isActive={true}
+                    // photo={true}
+                    photo={false}
+                    video={false}
+                    enableZoomGesture
+                    codeScanner={codeScanner}
+                    onInitialized={onCameraReady}
+                    focusable={true}
+                    preset="high"
+                  />
+                ) : (
+                  <Text>Loading camera...</Text>
+                )}
+              </View>
+
+              <View
+                style={styles.inputSection}
+                onLayout={e => {
+                  inputLayoutRef.current = e.nativeEvent.layout.y;
+                }}
+              >
                 <Text style={styles.label}>ENTER BARCODE MANUALLY</Text>
 
                 <TextInput
@@ -419,7 +431,7 @@ const BarCodeReader = ({ navigation }) => {
               )}
             </ScrollView>
           </KeyboardAvoidingView>
-          <CartComponent />
+          {!isKeyboardVisible && <CartComponent />}
         </>
       )}
     </SafeAreaView>

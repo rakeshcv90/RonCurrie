@@ -1,4 +1,4 @@
-import { configureStore, getDefaultMiddleware } from '@reduxjs/toolkit'
+import { configureStore } from '@reduxjs/toolkit'
 import productReducer from '../Redux/Slice/ProductMenuSlice'
 import productListReducer from '../Redux/Slice/ProductListSlice'
 import orderListReducer from '../Redux/Slice/OrderListSlice'
@@ -9,6 +9,7 @@ import CartDataShowReducer from '../Redux/Slice/CartDataShowSlice'
 import returnIrderListReducer from '../Redux/Slice/ReturnOrderListSlice'
 import returnOrderDetailsReducer from '../Redux/Slice/OrderReturnDisplaySlice'
 import categoryReducer from '../Redux/Slice/CategoriesSlice'
+import liveFeedReducer from '../Redux/Slice/LiveFeedSlice'
 
 const store = configureStore({
   reducer: {
@@ -21,7 +22,8 @@ const store = configureStore({
     cartListData:CartDataShowReducer,
     returnlisorder:returnIrderListReducer,
     returnDetails:returnOrderDetailsReducer,
-    category:categoryReducer
+    category:categoryReducer,
+    liveFeed:liveFeedReducer
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({

@@ -7,7 +7,6 @@ import {
   Platform,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   FlatList,
   RefreshControl,
 } from 'react-native';
@@ -35,6 +34,12 @@ import {
 } from '../Redux/Slice/ProductListSlice';
 import { Api, ImageBaseUrl } from '../utility/api';
 import ProductModal from './Component/ProductModal';
+import ProductHeader from './Component/DisplayItems/ProductHeader';
+import ActionButtons from './Component/DisplayItems/ActionButtons';
+import SingleItemTable from './Component/DisplayItems/SingleItemTable';
+import BespokeCalculator from './Component/DisplayItems/BespokeCalculator';
+import OptionsTable from './Component/DisplayItems/OptionsTable';
+import MatrixCalculator from './Component/DisplayItems/MatrixCalculator';
 import Loader from '../Component/Loader';
 import { showToast } from '../utility/showToast';
 import { postData } from '../utility/ApiCall';
@@ -46,19 +51,14 @@ import {
   triggerMiscRefresh,
 } from '../Redux/Slice/CartDataShowSlice';
 import SearchComponent from './Component/SearchComponent';
-import { Dimensions } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import decodeHtml from '../utility/decodeHtml';
-const windowHeight = Dimensions.get('window').height;
 
 const DisplayItems = ({ navigation, route }) => {
   const ItemData = route.params.itemData;
 
-  const [loader, setLoader] = useState(false);
   const dispatch = useDispatch();
-  const { productsList, loading, error } = useSelector(
-    state => state.productsList,
-  );
+  const { productsList, loading } = useSelector(state => state.productsList);
 
   const [selectedTab, setSelectedTab] = useState('Sales');
   const [customLength, setCustomLength] = useState('');
@@ -72,7 +72,7 @@ const DisplayItems = ({ navigation, route }) => {
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [searchNoResults, setSearchNoResults] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMore = false;
   const [imageErrorMap, setImageErrorMap] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [payload, setPayload] = useState(null);
@@ -81,8 +81,6 @@ const DisplayItems = ({ navigation, route }) => {
   const searchRef = useRef(null);
   const [value, setValue] = useState(null);
   const [selectedValue, setSelectedValue] = useState(null);
-  const [optionError, setOptionError] = useState(false);
-  const isRequired = productsList?.options?.[1]?.required === 1;
   useEffect(() => {
     if (quantity >= 1 && width && length && productsList?.matrix?.length > 0) {
       calculatePrice();
@@ -149,21 +147,22 @@ const DisplayItems = ({ navigation, route }) => {
       setLength(String(minH));
       setPrice(String(lowestItem?.price || '0.00'));
     }
-    if (isRequired && !selectedValue) {
-      setOptionError(true);
-    }
   }, [productsList]);
 
   const handleIncrease = useCallback(
     (index, stock = 0) => {
       setRowQuantities(prev => {
         if (index === 'custom') {
+          if (customLength === '') return prev;
           const qty = (prev.custom?.qty || 0) + 1;
-          const length = Number(customLength) || 1;
-          const price = (length * bespokeFactor * qty).toFixed(2);
-          const price2 = (length * bespokeFactor).toFixed(2);
+          const customLen = Number(customLength) || 1;
+          const computedPrice = (customLen * bespokeFactor * qty).toFixed(2);
+          const price2 = (customLen * bespokeFactor).toFixed(2);
 
-          return { ...prev, custom: { qty, length, price, price2 } };
+          return {
+            ...prev,
+            custom: { qty, length: customLen, price: computedPrice, price2 },
+          };
         } else if (index === 'single') {
           const qty =
             selectedTab === 'Sales'
@@ -187,12 +186,16 @@ const DisplayItems = ({ navigation, route }) => {
   const handleDecrease = index => {
     setRowQuantities(prev => {
       if (index === 'custom') {
+        if (customLength === '') return prev;
         const qty = Math.max((prev.custom?.qty || 0) - 1, 0);
-        const length = Number(customLength) || 1;
-        const price = (length * bespokeFactor * qty).toFixed(2);
-        const price2 = (length * bespokeFactor).toFixed(2);
+        const customLen = Number(customLength) || 1;
+        const computedPrice = (customLen * bespokeFactor * qty).toFixed(2);
+        const price2 = (customLen * bespokeFactor).toFixed(2);
 
-        return { ...prev, custom: { qty, length, price, price2 } };
+        return {
+          ...prev,
+          custom: { qty, length: customLen, price: computedPrice, price2 },
+        };
       } else if (index === 'single') {
         const qty = Math.max((prev.single?.qty || 0) - 1, 0);
         return { ...prev, single: { qty } };
@@ -205,17 +208,27 @@ const DisplayItems = ({ navigation, route }) => {
   };
 
   const handleCustomLengthChange = val => {
-    const lengthNum = parseFloat(val) || 0;
-
     setCustomLength(val);
+
+    if (val === '') {
+      setRowQuantities(prev => {
+        return {
+          ...prev,
+          custom: { qty: 0, length: 0, price: '0.00', price2: '0.00' },
+        };
+      });
+      return;
+    }
+
+    const lengthNum = parseFloat(val) || 0;
 
     setRowQuantities(prev => {
       const qty = prev.custom?.qty || 1;
-      const price = (lengthNum * bespokeFactor * qty).toFixed(2);
+      const computedPrice = (lengthNum * bespokeFactor * qty).toFixed(2);
       const price2 = (lengthNum * bespokeFactor).toFixed(2);
       return {
         ...prev,
-        custom: { qty, length: lengthNum, price, price2 },
+        custom: { qty, length: lengthNum, price: computedPrice, price2 },
       };
     });
   };
@@ -230,7 +243,7 @@ const DisplayItems = ({ navigation, route }) => {
   const handleFinalQty = (index, stock) => {
     const raw = rowQuantities[index];
 
-    let num = parseInt(raw);
+    let num = parseInt(raw, 10);
     if (isNaN(num) || num <= 0) num = 1;
     if (num > stock) num = stock;
 
@@ -249,7 +262,7 @@ const DisplayItems = ({ navigation, route }) => {
   const handleSingleFinal = stock => {
     let raw = rowQuantities.single?.qty;
 
-    let num = parseInt(raw);
+    let num = parseInt(raw, 10);
     if (isNaN(num) || num <= 0) num = 1;
     if (num > stock) num = stock;
 
@@ -258,26 +271,26 @@ const DisplayItems = ({ navigation, route }) => {
       single: { qty: num },
     }));
   };
-  const handleCustomTyping = (text, bespokeFactor, customLength) => {
+  const handleCustomTyping = text => {
     setRowQuantities(prev => ({
       ...prev,
       custom: { qty: text },
     }));
   };
 
-  const handleCustomFinal = (bespokeFactor, customLength) => {
+  const handleCustomFinal = () => {
     let raw = rowQuantities.custom?.qty;
 
-    let qty = parseInt(raw);
+    let qty = parseInt(raw, 10);
     if (isNaN(qty) || qty <= 0) qty = 1;
 
-    const length = Number(customLength) || 1;
-    const price = (length * bespokeFactor * qty).toFixed(2);
-    const price2 = (length * bespokeFactor).toFixed(2);
+    const customLen = Number(customLength) || 1;
+    const computedPrice = (customLen * bespokeFactor * qty).toFixed(2);
+    const price2 = (customLen * bespokeFactor).toFixed(2);
 
     setRowQuantities(prev => ({
       ...prev,
-      custom: { qty, length, price, price2 },
+      custom: { qty, length: customLen, price: computedPrice, price2 },
     }));
   };
 
@@ -287,8 +300,8 @@ const DisplayItems = ({ navigation, route }) => {
     if (productsList?.options?.[0]?.option_values?.length > 0) {
       items = productsList.options[0].option_values
         .map((item, index) => {
-          const quantity = rowQuantities[index] ?? 0;
-          if (quantity === 0) return null;
+          const rowQty = rowQuantities[index] ?? 0;
+          if (rowQty === 0) return null;
 
           let optionParts = [];
 
@@ -317,7 +330,7 @@ const DisplayItems = ({ navigation, route }) => {
             customer_id: userData?.customer_id,
             product_id: item.product_id,
             option: optionString,
-            quantity,
+            quantity: rowQty,
             ...modeObj,
           };
         })
@@ -386,8 +399,6 @@ const DisplayItems = ({ navigation, route }) => {
     //   return;
     // }
 
-    setLoader(true);
-
     try {
       const response = await postData(Api.ADD_CART, { items });
 
@@ -415,8 +426,6 @@ const DisplayItems = ({ navigation, route }) => {
     } catch (error) {
       console.error('Error adding to basket:', error);
       showToast('danger', 'Error', error.message || 'Something went wrong.');
-    } finally {
-      setLoader(false);
     }
   };
 
@@ -459,16 +468,16 @@ const DisplayItems = ({ navigation, route }) => {
       return;
     }
 
-    const price = Number(matched.price);
+    const matchedPrice = Number(matched.price);
     const qty = Number(quantity);
 
-    if (isNaN(price) || isNaN(qty)) {
+    if (isNaN(matchedPrice) || isNaN(qty)) {
       showToast('danger', 'Error', 'Invalid price or quantity');
       setPrice('0.00');
       return;
     }
 
-    const total = (price * qty).toFixed(2);
+    const total = (matchedPrice * qty).toFixed(2);
     setPrice(total);
     setMatchedMatrix(matched);
   };
@@ -508,7 +517,7 @@ const DisplayItems = ({ navigation, route }) => {
     });
 
     const optionString = `{${Object.entries(optionData)
-      .map(([key, value]) => `'${key}':'${value}'`)
+      .map(([key, val]) => `'${key}':'${val}'`)
       .join(',')}}`;
     const singleItem = {
       customer_id: userData?.customer_id,
@@ -525,7 +534,6 @@ const DisplayItems = ({ navigation, route }) => {
 
     items.push(singleItem);
     console.log('SDdsfdsfdsfdsf', items);
-    setLoader(true);
     try {
       const response = await postData(Api.ADD_CART, { items });
 
@@ -539,11 +547,9 @@ const DisplayItems = ({ navigation, route }) => {
 
         setRowQuantities({});
         setCustomLength('');
-        setLoader(false);
         dispatch(triggerCartRefresh());
         navigation.goBack();
       } else {
-        setLoader(false);
         dispatch(triggerCartRefresh());
         // showToast(
         //   'danger',
@@ -552,11 +558,8 @@ const DisplayItems = ({ navigation, route }) => {
         // );
       }
     } catch (error) {
-      console.error('Error adding to basket:', error);
-      setLoader(false);
-      showToast('danger', 'Error', error.message || 'Something went wrong.');
-    } finally {
-      setLoader(false);
+      console.log('Error adding to basket:', error);
+      // showToast('danger', 'Error', error.message || 'Something went wrong.');
     }
   };
 
@@ -679,7 +682,8 @@ const DisplayItems = ({ navigation, route }) => {
             <TouchableOpacity
               style={styles.back}
               onPress={() => {
-                navigation.goBack(), dispatch(clearProducts());
+                navigation.goBack();
+                dispatch(clearProducts());
               }}
             >
               <Ionicons
@@ -759,8 +763,8 @@ const DisplayItems = ({ navigation, route }) => {
               resizeMode={FastImage.resizeMode.contain}
             />
             <Text style={styles.noResultText}>
-            No result Found for "{searchNoResults}"
-          </Text>
+              No result Found for "{searchNoResults}"
+            </Text>
             <Text style={styles.noResultSubText}>
               Try adjusting your search term and search again
             </Text>
@@ -786,118 +790,27 @@ const DisplayItems = ({ navigation, route }) => {
                   />
                 }
               >
-                <View style={styles.productContainer}>
-                  {productsList?.image && productsList?.image.trim() !== '' ? (
-                    <FastImage
-                      style={styles.productImage}
-                      source={{
-                        uri: `${ImageBaseUrl}${productsList.image}?w=150&h=150`,
-                        priority: FastImage.priority.high,
-                        cache: FastImage.cacheControl.immutable,
-                      }}
-                      resizeMode={FastImage.resizeMode.stretch}
-                      // onError={handleError}
-                    />
-                  ) : (
-                    <FastImage
-                      style={styles.itemImage}
-                      source={ImageData?.NOIMAGE}
-                      resizeMode={FastImage.resizeMode.cover}
-                      // onError={handleError}
-                    />
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.productTitle}>
-                      {decodeHtml(productsList?.isbn)}
-                    </Text>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: verticalScale(10),
-                      }}
-                    >
-                      <View>
-                        <Text style={styles.productModel}>
-                          Model:{decodeHtml(productsList?.model)}
-                        </Text>
+                <ProductHeader
+                  productsList={productsList}
+                  setVisibleModal={setVisibleModaL}
+                  styles={styles}
+                />
 
-                        <TouchableOpacity
-                          onPress={() => {
-                            setVisibleModaL(true);
-                          }}
-                        >
-                          <Text style={styles.viewDesc}>View Description</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      {productsList?.options?.[0]?.display == 1 &&
-                        productsList?.options?.[0]?.bespoke_value_req_epos ==
-                          1 && (
-                          <View
-                            style={{
-                              padding: verticalScale(3),
-                              backgroundColor: '#156082',
-                              flexDirection: 'row',
-                              borderWidth: 2,
-                              borderColor: '#23414F',
-                              borderRadius: 5,
-                            }}
-                          >
-                            <View>
-                              <Text
-                                style={[styles.pricePerM, { color: 'white' }]}
-                              >
-                                Bespoke Value
-                              </Text>
-                              <Text
-                                style={{ color: 'white', textAlign: 'center' }}
-                              >
-                                £
-                                {productsList?.options?.[0]?.bespoke_factor_val}
-                                /m
-                              </Text>
-                            </View>
-                          </View>
-                        )}
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.editBtn}
-                    onPress={() => {
-                      navigation.navigate('WebViewScreen', {
-                        payload: payload,
-                      });
-                    }}
-                  >
-                    <Text style={styles.addText}>Edit Stock & Price</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.addBtn}
-                    onPress={() => {
-                      if (productsList?.matrix?.length <= 0) {
-                        addToBasket();
-                      } else {
-                        matrixAddToBasket();
-                      }
-                    }}
-                  >
-                    <Text style={styles.addText}>
-                      {selectedTab === 'Sales'
-                        ? 'Add To Basket'
-                        : 'Add To Refund'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <ActionButtons
+                  navigation={navigation}
+                  payload={payload}
+                  productsList={productsList}
+                  selectedTab={selectedTab}
+                  addToBasket={addToBasket}
+                  matrixAddToBasket={matrixAddToBasket}
+                  styles={styles}
+                />
 
                 {productsList?.matrix?.length <= 0 &&
-                productsList?.allow_calculator == 0 ? (
+                productsList?.allow_calculator === 0 ? (
                   <>
                     {productsList?.options?.length > 0 &&
-                      productsList?.has_option != 0 && (
+                      productsList?.has_option !== 0 && (
                         <View style={styles.headerRow}>
                           <Text style={styles.headerText}>
                             {
@@ -908,388 +821,48 @@ const DisplayItems = ({ navigation, route }) => {
                         </View>
                       )}
 
-                    {productsList?.has_option != 0 &&
+                    {productsList?.has_option !== 0 &&
                     productsList?.options?.length > 0 ? (
-                      <View style={styles.tableContainer}>
-                        <FlatList
-                          data={productsList?.options?.[0]?.option_values}
-                          keyExtractor={(item, index) => index.toString()}
-                          renderItem={({ item, index }) => {
-                            const qty = rowQuantities[index] ?? 0;
-                            const inStock = item?.quantity ?? 0;
-                            const isDisabled =
-                              inStock === 0 && selectedTab == 'Sales';
-                            const isOdd = index % 2 === 1;
-                            return (
-                              <View
-                                key={index}
-                                style={[
-                                  styles.tableRow,
-                                  index % 2 !== 0 && styles.greyRow,
-                                ]}
-                              >
-                                <View style={styles.sizeCell}>
-                                  <Text
-                                    style={styles.cellText}
-                                    numberOfLines={2}
-                                  >
-                                    {decodeHtml(
-                                      item?.option_values_name[0]?.name,
-                                    )}
-                                  </Text>
-                                </View>
-
-                                <View style={styles.priceCell}>
-                                  <Text style={styles.cellText}>
-                                    {parseFloat(item?.price) === 0
-                                      ? ''
-                                      : `£${parseFloat(item?.price).toFixed(
-                                          2,
-                                        )}`}
-                                  </Text>
-                                </View>
-
-                                <View style={styles.stockCell}>
-                                  <Text
-                                    style={[
-                                      styles.stockText,
-                                      inStock === 0
-                                        ? styles.redQty
-                                        : styles.blackQty,
-                                    ]}
-                                  >
-                                    {inStock}
-                                  </Text>
-                                </View>
-
-                                <View style={styles.iconCell}>
-                                  <TouchableOpacity
-                                    disabled={isDisabled}
-                                    style={[
-                                      styles.iconContainer,
-                                      isDisabled
-                                        ? styles.iconDisabled
-                                        : [
-                                            styles.iconActive,
-                                            { backgroundColor: Color.RED },
-                                          ],
-                                    ]}
-                                    x
-                                    onPress={() => handleDecrease(index)}
-                                  >
-                                    <Text style={styles.iconSymbol}>−</Text>
-                                  </TouchableOpacity>
-                                </View>
-
-                                <View style={styles.qtyCellFixed}>
-                                  {inStock === 0 && selectedTab == 'Sales' ? (
-                                    <Text style={styles.nsText}>NS</Text>
-                                  ) : (
-                                    <TextInput
-                                      style={styles.qtyInput}
-                                      value={String(qty)}
-                                      keyboardType="numeric"
-                                      onChangeText={v =>
-                                        handleQtyTyping(index, v)
-                                      }
-                                      onEndEditing={() =>
-                                        handleFinalQty(index, inStock)
-                                      }
-                                    />
-                                  )}
-                                </View>
-
-                                <View style={styles.iconCell}>
-                                  <TouchableOpacity
-                                    disabled={isDisabled}
-                                    style={[
-                                      styles.iconContainer,
-                                      isDisabled
-                                        ? styles.iconDisabled
-                                        : [
-                                            styles.iconActive,
-                                            { backgroundColor: Color.GREEN2 },
-                                          ],
-                                    ]}
-                                    onPress={() =>
-                                      handleIncrease(index, inStock)
-                                    }
-                                  >
-                                    <Text style={styles.iconSymbol}>+</Text>
-                                  </TouchableOpacity>
-                                </View>
-                              </View>
-                            );
-                          }}
-                          showsVerticalScrollIndicator={false}
-                          initialNumToRender={10}
-                          maxToRenderPerBatch={5}
-                          windowSize={5}
-                          ListEmptyComponent={
-                            <View style={styles.emptyContainer}>
-                              {Platform.OS == 'android' ? (
-                                <FastImage
-                                  source={ImageData.NoData}
-                                  style={styles.gif}
-                                  // tintColor={'red'}
-                                  resizeMode={FastImage.resizeMode.contain}
-                                />
-                              ) : (
-                                <Text style={styles.emptyText}>
-                                  No items available
-                                </Text>
-                              )}
-                            </View>
-                          }
-                          contentContainerStyle={
-                            productsList?.options?.[0]?.option_values
-                              ?.length === 0
-                              ? styles.emptyContentContainer
-                              : {}
-                          }
-                        />
-                      </View>
+                      <OptionsTable
+                        productsList={productsList}
+                        selectedTab={selectedTab}
+                        rowQuantities={rowQuantities}
+                        handleDecrease={handleDecrease}
+                        handleIncrease={handleIncrease}
+                        handleQtyTyping={handleQtyTyping}
+                        handleFinalQty={handleFinalQty}
+                        styles={styles}
+                      />
                     ) : (
-                      <>
-                        <View style={styles.tableContainer}>
-                          <View
-                            style={[
-                              styles.tableRow,
-                              styles.greyRow,
-                              { backgroundColor: '#fff' },
-                            ]}
-                          >
-                            {/* NAME / SKU */}
-                            <View style={styles.sizeCell}>
-                              <Text style={styles.cellText}>
-                                {productsList?.sku
-                                  ? productsList?.sku
-                                  : productsList?.model}
-                              </Text>
-                            </View>
-
-                            <View style={styles.priceCell}>
-                              <Text style={[styles.cellText, styles.priceLink]}>
-                                £{parseFloat(productsList?.price).toFixed(2)}
-                              </Text>
-                            </View>
-
-                            {/* STOCK */}
-                            <View style={styles.stockCell}>
-                              <Text
-                                style={[
-                                  styles.stockText,
-                                  productsList?.quantity === 0
-                                    ? styles.redQty
-                                    : styles.blackQty,
-                                ]}
-                              >
-                                {productsList?.quantity}
-                              </Text>
-                            </View>
-
-                            {/* MINUS BUTTON */}
-                            <View style={styles.iconCell}>
-                              <TouchableOpacity
-                                disabled={productsList?.quantity === 0}
-                                style={[
-                                  styles.iconContainer,
-                                  productsList?.quantity === 0
-                                    ? styles.iconDisabled
-                                    : [
-                                        styles.iconActive,
-                                        { backgroundColor: Color.RED },
-                                      ],
-                                ]}
-                                onPress={() => handleDecrease('single')}
-                              >
-                                <Text style={styles.iconSymbol}>−</Text>
-                              </TouchableOpacity>
-                            </View>
-
-                            {/* QTY / NS */}
-                            <View style={styles.qtyCellFixed}>
-                              {productsList?.quantity === 0 ? (
-                                <Text style={[styles.qtyText, styles.nsText]}>
-                                  NS
-                                </Text>
-                              ) : (
-                                <TextInput
-                                  style={styles.qtyInput}
-                                  keyboardType="numeric"
-                                  value={(
-                                    rowQuantities.single?.qty ?? 0
-                                  ).toString()}
-                                  onChangeText={v => handleSingleTyping(v)}
-                                  onEndEditing={() =>
-                                    handleSingleFinal(productsList?.quantity)
-                                  }
-                                  maxLength={4}
-                                />
-                              )}
-                            </View>
-
-                            {/* PLUS BUTTON */}
-                            <View style={styles.iconCell}>
-                              <TouchableOpacity
-                                disabled={productsList?.quantity === 0}
-                                style={[
-                                  styles.iconContainer,
-                                  productsList?.quantity === 0
-                                    ? styles.iconDisabled
-                                    : [
-                                        styles.iconActive,
-                                        { backgroundColor: Color.GREEN2 },
-                                      ],
-                                ]}
-                                onPress={() =>
-                                  handleIncrease(
-                                    'single',
-                                    productsList?.quantity,
-                                  )
-                                }
-                              >
-                                <Text style={styles.iconSymbol}>+</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        </View>
-                      </>
+                      <SingleItemTable
+                        productsList={productsList}
+                        rowQuantities={rowQuantities}
+                        handleDecrease={handleDecrease}
+                        handleIncrease={handleIncrease}
+                        handleSingleTyping={handleSingleTyping}
+                        handleSingleFinal={handleSingleFinal}
+                        styles={styles}
+                      />
                     )}
 
-                    {productsList?.options?.[0]?.display == 1 &&
-                      productsList?.options?.[0]?.bespoke_value_req_epos ==
+                    {productsList?.options?.[0]?.display === 1 &&
+                      productsList?.options?.[0]?.bespoke_value_req_epos ===
                         1 && (
-                        <View
-                          style={[
-                            styles.tableContainer,
-                            { top: verticalScale(-10) },
-                          ]}
-                        >
-                          <View
-                            style={[
-                              styles.tableRow,
-                              styles.greyRow,
-                              { backgroundColor: '#fff' },
-                            ]}
-                          >
-                            {/* LENGTH */}
-                            <View style={styles.sizeCell}>
-                              <TextInput
-                                style={[
-                                  styles.qtyInput,
-                                  { width: '100%', textAlign: 'left' },
-                                ]}
-                                placeholder="Length"
-                                value={customLength}
-                                onChangeText={val =>
-                                  handleCustomLengthChange(
-                                    val,
-                                    productsList?.quantity,
-                                  )
-                                }
-                                keyboardType="numeric"
-                                placeholderTextColor="#aaa"
-                              />
-                            </View>
-
-                            {/* PRICE */}
-                            <View style={styles.priceCell}>
-                              <Text style={[styles.cellText, styles.priceLink]}>
-                                £
-                                {customLength === ''
-                                  ? '0.00'
-                                  : rowQuantities?.custom?.price ??
-                                    bespokeFactor.toFixed(2)}
-                                {/* {rowQuantities?.custom?.price ??
-                                  bespokeFactor.toFixed(2)} */}
-                              </Text>
-                            </View>
-
-                            {/* STOCK / CALCULATED PRICE */}
-                            <View style={styles.stockCell}>
-                              <Text style={[styles.stockText, styles.blackQty]}>
-                                -
-                              </Text>
-                            </View>
-
-                            {/* MINUS */}
-                            <View style={styles.iconCell}>
-                              <TouchableOpacity
-                                style={[
-                                  styles.iconContainer,
-                                  styles.iconActive,
-
-                                  { backgroundColor: Color.RED },
-                                ]}
-                                onPress={() => handleDecrease('custom')}
-                              >
-                                <Text style={styles.iconSymbol}>−</Text>
-                              </TouchableOpacity>
-                            </View>
-
-                            {/* QTY */}
-                            <View style={styles.qtyCellFixed}>
-                              <TextInput
-                                style={styles.qtyInput}
-                                keyboardType="numeric"
-                                value={(
-                                  rowQuantities.custom?.qty ?? 0
-                                ).toString()}
-                                onChangeText={text => {
-                                  if (customLength !== '') {
-                                    handleCustomTyping(
-                                      text,
-                                      bespokeFactor,
-                                      customLength,
-                                    );
-                                  } else {
-                                    showToast(
-                                      'danger',
-                                      'No items selected',
-                                      'Please enter length for custom item',
-                                    );
-                                  }
-                                }}
-                                onEndEditing={() => {
-                                  if (customLength !== '') {
-                                    handleCustomFinal(
-                                      bespokeFactor,
-                                      customLength,
-                                    );
-                                  }
-                                }}
-                              />
-                            </View>
-
-                            {/* PLUS */}
-                            <View style={styles.iconCell}>
-                              <TouchableOpacity
-                                style={[
-                                  styles.iconContainer,
-                                  styles.iconActive,
-                                  { backgroundColor: Color.GREEN2 },
-                                ]}
-                                onPress={() => {
-                                  if (customLength !== '') {
-                                    handleIncrease('custom');
-                                  } else {
-                                    showToast(
-                                      'danger',
-                                      'No items selected',
-                                      'Please enter length for custom item',
-                                    );
-                                  }
-                                }}
-                              >
-                                <Text style={styles.iconSymbol}>+</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        </View>
+                        <BespokeCalculator
+                          customLength={customLength}
+                          productsList={productsList}
+                          rowQuantities={rowQuantities}
+                          bespokeFactor={bespokeFactor}
+                          handleCustomLengthChange={handleCustomLengthChange}
+                          handleDecrease={handleDecrease}
+                          handleIncrease={handleIncrease}
+                          handleCustomTyping={handleCustomTyping}
+                          handleCustomFinal={handleCustomFinal}
+                          styles={styles}
+                        />
                       )}
 
-                    {productsList?.has_option != 0 &&
+                    {productsList?.has_option !== 0 &&
                       productsList?.options?.length >= 2 && (
                         <>
                           <View
@@ -1297,7 +870,6 @@ const DisplayItems = ({ navigation, route }) => {
                               flexDirection: 'row',
                               flex: 1,
                               paddingHorizontal: 10,
-
                               alignItems: 'center',
                             }}
                           >
@@ -1320,7 +892,6 @@ const DisplayItems = ({ navigation, route }) => {
                               placeholderStyle={styles.placeholderStyle}
                               selectedTextStyle={styles.selectedTextStyle}
                               iconStyle={styles.iconStyle}
-                              // data={productsList?.options[1]?.option_values}
                               data={dropdownData}
                               search={false}
                               maxHeight={verticalScale(150)}
@@ -1332,200 +903,38 @@ const DisplayItems = ({ navigation, route }) => {
                               onChange={item => {
                                 setValue(item.value);
                                 setSelectedValue(item);
-                                setOptionError(false);
                               }}
-                              // renderLeftIcon={() => (
-                              //   <FastImage
-                              //     style={styles.icon}
-                              //     source={IconData?.SAFTY}
-                              //     resizeMode={FastImage.resizeMode.contain}
-                              //     // onError={handleError}
-                              //   />
-                              // )}
                               renderItem={renderItem3}
                             />
                           </View>
-                          {/* {optionError && (
-                            <Text
-                              style={{
-                                color: 'red',
-                                fontSize: 12,
-                                marginBottom: verticalScale(10),
-                                marginTop: verticalScale(3),
-                                paddingHorizontal: verticalScale(15),
-                                textAlign: 'right',
-                              }}
-                            >
-                              Please select{' '}
-                              {
-                                productsList?.options[1]?.option_descriptions
-                                  ?.name
-                              }
-                            </Text>
-                          )} */}
                         </>
                       )}
                   </>
                 ) : (
-                  <>
-                    <View style={styles.container1}>
-                      <View
-                        style={[
-                          styles.labelRow,
-                          {
-                            gap:
-                              windowHeight > 1100
-                                ? verticalScale(100)
-                                : verticalScale(25),
-                          },
-                        ]}
-                      >
-                        <Text style={styles.redLabel}>Width (mm)</Text>
-                        <Text style={styles.redLabel}>Height(mm)</Text>
-                      </View>
-
-                      <View style={styles.bigBoxRow}>
-                        {/* Width */}
-                        <TextInput
-                          style={[
-                            styles.boxInput,
-                            { textAlign: width ? 'center' : 'left' },
-                          ]}
-                          placeholder="Width"
-                          keyboardType="numeric"
-                          value={width}
-                          onChangeText={setWidth}
-                        />
-
-                        {/* Divider */}
-                        <View style={styles.divider} />
-
-                        {/* Length */}
-                        <TextInput
-                          style={[
-                            styles.boxInput,
-                            { textAlign: length ? 'center' : 'left' },
-                          ]}
-                          placeholder="Length"
-                          keyboardType="numeric"
-                          value={length}
-                          selection={length ? undefined : { start: 0, end: 0 }}
-                          onChangeText={setLength}
-                        />
-
-                        {/* Divider */}
-                        <View style={styles.divider} />
-
-                        <View style={styles.iconBtn}>
-                          <TouchableOpacity
-                            style={[
-                              styles.buttonBox,
-                              { backgroundColor: Color.RED },
-                            ]}
-                            onPress={() => {
-                              // setQuantity(Math.max(0, quantity - 1));
-                              setQuantity(prev => Math.max(1, prev - 1));
-                              // calculatePrice();
-                            }}
-                          >
-                            <Text style={styles.iconText}>−</Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        {/* Divider */}
-                        <View style={styles.divider} />
-
-                        <View style={styles.qtyBox}>
-                          <TextInput
-                            style={styles.qtyInput}
-                            keyboardType="numeric"
-                            value={String(quantity)}
-                            onChangeText={text => {
-                              if (text === '') {
-                                setQuantity('');
-                                return;
-                              }
-                              const num = Number(text);
-                              if (isNaN(num)) return;
-                              setQuantity(num);
-                              // calculatePrice();
-                            }}
-                            onEndEditing={() => {
-                              if (quantity === '') setQuantity(1);
-                            }}
-                          />
-                        </View>
-
-                        {/* Divider */}
-                        <View style={styles.divider} />
-
-                        <View style={styles.iconBtn}>
-                          <TouchableOpacity
-                            style={[
-                              styles.buttonBox,
-                              { backgroundColor: Color.GREEN2 },
-                            ]}
-                            onPress={() => {
-                              setQuantity(quantity + 1);
-                              calculatePrice();
-                            }}
-                          >
-                            <Text style={styles.iconText}>+</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-
-                      {/* Bottom row */}
-                      <View style={styles.bottomRow1}>
-                        <TouchableOpacity
-                          style={styles.calcButton1}
-                          onPress={calculatePrice}
-                        >
-                          <Text style={styles.calcText1}>Calculate Price</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.priceContainer1}>
-                          <Text style={styles.priceLine1}>
-                            Price:{' '}
-                            <Text style={styles.priceValue1}>£{price}</Text>
-                          </Text>
-                          <Text style={styles.vatText1}>inc VAT</Text>
-                        </View>
-                      </View>
-                    </View>
-                  </>
+                  <MatrixCalculator
+                    width={width}
+                    setWidth={setWidth}
+                    length={length}
+                    setLength={setLength}
+                    quantity={quantity}
+                    setQuantity={setQuantity}
+                    price={price}
+                    calculatePrice={calculatePrice}
+                    styles={styles}
+                  />
                 )}
 
                 {productsList?.options?.[0]?.option_values?.length > 4 &&
                   productsList?.matrix?.length <= 0 && (
-                    <View style={styles.buttonRow}>
-                      <TouchableOpacity
-                        style={styles.editBtn}
-                        onPress={() => {
-                          navigation.navigate('WebViewScreen', {
-                            payload: payload,
-                          });
-                        }}
-                      >
-                        <Text style={styles.addText}>Edit Stock & Price</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.addBtn}
-                        onPress={() => {
-                          if (productsList?.matrix?.length <= 0) {
-                            addToBasket();
-                          } else {
-                            matrixAddToBasket();
-                          }
-                        }}
-                      >
-                        <Text style={styles.addText}>
-                          {selectedTab === 'Sales'
-                            ? 'Add To Basket'
-                            : 'Add To Refund'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                    <ActionButtons
+                      navigation={navigation}
+                      payload={payload}
+                      productsList={productsList}
+                      selectedTab={selectedTab}
+                      addToBasket={addToBasket}
+                      matrixAddToBasket={matrixAddToBasket}
+                      styles={styles}
+                    />
                   )}
               </ScrollView>
             )}
@@ -1672,12 +1081,6 @@ const styles = ScaledSheet.create({
     color: 'red',
   },
 
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-
   emptyContentContainer: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -1752,12 +1155,6 @@ const styles = ScaledSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  iconBtn: {
-    width: verticalScale(45),
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 
   buttonBox: {
     width: 30,
@@ -1781,11 +1178,6 @@ const styles = ScaledSheet.create({
     width: verticalScale(45),
     justifyContent: 'center',
     alignItems: 'center',
-  },
-
-  qtyText: {
-    fontSize: 18,
-    fontWeight: '600',
   },
 
   bottomRow1: {
@@ -1892,15 +1284,6 @@ const styles = ScaledSheet.create({
     fontSize: 15,
     fontWeight: '500',
     textAlign: 'center',
-  },
-
-  iconCell: {
-    // width: 40,
-    width: verticalScale(40),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRightWidth: 1,
-    borderColor: '#D9D9D9',
   },
 
   iconContainer: {

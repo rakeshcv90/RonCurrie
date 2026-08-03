@@ -1,4 +1,4 @@
-import { View, Text } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import React, { createRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import Router from './src/Navigation/Router';
@@ -8,6 +8,7 @@ import store from './src/Redux/store';
 import {navigationRef} from './src/Navigation/NavigationService'
 import AttractiveModal from './src/Component/AttractiveModal';
 import NetworkStatus from './src/Component/NetworkStatus';
+import LiveFeedSync from './src/Component/LiveFeedSync';
 
 export const toastRef = createRef();
 export const modalRef = createRef();
@@ -15,7 +16,7 @@ export const modalRef = createRef();
 const App = () => {
   return (
     <Provider store={store}>
-      <View style={{ flex: 1 }}>
+      <View style={styles.container}>
         <NavigationContainer ref={navigationRef}>
           <Router />
         </NavigationContainer>
@@ -23,9 +24,16 @@ const App = () => {
         <ToastMessage ref={toastRef} />
         <AttractiveModal ref={modalRef} />
         <NetworkStatus />
+        <LiveFeedSync />
       </View>
     </Provider>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
 
 export default App;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -10,6 +10,8 @@ import {
   Dimensions,
   ScrollView,
   useWindowDimensions,
+  Animated,
+  Easing,
 } from 'react-native';
 import { scale } from 'react-native-size-matters';
 import { ImageBaseUrl } from '../../utility/api';
@@ -17,8 +19,71 @@ import RenderHTML from 'react-native-render-html';
 import { decode } from 'html-entities';
 import { Color, FONT } from '../../Component/Image';
 import FastImage from 'react-native-fast-image';
+import LinearGradient from 'react-native-linear-gradient';
 
 const { width } = Dimensions.get('window');
+
+const ImageItem = ({ item }) => {
+  const [loading, setLoading] = useState(true);
+  const shimmerTranslate = useRef(new Animated.Value(-1)).current;
+
+  useEffect(() => {
+    let animation;
+    if (loading) {
+      animation = Animated.loop(
+        Animated.timing(shimmerTranslate, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      animation.start();
+    }
+    return () => {
+      if (animation) {
+        animation.stop();
+      }
+    };
+  }, [loading, shimmerTranslate]);
+
+  const translateX = shimmerTranslate.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [-200, 200],
+  });
+
+  return (
+    <View style={[styles.productImage, { overflow: 'hidden', backgroundColor: '#E0E0E0' }]}>
+      <FastImage
+        style={StyleSheet.absoluteFill}
+        source={{
+          uri: `${ImageBaseUrl}${item?.image}?w=150&h=150`,
+          priority: FastImage.priority.high,
+          cache: FastImage.cacheControl.immutable,
+        }}
+        resizeMode={FastImage.resizeMode.stretch}
+        onLoadStart={() => setLoading(true)}
+        onLoadEnd={() => setLoading(false)}
+        onError={() => setLoading(false)}
+      />
+      {loading && (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { transform: [{ translateX }] },
+          ]}
+        >
+          <LinearGradient
+            colors={['transparent', 'rgba(255,255,255,0.7)', 'transparent']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      )}
+    </View>
+  );
+};
 
 const ProductModal = ({ visible, onClose, product }) => {
   const { width } = useWindowDimensions();
@@ -49,19 +114,7 @@ const ProductModal = ({ visible, onClose, product }) => {
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => (
-              <FastImage
-                style={styles.productImage}
-                source={{
-                  // uri: ImageBaseUrl + item.image,
-                  uri: `${ImageBaseUrl}${item?.image}?w=150&h=150`,
-                priority: FastImage.priority.high,
-
-                  cache: FastImage.cacheControl.immutable,
-                }}
-                resizeMode={FastImage.resizeMode.stretch}
-              />
-            )}
+            renderItem={({ item }) => <ImageItem item={item} />}
           />
 
           <Text style={styles.title}>{product?.isbn}</Text>

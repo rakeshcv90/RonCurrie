@@ -23,7 +23,7 @@ const PrintModel = ({ visible, onClose, printData }) => {
   const { a4PrintDetails, loading, error } = useSelector(
     state => state.a4PrintData,
   );
-  console.log('xvdddddd', a4PrintDetails?.products[0]);
+
   const STAR_PASSPRNT_SCHEME = 'starpassprnt://';
   const [selectedOption, setSelectedOption] = useState('A4');
 
@@ -512,7 +512,7 @@ const PrintModel = ({ visible, onClose, printData }) => {
              <!-- TOTAL VALUE -->
              <td class="right" style="font-weight:600;">
                £${Number(item.value || 0).toFixed(2)}
-             </td>Suc
+             </td>
            </tr>
          `,
          )
@@ -657,10 +657,8 @@ ${
     ? product.order_options
         .map(
           opt => `
-        <div class="product-sub" style="white-space: ${
-          opt.name === 'Length' ? 'nowrap' : 'normal'
-        };">
-          - ${opt.name}: ${opt.value}
+        <div class="product-sub">
+          -${opt.name}: ${opt.value}
         </div>
       `,
         )
@@ -737,14 +735,14 @@ ${
 html, body{
   width:145mm;
   margin:0;
-  padding:10px;
+  padding:0;
 }
 
 body{
   font-family: Arial, sans-serif;
   font-size:30px;
   color:#000;
-  padding:5px;
+  padding:0;
   line-height:1.3;
 }
 
@@ -753,6 +751,7 @@ body{
 .order-id{
   font-size:50px;
   font-weight:600;
+  margin-top:0;
   margin-bottom:2px;
 }
 .redPrice{
@@ -833,7 +832,7 @@ td{
 
 .product-sub{
   font-size:22px;
-   width:52%;
+  width:100%;
 }
 .nowrap {
   white-space: nowrap;

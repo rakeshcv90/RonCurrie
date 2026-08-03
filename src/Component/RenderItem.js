@@ -16,6 +16,7 @@ import {
   fetchCartData,
   triggerCartRefresh,
   triggerMiscRefresh,
+  updateLocalCartQuantity,
 } from '../Redux/Slice/CartDataShowSlice';
 import { showToast } from '../utility/showToast';
 import Loader from './Loader';
@@ -267,16 +268,14 @@ const RenderItem = ({ item, navigation }) => {
     }
 
     const currentQty = latestQtyRef.current;
-
-    if (availableQty > currentQty) {
-      const newQty = currentQty + 1;
-      // Update locally immediately
-      setLocalQty(newQty);
-      setInputQty(String(newQty));
-      latestQtyRef.current = newQty;
-      // Schedule debounced API call
-      debouncedApiCall(newQty, item?.cart_id, item?.mode);
-    }
+    const newQty = currentQty + 1;
+    // Update locally immediately
+    setLocalQty(newQty);
+    setInputQty(String(newQty));
+    latestQtyRef.current = newQty;
+    dispatch(updateLocalCartQuantity({ cartId: item?.cart_id, newQty }));
+    // Schedule debounced API call
+    debouncedApiCall(newQty, item?.cart_id, item?.mode);
   };
 
   const handleDecrement = item => {
@@ -287,6 +286,7 @@ const RenderItem = ({ item, navigation }) => {
     setLocalQty(Math.max(newQty, 0));
     setInputQty(String(Math.max(newQty, 1)));
     latestQtyRef.current = Math.max(newQty, 0);
+    dispatch(updateLocalCartQuantity({ cartId: item?.cart_id, newQty }));
     // Schedule debounced API call
     debouncedApiCall(newQty, item?.cart_id, item?.mode);
   };
@@ -340,26 +340,11 @@ const RenderItem = ({ item, navigation }) => {
 
     // ✅ stock check
 
-    console.log('Blurred with text:', qty, item?.quantity);
-    // if (qty > item?.quantity) {
-    //   showToast('danger', 'Cart Update Failed', 'Out of stock');
-    //   qty = item?.quantity;
-    //   // setInputQty(String(qty));
-    //   return
-    // }
-
-    if (qty > item?.quantity) {
-      showToast('danger', 'Cart Update Failed', 'Out of stock');
-
-      // ✅ reset to actual available or previous cart qty
-      const validQty = item?.cart_quantity;
-
-      setInputQty(String(validQty)); // ✅ update UI immediately
-      return;
-    }
-
     // ✅ update input + UI
+    setLocalQty(qty);
+    latestQtyRef.current = qty;
     setInputQty(String(qty));
+    dispatch(updateLocalCartQuantity({ cartId: item?.cart_id, newQty: qty }));
 
     // ✅ CALL API HERE
     // await updateCartQtyFromInput(item, qty, type);

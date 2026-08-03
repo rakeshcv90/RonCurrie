@@ -6,13 +6,16 @@ import {
   Modal,
   ScrollView,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { ScaledSheet, moderateScale } from 'react-native-size-matters';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
+import { showToast } from '../utility/showToast';
 import Loader from './Loader';
 import { Color, FONT } from './Image';
+import { MMKVStorage } from '../utility/MmkvStore';
 
 const DeliveryOptionsModal = ({
   visible,
@@ -21,12 +24,14 @@ const DeliveryOptionsModal = ({
   cartData,
   addressData,
   areaPin,
+  selectedOptionId,
 }) => {
   const [selected, setSelected] = useState(null);
   const [selectedDates, setSelectedDates] = useState({});
   const [listData, setListData] = useState([]);
   const [loader, setLoader] = useState(true);
   const [openDrop, setOpenDrop] = useState(null);
+  const [selectedFinalOption, setSelectedFinalOption] = useState(null);
 
   const [selectedName, setSelectedName] = useState(null);
   const [selectedPrice, setSelectedPrice] = useState(null);
@@ -76,26 +81,6 @@ const DeliveryOptionsModal = ({
       addressObj.address2 = parts.join(', ');
     }
 
-    // if (parts?.length === 2) {
-    //   addressObj = {
-    //     address1: parts[0],
-    //     city: parts[1],
-    //   };
-    // } else if (parts?.length === 3) {
-    //   addressObj = {
-    //     company: parts[0],
-    //     address1: parts[1],
-    //     city: parts[2],
-    //   };
-    // } else if (parts?.length === 4) {
-    //   addressObj = {
-    //     company: parts[0],
-    //     address1: parts[1],
-    //     address2: parts[2],
-    //     city: parts[3],
-    //   };
-    // }
-
     try {
       const payloadData = {
         shipping_type: 'delivery',
@@ -106,19 +91,6 @@ const DeliveryOptionsModal = ({
         address_2: addressObj.address2 || '',
         city: addressObj.city || '',
         postcode: areaPin,
-
-        // cart_data: cartData?.map(item => ({
-
-        //   product_id: item?.product_id,
-        //   option: {
-        //     [item?.product_option_id ?? 0]:
-        //       item.product_option_value_id &&
-        //       item.product_option_value_id !== ''
-        //         ? item.product_option_value_id
-        //         : '0',
-        //   },
-        //   quantity: item?.cart_quantity,
-        // })),
 
         cart_data: cartData?.map(item => {
           let optionObj = {};
@@ -160,33 +132,23 @@ const DeliveryOptionsModal = ({
         const shippingList = response.data?.data?.ocaaspro?.quote ?? [];
         setListData(shippingList);
 
-        if (shippingList.length > 0 && shippingList.length == 1) {
-          const first = shippingList[0];
+        if (shippingList.length > 0) {
+          let first = null;
 
-          setSelected(first.detail_id);
-
-          // SAVE NAME & PRICE
-          setSelectedName(first.title);
-          setSelectedPrice(first.text);
-
-          const estimate = first?.delivery_dates?.delivery_estimate;
-
-          if (Array.isArray(estimate)) {
-            setSelectedDates({
-              [first.detail_id]: estimate[0],
-            });
-          } else if (typeof estimate === 'string') {
-            setSelectedDates({
-              [first.detail_id]: estimate?.estimate,
-            });
-          } else if (typeof estimate === 'object' && estimate !== null) {
-            const firstValue = Object.values(estimate)[0];
-            setSelectedDates({ [first.detail_id]: firstValue });
+          if (selectedOptionId) {
+            first = shippingList.find(item => item.detail_id === selectedOptionId);
           }
-        } else {
-          const first = shippingList[1];
+
+          if (!first) {
+            if (shippingList.length === 1) {
+              first = shippingList[0];
+            } else {
+              first = shippingList[1] || shippingList[0];
+            }
+          }
 
           setSelected(first.detail_id);
+          setSelectedFinalOption(first);
 
           // SAVE NAME & PRICE
           setSelectedName(first.title);
@@ -200,16 +162,49 @@ const DeliveryOptionsModal = ({
             });
           } else if (typeof estimate === 'string') {
             setSelectedDates({
-              [first.detail_id]: estimate?.estimate,
+              [first.detail_id]: estimate,
             });
           } else if (typeof estimate === 'object' && estimate !== null) {
-            const firstValue = Object.values(estimate)[0];
+            const firstValue = estimate?.estimate || Object.values(estimate)[0];
             setSelectedDates({ [first.detail_id]: firstValue });
           }
         }
       }
     } catch (e) {
       console.log('Delivery Option Error:', e);
+    } finally {
+      setLoader(false);
+    }
+  };
+
+  const handleApplyPress = async () => {
+    setLoader(true);
+    // console.log('selected', selectedFinalOption);
+
+    try {
+      const userData = await MMKVStorage.getItem('User_Data');
+      const customerId = userData?.customer_id || '';
+
+      const payload = {
+        customer_id: String(customerId),
+        delivery_details: selectedFinalOption,
+      };
+
+      const response = await postData(Api.DELIVERIES, payload);
+
+      if (response?.status === 201) {
+        onApply({
+          id: selected,
+          date: selectedDates[selected],
+          name: selectedName,
+          price: selectedPrice,
+        });
+      } else {
+        setLoader(false);
+      }
+    } catch (e) {
+      console.log('Apply Shipping Error:', e);
+      showToast('danger', 'Error', 'Failed to apply shipping option');
     } finally {
       setLoader(false);
     }
@@ -239,155 +234,7 @@ const DeliveryOptionsModal = ({
                 <Text style={styles.subtitle}>
                   Please select the preferred delivery method
                 </Text>
-                {/* {listData?.length > 0 ? (
-                  <>
-                    {listData.map((item, idx) => {
-                      const estimate = item?.delivery_dates?.delivery_estimate;
 
-                      console.log('ESTIMATE DATA:', estimate);
-
-                      return (
-                        <View key={idx}>
-                          <TouchableOpacity
-                            style={styles.optionRow}
-                            onPress={() => {
-                              setSelected(item.detail_id);
-
-                          
-                              setSelectedName(item.title);
-                              setSelectedPrice(item.text);
-
-                              if (Array.isArray(estimate)) {
-                                setSelectedDates(prev => ({
-                                  ...prev,
-                                  [item.detail_id]: estimate[0],
-                                }));
-                              } else {
-                                setSelectedDates(prev => ({
-                                  ...prev,
-                                  [item.detail_id]: estimate?.estimate,
-                                }));
-                              }
-                            }}
-                          >
-                            <Ionicons
-                              name={
-                                selected === item.detail_id
-                                  ? 'radio-button-on'
-                                  : 'radio-button-off'
-                              }
-                              size={20}
-                              color="#b20000"
-                            />
-                            <Text style={styles.optionText}>
-                              {item.title} - {item.text}
-                            </Text>
-                          </TouchableOpacity>
-
-                        
-                          {Array.isArray(estimate) && (
-                            <>
-                              <Text style={styles.label}>
-                                Select Preferred Date
-                              </Text>
-
-                              <TouchableOpacity
-                                style={styles.dropdown}
-                                onPress={() =>
-                                  setOpenDrop(openDrop === idx ? null : idx)
-                                }
-                              >
-                                <Text style={styles.dropdownText}>
-                                  {selectedDates[item.detail_id] ||
-                                    'Select date'}
-                                </Text>
-                                <Ionicons name="chevron-down" size={18} />
-                              </TouchableOpacity>
-
-                              {openDrop === idx && (
-                                <View style={styles.dateList}>
-                                  {estimate.map((dt, i) => (
-                                    <TouchableOpacity
-                                      key={i}
-                                      style={styles.dateItem}
-                                      onPress={() => {
-                                        setSelectedDates(prev => ({
-                                          ...prev,
-                                          [item.detail_id]: dt,
-                                        }));
-                                        setOpenDrop(null);
-                                      }}
-                                    >
-                                      <Text style={styles.dateText}>{dt}</Text>
-                                    </TouchableOpacity>
-                                  ))}
-                                </View>
-                              )}
-                            </>
-                          )}
-
-                          {typeof estimate === 'object' &&
-                            !Array.isArray(estimate) && (
-                              <View>
-                                <Text style={styles.label}>
-                                  Estimated Delivery:
-                                </Text>
-
-                                {Object.entries(estimate).map(
-                                  ([key, value]) => (
-                                    <Text key={key} style={styles.estimate}>
-                                      {value}
-                                    </Text>
-                                  ),
-                                )}
-                              </View>
-                            )}
-
-                          <View style={styles.divider} />
-                        </View>
-                      );
-                    })}
-
-                    <View style={styles.buttonRow}>
-                      <TouchableOpacity
-                        style={styles.cancelBtn}
-                        onPress={onClose}
-                      >
-                        <Text style={styles.cancelText}>Cancel</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.applyBtn}
-                        onPress={() =>
-                          onApply({
-                            id: selected,
-                            date: selectedDates[selected],
-                            name: selectedName,
-                            price: selectedPrice,
-                          })
-                        }
-                      >
-                        <Text style={styles.applyText}>Apply To Order</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <Text
-                      style={[
-                        styles.subtitle,
-                        {
-                          fontSize: 18,
-                          color: Color.RED,
-                          fontFamily: FONT.BOLD,
-                          textAlign: 'center',
-                        },
-                      ]}
-                    >
-                      No Delivery options are available
-                    </Text>
-                  </>
-                )} */}
                 {listData?.length > 0 ? (
                   <>
                     {listData.map((item, idx) => {
@@ -399,6 +246,7 @@ const DeliveryOptionsModal = ({
                           <TouchableOpacity
                             style={styles.optionRow}
                             onPress={() => {
+                              setSelectedFinalOption(item);
                               setSelected(item.detail_id);
 
                               setSelectedName(item.title);
@@ -419,7 +267,7 @@ const DeliveryOptionsModal = ({
                               } else if (typeof estimate === 'object') {
                                 setSelectedDates(prev => ({
                                   ...prev,
-                                  [item.detail_id]: estimate?.estimate,
+                                  [item.detail_id]: estimate?.estimate || Object.values(estimate)[0],
                                 }));
                               }
                             }}
@@ -524,16 +372,14 @@ const DeliveryOptionsModal = ({
 
                       <TouchableOpacity
                         style={styles.applyBtn}
-                        onPress={() =>
-                          onApply({
-                            id: selected,
-                            date: selectedDates[selected],
-                            name: selectedName,
-                            price: selectedPrice,
-                          })
-                        }
+                        onPress={handleApplyPress}
+                        disabled={loader}
                       >
-                        <Text style={styles.applyText}>Apply To Order</Text>
+                        {loader ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={styles.applyText}>Apply To Order</Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </>

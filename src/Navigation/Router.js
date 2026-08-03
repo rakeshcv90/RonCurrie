@@ -28,6 +28,8 @@ import CategoryList from '../Screen/Category/CategoryList';
 import CategoryList2 from '../Screen/Category/CategoryList2';
 import CategoryPage from '../Screen/Category/CategoryPage';
 import WebScreen from '../Screen/Category/WebScreen';
+import LiveFeeds from '../Screen/LiveFeeds';
+import OtpScreen from '../Screen/OtpScreen';
 
 const screenOptions = {
   headerShown: false,
@@ -74,7 +76,9 @@ const Router = () => {
       <Stack.Screen name="CategoryList" component={CategoryList} />
       <Stack.Screen name="CategoryList2" component={CategoryList2} />
       <Stack.Screen name="CategoryPage" component={CategoryPage} />
-    <Stack.Screen name="WebScreen" component={WebScreen} />
+      <Stack.Screen name="WebScreen" component={WebScreen} />
+      <Stack.Screen name="LiveFeeds" component={LiveFeeds} />
+      <Stack.Screen name="OtpScreen" component={OtpScreen} />
     </Stack.Navigator>
   );
 };

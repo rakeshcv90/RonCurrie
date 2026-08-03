@@ -1,14 +1,15 @@
+/* eslint-disable react-native/no-inline-styles */
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StatusBar,
-  Image,
   Alert,
   KeyboardAvoidingView,
   ScrollView,
   Keyboard,
+  Platform,
 } from 'react-native';
 import {
   moderateScale,
@@ -16,9 +17,8 @@ import {
   verticalScale,
 } from 'react-native-size-matters';
 import React, { useState } from 'react';
-import { Color, FONT, IconData, ImageData } from '../Component/Image';
+import { Color, FONT, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from '@react-native-vector-icons/ionicons';
 import FastImage from 'react-native-fast-image';
 import { postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
@@ -41,17 +41,19 @@ const ForgotPassword = ({ navigation }) => {
       };
 
       const response = await postData(Api.FORGOT_PASSWORD, payload);
-     
+      console.log('response', response?.data);
       if (response?.status === 200) {
         setLoader(false);
         setEmail('');
         showToast('success', 'Success', response?.data?.message);
+        setTimeout(() => {
+          navigation.goBack();
+        }, 1000);
       } else {
         setLoader(false);
       }
     } catch (error) {
       setLoader(false);
-      showToast('danger', 'Error', error.message || 'Something went wrong');
     }
   };
   return (

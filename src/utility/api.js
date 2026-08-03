@@ -1,10 +1,17 @@
+// // Local
+// export const BaseUrl ='https://backend.roncurry.co.uk/api/v1/frontend/';
+// export const ImageBaseUrl ='https://backend.roncurry.co.uk/image/';
+
+// Live Server
 export const BaseUrl = 'https://api.roncurrie.co.uk/api/v1/frontend/'; //New Live Server
 export const ImageBaseUrl = 'https://api.roncurrie.co.uk/image/';
 
 export const Api = {
   LOGIN: 'login',
   SIGNUP: 'register',
-  FORGOT_PASSWORD: 'forget-password',
+  // FORGOT_PASSWORD: 'forget-password',
+  FORGOT_PASSWORD: 'send-password-reset-link',
+  OTP_VERIFY: 'verify-otp',
   CHANGE_PASSWOIRD: 'epos/account/change-password',
   EPOS_HOME_PAGE: 'eposHomePage',
   BAR_CODE_SCANNER: 'barCodeScanner',
@@ -32,4 +39,9 @@ export const Api = {
   CATEGORIES: 'categories',
   GET_MISC: 'epos/miscellaneous',
   ADD_MISC: 'epos/miscellaneous',
+  GET_CART_LIVE_FEED: 'epos/get-cart-live-feed',
+  LOGOUT: 'epos/account/logout',
+  VERY_OTP: 'verify-otp',
+  RESET_OTP: 'resend-otp',
+  DELIVERIES: 'epos/deliveries',
 };

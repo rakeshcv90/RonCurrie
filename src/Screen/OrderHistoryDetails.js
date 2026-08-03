@@ -44,7 +44,7 @@ import ReactNativeBlobUtil from 'react-native-blob-util';
 import * as Keychain from 'react-native-keychain';
 const OrderHistoryDetails = ({ navigation, route }) => {
   const order_id = route?.params?.orderItem;
-  console.log('xzcxcxcvxvcvxccxvcvxcvxcxvcxv', order_id);
+
   const searchRef = useRef(null);
   const [loader, setLoader] = useState(false);
   const [printVisible, setPrintVisible] = useState(false);

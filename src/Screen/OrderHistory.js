@@ -34,6 +34,9 @@ import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import CartComponent from '../Component/CartComponent';
 import decodeHtml from '../utility/decodeHtml';
 import ActionBottomSheet from '../Component/ActionBottomSheet';
+const FLATLIST_STYLE = { flexGrow: 0 };
+const FLATLIST_CONTENT_STYLE = { paddingBottom: 0 };
+
 const OrderHistory = ({ navigation }) => {
   const dispatch = useDispatch();
   const [search, setSearch] = useState('');
@@ -46,7 +49,6 @@ const OrderHistory = ({ navigation }) => {
   const [loader, setLoader] = useState(false);
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
   const hasInitialLoaded = useRef(false);
   const searchRef = useRef(null);
   const bottomSheetRef = useRef(null);
@@ -55,29 +57,17 @@ const OrderHistory = ({ navigation }) => {
     try {
       await dispatch(
         fetchOrderList({
-          page: pageNumber,
           limit,
           search: searchTerm,
         }),
       ).unwrap();
       setLastFetched(Date.now());
     } catch (error) {
-      showToast('danger', 'Error', error.message || 'Something went wrong');
+      // Errors are already handled by handleApiError (toasts/modals)
     }
   };
 
   useFocusEffect(
-    // useCallback(() => {
-    //   const fiveMinutes = 5 * 60 * 1000;
-    //   const shouldRefresh =
-    //     !lastFetched || Date.now() - lastFetched > fiveMinutes;
-
-    //   if (shouldRefresh) {
-    //     setPage(1);
-    //     loadData(1, search);
-    //   }
-    // }, [lastFetched]),
-
     useCallback(() => {
       const fiveMinutes = 5 * 60 * 1000;
       const shouldRefresh =
@@ -124,39 +114,32 @@ const OrderHistory = ({ navigation }) => {
       loadData(1, '');
     }
   };
-  const reOrder = async itemData => {
-    setLoader(true);
-    try {
-      const order_id = itemData?.order_id;
-      const responseData = await postData(Api.RE_ORDER_FULL_ORDER, {
-        order_id,
-      });
+  const reOrder = useCallback(
+    async itemData => {
+      setLoader(true);
+      try {
+        const order_id = itemData?.order_id;
+        const responseData = await postData(Api.RE_ORDER_FULL_ORDER, {
+          order_id,
+        });
 
-      if (responseData?.data != undefined) {
-        setLoader(false);
-        if (responseData?.status == 200) {
-          showToast('success', 'Success!', responseData?.data?.message);
-          dispatch(triggerCartRefresh());
-          dispatch(triggerMiscRefresh());
-        } else {
-          showToast('danger', 'Network Error', 'Something went wrong');
+        if (responseData?.data != undefined) {
+          setLoader(false);
+          if (responseData?.status == 200) {
+            showToast('success', 'Success!', responseData?.data?.message);
+            dispatch(triggerCartRefresh());
+            dispatch(triggerMiscRefresh());
+          } else {
+            showToast('danger', 'Network Error', 'Something went wrong');
+          }
         }
+      } catch (error) {
+        setLoader(false);
+        // Errors are already handled by handleApiError (toasts/modals)
       }
-    } catch (error) {
-      setLoader(false);
-      if (error.type === 'network') {
-        showToast('danger', 'Network Error', error.message);
-      } else if (error.type === 'response') {
-        showToast('danger', 'Request Failed', error.message);
-      } else {
-        showToast(
-          'danger',
-          'Unexpected Error',
-          error.message || 'Something went wrong',
-        );
-      }
-    }
-  };
+    },
+    [dispatch],
+  );
 
   const handleItemPress = useCallback(item => {
     dispatch(clearProducts());
@@ -223,7 +206,7 @@ const OrderHistory = ({ navigation }) => {
     return `${day}/${month}/${year}`;
   }, []);
 
-  const downloadInvoice = async item => {
+  const downloadInvoice = useCallback(async item => {
     setLoader(true);
     try {
       const order_id = item?.order_id;
@@ -272,9 +255,9 @@ const OrderHistory = ({ navigation }) => {
       showToast('danger', 'Error', 'Failed to download invoice');
       console.log('Download error', error);
     }
-  };
+  }, []);
 
-  const sendEmailInvoice = async item => {
+  const sendEmailInvoice = useCallback(async item => {
     setLoader(true);
     try {
       const order_id = item?.order_id;
@@ -304,19 +287,101 @@ const OrderHistory = ({ navigation }) => {
       }
     } catch (error) {
       setLoader(false);
-      if (error.type === 'network') {
-        showToast('danger', 'Network Error', error.message);
-      } else if (error.type === 'response') {
-        showToast('danger', 'Request Failed', error.message);
-      } else {
-        showToast(
-          'danger',
-          'Unexpected Error',
-          error.message || 'Something went wrong',
-        );
-      }
+      // Errors are already handled by handleApiError (toasts/modals)
     }
-  };
+  }, []);
+  const renderOrderRow = useCallback(
+    ({ item, index }) => (
+      <View
+        style={[
+          styles.tableRow,
+          index === orderList.length - 1 && { borderBottomWidth: 0 },
+        ]}
+      >
+        <TouchableOpacity
+          style={[styles.cell, styles.orderIdColumn]}
+          onPress={() =>
+            navigation.navigate('OrderHistoryDetails', { orderItem: item })
+          }
+        >
+          <Text style={styles.orderId}># {item?.order_id}</Text>
+        </TouchableOpacity>
+        <View style={[styles.cell, styles.customerColumn]}>
+          <Text style={styles.customer}>{item.name}</Text>
+        </View>
+        <View style={[styles.cell, styles.dateColumn]}>
+          <Text style={styles.date}>{formatDate(item.date_added)}</Text>
+        </View>
+        <View style={[styles.cell, styles.dateColumn1]}>
+          <Text style={styles.customer}>
+            {item?.shipping_method == 'Collection'
+              ? item?.shipping_method
+              : 'Shipping'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.cell, styles.reorderColumn]}
+          onPress={() => {
+            bottomSheetRef.current?.show({
+              item,
+              options: [
+                {
+                  label: 'Re-Order',
+                  description: 'Add to cart again',
+                  icon: IconData.CART,
+                  gradientColors: ['#940000', '#c0392b'],
+                  onPress: selectedItem => reOrder(selectedItem),
+                },
+                {
+                  label: 'View Details',
+                  description: 'See full order',
+                  icon: IconData.Eye,
+                  gradientColors: ['#8e44ad', '#9b59b6'],
+                  onPress: selectedItem =>
+                    navigation.navigate('OrderHistoryDetails', {
+                      orderItem: selectedItem,
+                    }),
+                },
+                {
+                  label: 'Download',
+                  description: 'Download invoice',
+                  icon: IconData.REORDER,
+                  gradientColors: ['#27ae60', '#2ecc71'],
+                  onPress: selectedItem => {
+                    downloadInvoice(selectedItem);
+                  },
+                },
+                {
+                  label: 'Email',
+                  description: 'Send to email',
+                  icon: IconData.Mail,
+                  gradientColors: ['#2c3e50', '#3498db'],
+                  onPress: selectedItem => {
+                    sendEmailInvoice(selectedItem);
+                  },
+                },
+              ],
+            });
+          }}
+        >
+          <Ionicons
+            name="ellipsis-vertical"
+            size={moderateScale(18)}
+            color={Color.GRAY4}
+          />
+        </TouchableOpacity>
+      </View>
+    ),
+    [
+      orderList.length,
+      formatDate,
+      navigation,
+      reOrder,
+      downloadInvoice,
+      sendEmailInvoice,
+    ],
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -347,11 +412,6 @@ const OrderHistory = ({ navigation }) => {
             }}
             onEndReached={() => loadMoreFunc && loadMoreFunc()}
             onEndReachedThreshold={0.5}
-            ListFooterComponent={
-              loadingMore && (
-                <Text style={{ textAlign: 'center' }}>Loading...</Text>
-              )
-            }
           />
         </>
       ) : searchNoResults ? (
@@ -393,132 +453,37 @@ const OrderHistory = ({ navigation }) => {
           </View>
 
           {orderList?.length > 0 ? (
-            <View style={{ flex: 1 }}>
+            <View style={styles.flexOne}>
               <Text style={styles.title}>Order History</Text>
               <Text style={styles.subTitle}>
                 View and track all your past orders here.
               </Text>
               <View style={styles.table}>
                 <View style={styles.tableHeader}>
-                  <View style={[styles.cell, styles.borderRight]}>
+                  <View style={[styles.cell, styles.orderIdColumn]}>
                     <Text style={styles.headerText}>ORDER ID</Text>
                   </View>
-                  <View style={[styles.cell, styles.borderRight]}>
+                  <View style={[styles.cell, styles.customerColumn]}>
                     <Text style={styles.headerText}>CUSTOMER</Text>
                   </View>
-
-                  <View style={styles.cell}>
+                  <View style={[styles.cell, styles.dateColumn]}>
                     <Text style={styles.headerText}>DATE</Text>
                   </View>
-                  <View style={styles.cell}>
-                    <Text style={styles.headerText}>Delivery Method</Text>
+                  <View style={[styles.cell, styles.dateColumn1]}>
+                    <Text style={styles.headerText}>DELIVERY</Text>
                   </View>
-                  <View style={styles.cell}>
-                    <Text style={styles.headerText}>Action</Text>
+                  <View style={[styles.cell, styles.reorderColumn]}>
+                    <Text style={styles.headerText}>ACTION</Text>
                   </View>
                 </View>
 
                 <FlatList
                   data={orderList}
                   showsVerticalScrollIndicator={false}
-                  // contentContainerStyle={{
-                  //   paddingBottom: moderateScale(10),
-                  // }}
-
-                  contentContainerStyle={{
-                    paddingBottom: moderateScale(
-                      orderList?.length > 15 ? 120 : 180,
-                    ),
-                  }}
-                  keyExtractor={(item, index) => `${item.id}_${index}`}
-                  renderItem={({ item, index }) => (
-                    <View
-                      style={[
-                        styles.tableRow,
-                        index === orderList.length - 1 && {
-                          borderBottomWidth: 0,
-                        },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        style={[styles.cell, styles.orderIdColumn]}
-                        onPress={() => {
-                          navigation.navigate('OrderHistoryDetails', {
-                            orderItem: item,
-                          });
-                        }}
-                      >
-                        <Text style={styles.orderId}># {item?.order_id}</Text>
-                      </TouchableOpacity>
-                      <View style={[styles.cell, styles.customerColumn]}>
-                        <Text style={styles.customer}>{item.name}</Text>
-                      </View>
-                      <View style={[styles.cell, styles.dateColumn]}>
-                        <Text style={styles.date}>
-                          {formatDate(item.date_added)} {}
-                        </Text>
-                      </View>
-
-                      <View style={[styles.cell, styles.dateColumn1]}>
-                        <Text style={styles.customer}>
-                          {item?.shipping_method == 'Collection'
-                            ? item?.shipping_method
-                            : 'Shipping'}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={[styles.cell, styles.reorderColumn]}
-                        onPress={() => {
-                          bottomSheetRef.current?.show({
-                            item,
-                            options: [
-                              {
-                                label: 'Re-Order',
-                                description: 'Add to cart again',
-                                icon: IconData.CART,
-                                gradientColors: ['#940000', '#c0392b'],
-                                onPress: selectedItem => reOrder(selectedItem),
-                              },
-                              {
-                                label: 'View Details',
-                                description: 'See full order',
-                                icon: IconData.Eye,
-                                gradientColors: ['#8e44ad', '#9b59b6'],
-                                onPress: selectedItem =>
-                                  navigation.navigate('OrderHistoryDetails', {
-                                    orderItem: selectedItem,
-                                  }),
-                              },
-                              {
-                                label: 'Download',
-                                description: 'Download invoice',
-                                icon: IconData.REORDER,
-                                gradientColors: ['#27ae60', '#2ecc71'],
-                                onPress: selectedItem => {
-                                  downloadInvoice(selectedItem);
-                                },
-                              },
-                              {
-                                label: 'Email',
-                                description: 'Send to email',
-                                icon: IconData.Mail,
-                                gradientColors: ['#2c3e50', '#3498db'],
-                                onPress: selectedItem => {
-                                  sendEmailInvoice(selectedItem);
-                                },
-                              },
-                            ],
-                          });
-                        }}
-                      >
-                        <Ionicons
-                          name="ellipsis-vertical"
-                          size={moderateScale(18)}
-                          color={Color.GRAY4}
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                  style={FLATLIST_STYLE}
+                  contentContainerStyle={FLATLIST_CONTENT_STYLE}
+                  keyExtractor={item => String(item.order_id)}
+                  renderItem={renderOrderRow}
                   onEndReached={loadMore}
                   onEndReachedThreshold={0.5}
                   ListFooterComponent={loading && <Loader visible={true} />}
@@ -543,8 +508,7 @@ const OrderHistory = ({ navigation }) => {
             </>
           )}
 
-          {orderList?.length <= 0 ||
-            (loader && <Loader visible={loading || loader} />)}
+          {loader && <Loader visible={loader} />}
           <CartComponent />
           <ActionBottomSheet ref={bottomSheetRef} />
         </>
@@ -554,6 +518,7 @@ const OrderHistory = ({ navigation }) => {
 };
 const styles = ScaledSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  flexOne: { flex: 1 },
 
   header: {
     flexDirection: 'row',
@@ -601,8 +566,9 @@ const styles = ScaledSheet.create({
     marginBottom: moderateScale(15),
   },
   table: {
-    // flex: 1,
+    flexShrink: 1,
     marginHorizontal: moderateScale(10),
+    marginBottom: moderateScale(20),
     borderWidth: 1,
     borderColor: '#D1D1D1',
     borderRadius: moderateScale(4),
@@ -626,55 +592,55 @@ const styles = ScaledSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-start',
     paddingVertical: moderateScale(10),
-    paddingHorizontal: moderateScale(8),
+    paddingHorizontal: moderateScale(4),
   },
   borderRight: {
     borderRightWidth: 1,
     borderColor: '#F6F6F6',
   },
   headerText: {
-    fontSize: moderateScale(11),
+    fontSize: moderateScale(10),
     fontFamily: FONT.SEMIBOLD,
     color: Color.GRAY4,
   },
   orderId: {
     color: Color.RED,
     fontFamily: FONT.BOLD,
-    fontSize: 12,
+    fontSize: moderateScale(11),
   },
   customer: {
     color: Color.BLACK2,
     fontFamily: FONT.SEMIBOLD,
-    fontSize: 11,
+    fontSize: moderateScale(10),
   },
   date: {
     color: Color.BLACK2,
     fontFamily: FONT.SEMIBOLD,
-    fontSize: 11,
+    fontSize: moderateScale(10),
   },
 
   orderIdColumn: {
-    width: '25%',
+    width: '20%',
     borderRightWidth: 1,
     borderColor: '#F6F6F6',
   },
   customerColumn: {
-    width: '30%',
-    borderRightWidth: 1,
-    borderColor: '#F6F6F6',
-  },
-  dateColumn: {
     width: '25%',
     borderRightWidth: 1,
     borderColor: '#F6F6F6',
   },
+  dateColumn: {
+    width: '20%',
+    borderRightWidth: 1,
+    borderColor: '#F6F6F6',
+  },
   dateColumn1: {
-    width: '32%',
+    width: '25%',
     borderRightWidth: 1,
     borderColor: '#F6F6F6',
   },
   reorderColumn: {
-    width: '15%',
+    width: '10%',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Color.GRAY5,

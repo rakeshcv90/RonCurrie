@@ -53,6 +53,13 @@ const CartDataShowSlice = createSlice({
       // ✅ ADDED
       state.skipAutoBack = action.payload;
     },
+    updateLocalCartQuantity: (state, action) => {
+      const { cartId, newQty } = action.payload;
+      const itemIndex = state.cartList.findIndex(item => item.cart_id === cartId);
+      if (itemIndex >= 0) {
+        state.cartList[itemIndex].cart_quantity = newQty;
+      }
+    },
   },
   extraReducers: builder => {
     builder
@@ -82,5 +89,6 @@ export const {
   triggerCartRefresh,
   triggerMiscRefresh,
   setSkipAutoBack,
+  updateLocalCartQuantity,
 } = CartDataShowSlice.actions;
 export default CartDataShowSlice.reducer;

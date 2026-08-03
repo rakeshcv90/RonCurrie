@@ -1,30 +1,27 @@
+/* eslint-disable react-native/no-inline-styles */
 import {
   View,
   Text,
   StatusBar,
-  Image,
   ActivityIndicator,
   FlatList,
 } from 'react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   moderateScale,
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import { Color, FONT, IconData, ImageData } from '../Component/Image';
+import { Color, FONT, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
+
 import { WebView } from 'react-native-webview';
-import * as Keychain from 'react-native-keychain';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+
+import { useNavigation } from '@react-navigation/native';
 import { ImageBaseUrl } from '../utility/api';
 import FastImage from 'react-native-fast-image';
-import {
-  clearProducts,
-  fetchProductsList,
-} from '../Redux/Slice/ProductListSlice';
+import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import { useDispatch } from 'react-redux';
 import SearchComponent from './Component/SearchComponent';
 import decodeHtml from '../utility/decodeHtml';
@@ -42,87 +39,49 @@ const WebViewScreen = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const searchRef = useRef(null);
   const [searchNoResults, setSearchNoResults] = useState(false);
-  // const injectedJS = `
-  // (function() {
-  //   const logo = document.querySelector("img[alt*='Ron'], img[src*='logo'], img[style*='1954']");
-  //   if (logo) logo.remove();
 
-  //      const homeIcon = document.querySelector("img[alt*='Home'], img[src*='home'], i[class*='home'], svg[class*='home'], a[href*='home']");
-  //   if (homeIcon) homeIcon.remove();
-
-  //   const btn2 = Array.from(document.querySelectorAll("button, a")).find(el =>
-  //     el.innerText.includes("Product Page")
-  //   );
-
-  //   if (btn2) {
-  //     btn2.addEventListener("click", function(e) {
-  //       e.preventDefault();
-  //       window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
-  //     });
-  //   }
-  // })();
-  // true;
-  // `;
   const injectedJS = `
 (function() {
+  if (window.__RN_HANDLERS_INSTALLED__) return;
+  window.__RN_HANDLERS_INSTALLED__ = true;
 
-  function modifyPage() {
+  // Delegated, capture-phase listener: attaches immediately on inject,
+  // so it always wins the race against the anchor's real href navigation
+  // (no more waiting on a poller before the R icon becomes clickable).
+  document.addEventListener("click", function(e) {
+    const target = e.target.closest("a, button");
+    if (!target) return;
 
-    // R ICON CLICK HANDLER
-    const rIcon = document.querySelector("img[src*='ricon']");
-    if (rIcon && !rIcon.dataset.listenerAdded) {
-
-      rIcon.dataset.listenerAdded = "true";
-
-      const rLink = rIcon.closest("a");
-
-      if (rLink) {
-        rLink.addEventListener("click", function(e) {
-          e.preventDefault();
-          window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
-        });
-      }
+    // R ICON -> always send the user to the native App Home screen
+    if (target.querySelector("img[src*='ricon']")) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.ReactNativeWebView.postMessage("GO_TO_APP_HOME");
+      return;
     }
 
-    // HIDE HOME ICON
+    // PRODUCT PAGE BUTTON -> return to the product page inside the app
+    if (target.innerText && target.innerText.includes("Product Page")) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
+      return;
+    }
+  }, true);
+
+  function hideHomeIcon() {
     const homeIcon = document.querySelector("img[alt*='Home'], img[src*='home'], i[class*='home'], svg[class*='home'], a[href*='home']");
     if (homeIcon) {
       homeIcon.style.display = "none";
     }
-
-    // PRODUCT PAGE BUTTON
-    const btn2 = Array.from(document.querySelectorAll("button, a")).find(el =>
-      el.innerText && el.innerText.includes("Product Page")
-    );
-
-    if (btn2 && !btn2.dataset.listenerAdded) {
-      btn2.dataset.listenerAdded = "true";
-
-      btn2.addEventListener("click", function(e) {
-        e.preventDefault();
-        window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
-      });
-    }
-
   }
 
-  setInterval(modifyPage, 1000);
+  hideHomeIcon();
+  setInterval(hideHomeIcon, 1000);
 
 })();
 true;
 `;
-  // const decodeHtml = text => {
-  //   if (!text) return '';
-  //   return text
-  //     .replace(/&quot;/g, '')
-  //     .replace(/&apos;/g, '')
-  //     .replace(/&amp;/g, '&')
-  //     .replace(/&lt;/g, '<')
-  //     .replace(/&gt;/g, '>')
-  //     .replace(/["']/g, '')
-  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-  //     .trim();
-  // };
 
   const handleItemPress = item => {
     dispatch(clearProducts());
@@ -239,7 +198,7 @@ true;
           )}
           <WebView
             ref={webViewRef}
-            source={{ uri: 'https://roncurry.co.uk/epos/index.php' }}
+            source={{ uri: 'https://roncurrie.co.uk/epos/index.php' }}
             originWhitelist={['*']}
             javaScriptEnabled={true}
             domStorageEnabled={true}
@@ -261,7 +220,7 @@ true;
 
                 const form = document.createElement('form');
                 form.method = 'POST';
-                form.action = 'https://roncurry.co.uk/epos/index.php';
+                form.action = 'https://roncurrie.co.uk/epos/index.php';
 
                 const fields = ${JSON.stringify(urlData)};
                 for (const key in fields) {
@@ -283,9 +242,10 @@ true;
               }
             }}
             onMessage={event => {
-              if (event.nativeEvent.data === 'GO_BACK_PRODUCT_PAGE') {
-                navigation1.goBack();
-              } else {
+              const message = event.nativeEvent.data;
+              if (message === 'GO_TO_APP_HOME') {
+                navigation1.navigate('Home');
+              } else if (message === 'GO_BACK_PRODUCT_PAGE') {
                 navigation1.goBack();
               }
             }}

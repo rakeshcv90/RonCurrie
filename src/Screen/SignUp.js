@@ -15,7 +15,7 @@ import {
   ScaledSheet,
   verticalScale,
 } from 'react-native-size-matters';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Color, FONT, IconData, ImageData } from '../Component/Image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -27,6 +27,9 @@ import { showToast } from '../utility/showToast';
 import { Dropdown } from 'react-native-element-dropdown';
 import * as Keychain from 'react-native-keychain';
 import { MMKVStorage } from '../utility/MmkvStore';
+import Recaptcha from 'react-native-recaptcha-that-works';
+const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
+const baseUrl = 'https://roncurrie.co.uk/';
 
 const SignUp = ({ navigation }) => {
   const [fisrtName, setFirstName] = useState('');
@@ -45,9 +48,12 @@ const SignUp = ({ navigation }) => {
   const [secureText, setSecureText] = useState(true);
   const [secureText1, setSecureText1] = useState(true);
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [subscribe, setSubscribe] = useState(false);
   const [agree, setAgree] = useState(false);
-  const [notRobot, setNotRobot] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const recaptcha = useRef();
 
   const [loader, setLoader] = useState(false);
   const [addressData, setAddressData] = useState([]);
@@ -55,6 +61,19 @@ const SignUp = ({ navigation }) => {
   const [value, setValue] = useState(null);
   const [isFocus, setIsFocus] = useState(false);
   const [location, setLocation] = useState(null);
+  const passwordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]).{8,}$/;
+
+  const handlePasswordChange = text => {
+    setPassword(text);
+    if (text && !passwordRegex.test(text)) {
+      setPasswordError(
+        'Password must be at least 8 characters long, include an uppercase letter, a lowercase letter, a number and a special character.',
+      );
+    } else {
+      setPasswordError('');
+    }
+  };
+
   const handleConfirmPassword = text => {
     setConfirmPassword(text);
     if (password && text !== password) {
@@ -63,6 +82,23 @@ const SignUp = ({ navigation }) => {
       setConfirmPasswordError('');
     }
   };
+  const resetCaptcha = () => {
+    setCaptchaToken(null);
+    setCaptchaVerified(false);
+    recaptcha.current?.close();
+  };
+
+  const onVerify = token => {
+    setCaptchaToken(token);
+    setCaptchaVerified(true);
+  };
+
+  const onExpire = () => {
+    setCaptchaToken(null);
+    setCaptchaVerified(false);
+    Alert.alert('Error', 'reCAPTCHA challenge expired. Please try again.');
+  };
+
   const loginFunction = async () => {
     // Trim all input values
     const formData = {
@@ -111,12 +147,10 @@ const SignUp = ({ navigation }) => {
       return;
     }
 
-    // Password validation (min 6 chars + 1 special char)
-    const passwordRegex = /^(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{6,}$/;
     if (!passwordRegex.test(formData.password)) {
       Alert.alert(
         'Validation Error',
-        'Password must be at least 6 characters long and contain at least one special character',
+        'Password must be at least 8 characters long, include an uppercase letter, a lowercase letter, a number and a special character.',
       );
       return;
     }
@@ -127,14 +161,7 @@ const SignUp = ({ navigation }) => {
       return;
     }
 
-    // Privacy policy check
-    // if (!agree) {
-    //   Alert.alert('Validation Error', 'You must agree to the Privacy Policy');
-    //   return;
-    // }
-
-    // Robot check
-    if (!notRobot) {
+    if (!captchaVerified || !captchaToken) {
       Alert.alert('Validation Error', 'Please verify that you are not a robot');
       return;
     }
@@ -156,8 +183,10 @@ const SignUp = ({ navigation }) => {
       password_confirmation: confirmPassword,
       newsletter: subscribe ? 1 : 0,
       address_id: 0,
+      captcha_token: captchaToken,
+      epos_user: 1,
     };
-
+console.log('Signup Payload', payload);
     setLoader(true);
     try {
       const response = await postData(Api.SIGNUP, payload);
@@ -177,25 +206,43 @@ const SignUp = ({ navigation }) => {
           setPassword('');
           setConfirmPassword('');
 
-          showToast(
-            'success',
-            'Success!',
-            response?.data?.message || 'User registered successfully',
-          );
+          const token = response?.data?.data?.token;
+          if (token && response?.data?.data?.user?.epos_user == 1) {
+            await Keychain.setGenericPassword('userToken', token);
+            await MMKVStorage.setItem('User_Data', response?.data?.data?.user);
 
-          navigation.replace('Login');
+            showToast('success', 'Success!', response?.data?.message);
+            navigation.replace('Home');
+          } else {
+            setLoader(false);
+          }
         } else {
           setLoader(false);
-          Alert.alert('SignUp Failed', 'Invalid credentials');
+          resetCaptcha();
+          // Alert.alert('SignUp Failed', 'Invalid credentials');
         }
       } else {
         setLoader(false);
+        resetCaptcha();
       }
 
       setLoader(false);
     } catch (error) {
       setLoader(false);
-      console.log('Signup Error', error);
+      resetCaptcha();
+
+      console.log('Signup Error',error);
+      if (error.type === 'network') {
+        showToast('danger', 'Network Error', error.message);
+      } else if (error.type === 'response') {
+        showToast('danger', 'Signup Failed', error.message);
+      } else {
+        showToast(
+          'danger',
+          'Unexpected Error',
+          error.message || 'Something went wrong',
+        );
+      }
     }
   };
 
@@ -852,7 +899,7 @@ const SignUp = ({ navigation }) => {
             <View
               style={{
                 borderWidth: 1,
-                borderColor: Color.GRAY2,
+                borderColor: passwordError ? Color.RED : Color.GRAY2,
                 marginBottom: 10,
                 height: verticalScale(40),
               }}
@@ -864,7 +911,7 @@ const SignUp = ({ navigation }) => {
                   placeholderTextColor={Color.GRAY2}
                   secureTextEntry={secureText}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={handlePasswordChange}
                 />
                 <TouchableOpacity onPress={() => setSecureText(!secureText)}>
                   <Ionicons
@@ -875,6 +922,9 @@ const SignUp = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
             </View>
+            {passwordError ? (
+              <Text style={styles.errorText}>{passwordError}</Text>
+            ) : null}
 
             <View
               style={{
@@ -937,44 +987,24 @@ const SignUp = ({ navigation }) => {
               <Text style={styles.errorText}>{confirmPasswordError}</Text>
             ) : null}
 
-            {/* <TouchableOpacity
-              style={styles.checkboxRow}
-              onPress={() => setSubscribe(!subscribe)}
-            >
-              <Ionicons
-                name={subscribe ? 'checkbox-outline' : 'square-outline'}
-                size={moderateScale(20)}
-                color={Color.GRAY}
-              />
-              <Text style={styles.label}>Subscribe to our newsletter.</Text>
-            </TouchableOpacity> */}
-
-            {/* <TouchableOpacity
-              style={styles.checkboxRow}
-              onPress={() => setAgree(!agree)}
-            >
-              <Ionicons
-                name={agree ? 'checkbox-outline' : 'square-outline'}
-                size={moderateScale(20)}
-                color="#555"
-              />
-              <Text style={styles.label}>
-                I have read and agree to the{' '}
-                <Text style={styles.linkText}>Privacy Policy</Text>
-              </Text>
-            </TouchableOpacity> */}
             <TouchableOpacity
               activeOpacity={0.8}
               style={styles.robotBox}
-              onPress={() => setNotRobot(!notRobot)}
+              onPress={() => {
+                recaptcha.current.open();
+              }}
             >
               <View style={styles.robotRow}>
                 <Ionicons
-                  name={notRobot ? 'checkbox-outline' : 'square-outline'}
-                  size={moderateScale(30)}
-                  color="#555"
+                  name={
+                    captchaVerified ? 'checkbox' : 'shield-checkmark-outline'
+                  }
+                  size={moderateScale(24)}
+                  color={captchaVerified ? '#4CAF50' : '#999'}
                 />
-                <Text style={styles.robotText}>I’m not a robot</Text>
+                <Text style={styles.robotText}>
+                  {captchaVerified ? 'Verified' : 'Tap to verify'}
+                </Text>
                 <Image
                   source={{
                     uri: 'https://www.gstatic.com/recaptcha/api2/logo_48.png',
@@ -982,13 +1012,24 @@ const SignUp = ({ navigation }) => {
                   style={styles.recaptchaLogo}
                 />
               </View>
+              <Recaptcha
+                ref={recaptcha}
+                siteKey={siteKey}
+                baseUrl={baseUrl}
+                onVerify={onVerify}
+                onExpire={onExpire}
+                onError={err => console.log('reCAPTCHA error:', err)}
+                size="normal"
+              />
             </TouchableOpacity>
           </View>
         </ScrollView>
         <View style={{ padding: moderateScale(20), marginBottom: 20 }}>
           <TouchableOpacity
-            style={styles.loginBtn}
+            style={[styles.loginBtn, !captchaVerified && { opacity: 0.5 }]}
+            disabled={!captchaVerified}
             onPress={() => {
+              Keyboard.dismiss();
               loginFunction();
             }}
           >
@@ -1161,7 +1202,7 @@ const styles = ScaledSheet.create({
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: moderateScale(4),
-    padding: moderateScale(20),
+    padding: moderateScale(5),
     backgroundColor: '#fafafa',
     marginTop: verticalScale(10),
   },

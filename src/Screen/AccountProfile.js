@@ -23,7 +23,8 @@ import * as Keychain from 'react-native-keychain';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import { clearProducts } from '../Redux/Slice/ProductListSlice';
 import { useDispatch } from 'react-redux';
-import { ImageBaseUrl } from '../utility/api';
+import { Api, ImageBaseUrl } from '../utility/api';
+import { postData } from '../utility/ApiCall';
 import FastImage from 'react-native-fast-image';
 import SearchComponent from './Component/SearchComponent';
 import CartComponent from '../Component/CartComponent';
@@ -33,23 +34,28 @@ const links = [
   {
     id: 1,
     title: 'Edit Account Information',
+    icon: 'person-outline',
   },
   {
     id: 2,
     title: 'Change Password',
+    icon: 'lock-closed-outline',
   },
   {
     id: 3,
     title: 'Order History',
+    icon: 'receipt-outline',
   },
   {
     id: 4,
     title: 'Return Requests',
+    icon: 'arrow-undo-outline',
   },
-  // {
-  //   id: 5,
-  //   title: 'Transactions',
-  // },
+  {
+    id: 5,
+    title: 'Live Feeds',
+    icon: 'pulse-outline',
+  },
 ];
 
 const AccountProfile = ({ navigation, route }) => {
@@ -88,18 +94,6 @@ const AccountProfile = ({ navigation, route }) => {
     }, 200);
   };
 
-  // const decodeHtml = text => {
-  //   if (!text) return '';
-  //   return text
-  //     .replace(/&quot;/g, '')
-  //     .replace(/&apos;/g, '')
-  //     .replace(/&amp;/g, '&')
-  //     .replace(/&lt;/g, '<')
-  //     .replace(/&gt;/g, '>')
-  //     .replace(/["']/g, '')
-  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-  //     .trim();
-  // };
   const renderItem = ({ item }) => {
     const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
 
@@ -227,34 +221,47 @@ const AccountProfile = ({ navigation, route }) => {
                 Use these quick options to manage your account easily.
               </Text>
 
-              {links.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.linkItem}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (item?.id == 1) {
-                      navigation.navigate('EditInfotmation');
-                    } else if (item?.id == 2) {
-                      navigation.navigate('ResetPassword');
-                    } else if (item?.id == 3) {
-                      navigation.navigate('OrderHistory');
-                    } else if (item?.id == 4) {
-                      navigation.navigate('ProductReturns');
-                    }
-                    //  else if (item?.id == 5) {
-                    //   alert('URL not available for this link');
-                    // }
-                  }}
-                >
-                  <Text style={styles.linkText}>{item?.title}</Text>
-                  <Ionicons
-                    name="link-outline"
-                    size={moderateScale(18)}
-                    color={Color.BLACK2}
-                  />
-                </TouchableOpacity>
-              ))}
+              {links
+                .filter(item => {
+                  if (item.id === 5) {
+                    return userData?.is_access_clf == 1;
+                  }
+                  return true;
+                })
+                .map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.linkItem}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (item?.id == 1) {
+                        navigation.navigate('EditInfotmation');
+                      } else if (item?.id == 2) {
+                        navigation.navigate('ResetPassword');
+                      } else if (item?.id == 3) {
+                        navigation.navigate('OrderHistory');
+                      } else if (item?.id == 4) {
+                        navigation.navigate('ProductReturns');
+                      } else if (item?.id == 5) {
+                        navigation.navigate('LiveFeeds');
+                      }
+                    }}
+                  >
+                    <View style={styles.linkLeftContainer}>
+                      <Ionicons
+                        name={item.icon}
+                        size={moderateScale(20)}
+                        color={Color.RED}
+                      />
+                      <Text style={styles.linkText}>{item?.title}</Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward-outline"
+                      size={moderateScale(18)}
+                      color={Color.GRAY}
+                    />
+                  </TouchableOpacity>
+                ))}
             </View>
           </ScrollView>
           <View>
@@ -275,11 +282,20 @@ const AccountProfile = ({ navigation, route }) => {
         visible={logoutVisible}
         onClose={() => setLogoutVisible(false)}
         onConfirm={async () => {
-          await MMKVStorage.clearAllData();
-          await Keychain.resetGenericPassword();
+          try {
+            const response = await postData(Api.LOGOUT);
 
-          navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
-          setLogoutVisible(false);
+            if (response?.status == 200) {
+              setLogoutVisible(false);
+              await MMKVStorage.clearAllData();
+              await Keychain.resetGenericPassword();
+
+              navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+              setLogoutVisible(false);
+            }
+          } catch (error) {
+            console.log('Logout API error:', error);
+          }
         }}
       />
     </SafeAreaView>
@@ -423,6 +439,11 @@ const styles = ScaledSheet.create({
     lineHeight: moderateScale(24),
     color: Color.BLACK2,
     fontFamily: FONT.REGULAR,
+  },
+  linkLeftContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(12),
   },
   logoutBtn: {
     backgroundColor: Color.BLACK3,

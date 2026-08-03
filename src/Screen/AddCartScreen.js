@@ -34,7 +34,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { Api, ImageBaseUrl } from '../utility/api';
-import { getData, postData } from '../utility/ApiCall';
+import { deleteData, getData, postData } from '../utility/ApiCall';
 import { showToast } from '../utility/showToast';
 import { MMKVStorage } from '../utility/MmkvStore';
 import CartComponent from '../Component/CartComponent';
@@ -374,6 +374,45 @@ const AddCartScreen = ({ navigation }) => {
     // );
     return (subTotal + miscTotal).toFixed(2);
   }, [cartList, miscList]);
+
+  const hasInvalidQuantity = useMemo(() => {
+    if (!cartList || cartList.length === 0) return false;
+    return cartList.some(item => {
+      const { matrix, additional_option, cart_quantity, mode } = item;
+      if (mode === 1 || mode === 2) return false;
+      let parsedOption;
+      try {
+        parsedOption = JSON.parse(additional_option || '[]');
+      } catch {
+        parsedOption = [];
+      }
+      // Determine available quantity based on item type
+      let availableQty = 0;
+      if (!matrix || matrix?.length === 0) {
+        if (
+          parsedOption &&
+          !Array.isArray(parsedOption) &&
+          Object.keys(parsedOption).length > 0
+        ) {
+          const firstValue = Object.values(parsedOption)[0];
+          if (typeof firstValue === 'string' && firstValue.includes('#')) {
+            // custom type
+            availableQty = item?.quantity || 0;
+          } else {
+            // normal type
+            availableQty = item?.options?.[0]?.values?.[0]?.quantity || 0;
+          }
+        } else {
+          // no_option type
+          availableQty = item?.quantity || 0;
+        }
+      } else {
+        // matrix type
+        availableQty = item?.quantity || 0;
+      }
+      return cart_quantity > availableQty;
+    });
+  }, [cartList]);
 
   const handleDeleteMisc = id => {
     setMiscList(prev => {
@@ -803,6 +842,24 @@ const AddCartScreen = ({ navigation }) => {
     }
   }, [cartList]);
 
+  const deleteDeliverAddress = async () => {
+    // setLoader(true);
+    try {
+      const response = await deleteData(
+        `${Api.DELIVERIES}/${userData?.customer_id}`,
+      );
+      // console.log('xccxvxcvxcvcxvvcx', response);
+      // // if (response?.status === 201) {
+      // // } else {
+      // //   setLoader(false);
+      // // }
+    } catch (e) {
+      console.log('Apply Shipping Error:', e);
+      showToast('danger', 'Error', 'Failed to apply shipping option');
+    } finally {
+      setLoader(false);
+    }
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -1051,6 +1108,7 @@ const AddCartScreen = ({ navigation }) => {
                   ]}
                   onPress={() => {
                     setSelectedTab('Collect From Store'), setDeliveryType(null);
+                    deleteDeliverAddress();
                   }}
                 >
                   <Image
@@ -1198,8 +1256,8 @@ const AddCartScreen = ({ navigation }) => {
                                 style={{
                                   color: Color.GRAY,
                                   fontFamily: FONT.BOLD,
-                                  fontSize: 16,
-                                  lineHeight: 24,
+                                  fontSize: 14,
+                                  lineHeight: 20,
                                 }}
                               >
                                 Sub-Total:
@@ -1209,8 +1267,8 @@ const AddCartScreen = ({ navigation }) => {
                                 style={{
                                   color: Color.BLACK,
                                   fontFamily: FONT.BOLD,
-                                  fontSize: 16,
-                                  lineHeight: 24,
+                                  fontSize: 14,
+                                  lineHeight: 20,
                                 }}
                               >
                                 £{totalPrice}
@@ -1230,9 +1288,8 @@ const AddCartScreen = ({ navigation }) => {
                                   style={{
                                     color: Color.GRAY,
                                     fontFamily: FONT.BOLD,
-                                    fontSize: 16,
-
-                                    lineHeight: 24,
+                                    fontSize: 14,
+                                    lineHeight: 20,
                                   }}
                                 >
                                   Local Date {deliveryType?.name}:
@@ -1243,8 +1300,8 @@ const AddCartScreen = ({ navigation }) => {
                                 style={{
                                   color: Color.BLACK,
                                   fontFamily: FONT.BOLD,
-                                  fontSize: 16,
-                                  lineHeight: 24,
+                                  fontSize: 14,
+                                  lineHeight: 20,
                                 }}
                               >
                                 {deliveryType?.price}
@@ -1272,8 +1329,8 @@ const AddCartScreen = ({ navigation }) => {
                                 style={{
                                   color: Color.GRAY,
                                   fontFamily: FONT.BOLD,
-                                  fontSize: 16,
-                                  lineHeight: 24,
+                                  fontSize: 14,
+                                  lineHeight: 20,
                                 }}
                               >
                                 Preferred Date:
@@ -1282,8 +1339,8 @@ const AddCartScreen = ({ navigation }) => {
                                 style={{
                                   color: Color.BLACK,
                                   fontFamily: FONT.BOLD,
-                                  fontSize: 16,
-                                  lineHeight: 24,
+                                  fontSize: 14,
+                                  lineHeight: 20,
                                 }}
                               >
                                 {deliveryType?.date}
@@ -1425,7 +1482,21 @@ const AddCartScreen = ({ navigation }) => {
 
             {selectedTab == 'Get Delivery' && deliveryType != null && (
               <View style={styles.bottomBtn}>
+                {hasInvalidQuantity && (
+                  <Text
+                    style={{
+                      color: Color.RED,
+                      fontSize: 12,
+                      textAlign: 'right',
+                      paddingHorizontal: moderateScale(10),
+                      marginBottom: 4,
+                    }}
+                  >
+                    Some items exceed available stock. Please adjust quantities.
+                  </Text>
+                )}
                 <TouchableOpacity
+                  disabled={hasInvalidQuantity}
                   onPress={() => {
                     Keyboard.dismiss();
                     onCreateDeliverOrder();
@@ -1439,6 +1510,7 @@ const AddCartScreen = ({ navigation }) => {
                     alignItems: 'center',
                     alignSelf: 'flex-end',
                     borderRadius: 4,
+                    opacity: hasInvalidQuantity ? 0.5 : 1,
                   }}
                 >
                   <Text style={styles.bottomBtnText}>Create Order</Text>
@@ -1455,7 +1527,21 @@ const AddCartScreen = ({ navigation }) => {
                   },
                 ]}
               >
+                {hasInvalidQuantity && (
+                  <Text
+                    style={{
+                      color: Color.RED,
+                      fontSize: 12,
+                      textAlign: 'right',
+                      paddingRight: moderateScale(10),
+                      marginBottom: 4,
+                    }}
+                  >
+                    Some items exceed available stock. Please adjust quantities.
+                  </Text>
+                )}
                 <TouchableOpacity
+                  disabled={hasInvalidQuantity}
                   onPress={() => {
                     Keyboard.dismiss();
 
@@ -1470,6 +1556,7 @@ const AddCartScreen = ({ navigation }) => {
                     alignItems: 'center',
                     alignSelf: 'flex-end',
                     borderRadius: 4,
+                    opacity: hasInvalidQuantity ? 0.5 : 1,
                   }}
                 >
                   <Text style={styles.bottomBtnText}>Create Order</Text>
@@ -1486,6 +1573,7 @@ const AddCartScreen = ({ navigation }) => {
               cartData={cartList}
               addressData={selectedAddress}
               areaPin={postcode}
+              selectedOptionId={deliveryType?.id}
             />
           )}
         </>

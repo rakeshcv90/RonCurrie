@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import {
   View,
   Text,
@@ -22,13 +23,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import FastImage from 'react-native-fast-image';
 import { postData } from '../utility/ApiCall';
-import { Api } from '../utility/api';
-import * as Keychain from 'react-native-keychain';
+import { Api, BaseUrl } from '../utility/api';
+
 import { showToast } from '../utility/showToast';
-import { MMKVStorage } from '../utility/MmkvStore';
+
 import Loader from '../Component/Loader';
 
 import Recaptcha from 'react-native-recaptcha-that-works';
+import axios from 'axios';
 const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
 const baseUrl = 'https://roncurrie.co.uk/';
 const Login = ({ navigation }) => {
@@ -45,14 +47,17 @@ const Login = ({ navigation }) => {
   const validateInput = () => {
     if (!email.trim()) {
       Alert.alert('Validation Error', 'Please enter your email');
+      resetCaptcha();
       return false;
     }
     if (!emailRegex.test(email)) {
       Alert.alert('Validation Error', 'Please enter a valid email address');
+      resetCaptcha();
       return false;
     }
     if (!password.trim()) {
       Alert.alert('Validation Error', 'Please enter your password');
+      resetCaptcha();
       return false;
     }
     if (password.length < 8) {
@@ -60,9 +65,16 @@ const Login = ({ navigation }) => {
         'Validation Error',
         'Password must be at least 8 characters long',
       );
+      resetCaptcha();
       return false;
     }
     return true;
+  };
+
+  const resetCaptcha = () => {
+    setCaptchaToken(null);
+    setCaptchaVerified(false);
+    recaptcha.current?.close();
   };
 
   const loginFunction = async () => {
@@ -72,7 +84,12 @@ const Login = ({ navigation }) => {
       }
 
       setLoader(true);
-      const response = await postData(Api.LOGIN, {
+      // const response = await postData(Api.LOGIN, {
+      //   email,
+      //   password,
+      //   captcha_token: captchaToken,
+      // });
+      const response = await axios.post(BaseUrl + 'login', {
         email,
         password,
         captcha_token: captchaToken,
@@ -80,26 +97,19 @@ const Login = ({ navigation }) => {
 
       if (response?.status == 200) {
         setLoader(false);
-        const token = response?.data?.data?.token;
-        if (token && response?.data?.data?.user?.epos_user == 1) {
-          await Keychain.setGenericPassword('userToken', token);
-
-          await MMKVStorage.setItem('User_Data', response?.data?.data?.user);
-
-          showToast('success', 'Success!', 'Data saved successfully');
-
-          navigation.replace('Home');
-        } else {
-          setLoader(false);
-          Alert.alert('Unauthorized User', 'You are not an EPOS user.');
-        }
+        showToast('success', 'Success!', response?.data?.message);
+        navigation.replace('OtpScreen', { email: email });
       } else {
         setLoader(false);
-
+        resetCaptcha();
         // Alert.alert('Login Failed', 'Invalid credentials');
       }
-    } catch (error) {
+
       setLoader(false);
+    } catch (error) {
+      console.log('XCvcvcbcvbcvbvcbcvbv', error);
+      setLoader(false);
+      resetCaptcha();
 
       if (error.type === 'network') {
         showToast('danger', 'Network Error', error.message);
@@ -277,7 +287,9 @@ const Login = ({ navigation }) => {
             >
               <View style={styles.robotRow}>
                 <Ionicons
-                  name={captchaVerified ? 'checkbox' : 'shield-checkmark-outline'}
+                  name={
+                    captchaVerified ? 'checkbox' : 'shield-checkmark-outline'
+                  }
                   size={moderateScale(24)}
                   color={captchaVerified ? '#4CAF50' : '#999'}
                 />

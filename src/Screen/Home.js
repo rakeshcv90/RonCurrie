@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 /* eslint-disable no-catch-shadow */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -9,7 +10,6 @@ import {
   LayoutAnimation,
   RefreshControl,
   Dimensions,
-  Platform,
   BackHandler,
   Modal,
 } from 'react-native';
@@ -21,11 +21,11 @@ import {
 } from 'react-native-size-matters';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
+
 import { fetchProducts } from '../Redux/Slice/ProductMenuSlice';
 import { useFocusEffect } from '@react-navigation/native';
 import Loader from '../Component/Loader';
-import { showToast } from '../utility/showToast';
 
 import CartComponent from '../Component/CartComponent';
 import { Color, FONT, ImageData } from '../Component/Image';
@@ -49,21 +49,58 @@ const itemWidth =
   (screenW - PADDING_HORIZONTAL * 2 - MARGIN_HORIZONTAL * 2 * COLUMNS) /
   COLUMNS;
 
+const itemKeyExtractor = (item, index) =>
+  `${item.id || item.product_id || index}`;
+
+const ProductRowItem = React.memo(
+  ({ item, onPress, imageUrl, hasError, onError }) => {
+    return (
+      <TouchableOpacity style={styles.itemRow} onPress={() => onPress(item)}>
+        <FastImage
+          style={styles.itemImage}
+          source={
+            imageUrl && !hasError
+              ? {
+                  uri: imageUrl,
+                  priority: FastImage.priority.high,
+                  cache: FastImage.cacheControl.immutable,
+                }
+              : ImageData.NOIMAGE
+          }
+          resizeMode={FastImage.resizeMode.cover}
+          onError={() => onError(item.id)}
+        />
+
+        <View style={styles.itemTextContainer}>
+          <Text style={styles.itemName} numberOfLines={2}>
+            {decodeHtml(item.name || item.descriptions?.name)}
+          </Text>
+          <Text style={styles.itemPrice}>
+            £ {Number(item.price).toFixed(2)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  },
+);
+
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
-  const { products, loading, error } = useSelector(state => state.product);
-  const { categories } = useSelector(state => state.category);
+  const { products, loading } = useSelector(
+    state => state.product,
+    shallowEqual,
+  );
+  const { categories } = useSelector(state => state.category, shallowEqual);
 
   const [refreshing, setRefreshing] = useState(false);
 
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingMore] = useState(false);
   const [imageErrorMap, setImageErrorMap] = useState({});
   const [expanded, setExpanded] = useState(0);
   const [category, setCategory] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [barcodeProcessing, setBarcodeProcessing] = useState(false);
   const [searchNoResults, setSearchNoResults] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const searchRef = useRef(null);
@@ -75,6 +112,12 @@ const Home = ({ navigation }) => {
 
     fetchUserData();
   }, []);
+
+  // Fetch products and categories once on mount
+  useEffect(() => {
+    dispatch(fetchProducts());
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,30 +132,13 @@ const Home = ({ navigation }) => {
     }, []),
   );
 
+  // Fetch cart data on screen focus
   useFocusEffect(
     useCallback(() => {
-      const fetchData = async () => {
-        try {
-          await Promise.all([
-            dispatch(fetchProducts()).unwrap(),
-            dispatch(fetchCategories()).unwrap(),
-          ]);
-        } catch (error) {
-          if (error.type === 'network') {
-            showToast('danger', 'Network Error', error.message);
-          } else if (error.type === 'response') {
-            showToast('danger', 'API Error', error.message);
-          } else {
-            showToast(
-              'danger',
-              'Unexpected Error',
-              error.message || 'Something went wrong',
-            );
-          }
-        }
-      };
-      fetchData();
-    }, [dispatch]),
+      if (userData?.customer_id) {
+        dispatch(fetchCartData(userData.customer_id));
+      }
+    }, [dispatch, userData]),
   );
 
   const toggleExpand = useCallback(id => {
@@ -145,34 +171,13 @@ const Home = ({ navigation }) => {
       const hasError = imageErrorMap[item.id];
 
       return (
-        <TouchableOpacity
-          style={styles.itemRow}
-          onPress={() => handleItemPress(item)}
-        >
-          <FastImage
-            style={styles.itemImage}
-            source={
-              imageUrl && !hasError
-                ? {
-                    uri: imageUrl,
-                    priority: FastImage.priority.high,
-                    cache: FastImage.cacheControl.immutable,
-                  }
-                : ImageData.NOIMAGE
-            }
-            resizeMode={FastImage.resizeMode.cover}
-            onError={() => handleImageError(item.id)}
-          />
-
-          <View style={styles.itemTextContainer}>
-            <Text style={styles.itemName} numberOfLines={2}>
-              {decodeHtml(item.name || item.descriptions?.name)}
-            </Text>
-            <Text style={styles.itemPrice}>
-              £ {Number(item.price).toFixed(2)}
-            </Text>
-          </View>
-        </TouchableOpacity>
+        <ProductRowItem
+          item={item}
+          onPress={handleItemPress}
+          imageUrl={imageUrl}
+          hasError={hasError}
+          onError={handleImageError}
+        />
       );
     },
     [imageErrorMap, handleItemPress, handleImageError],
@@ -185,15 +190,11 @@ const Home = ({ navigation }) => {
       await dispatch(fetchProducts()).unwrap();
 
       dispatch(fetchCartData(userData.customer_id));
-    } catch (error) {
-      showToast('danger', 'Error', error.message || 'Something went wrong');
-    }
+    } catch (err) {}
 
     setRefreshing(false);
   }, [dispatch, userData]);
-  const handleBarcodeScan = useCallback(isProcessing => {
-    setBarcodeProcessing(isProcessing);
-  }, []);
+  const handleBarcodeScan = useCallback(_isProcessing => {}, []);
   return (
     <SafeAreaView style={styles.container}>
       <SearchComponent
@@ -211,14 +212,9 @@ const Home = ({ navigation }) => {
           <FlatList
             data={results}
             showsVerticalScrollIndicator={false}
-            keyExtractor={(item, index) =>
-              `${item.id || item.product_id || index}`
-            }
+            keyExtractor={itemKeyExtractor}
             renderItem={renderItem}
-            contentContainerStyle={{
-              paddingHorizontal: 12,
-              paddingBottom: moderateScale(120),
-            }}
+            contentContainerStyle={styles.flatListContainer}
             onEndReached={() => loadMoreFunc && loadMoreFunc()}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
@@ -245,7 +241,7 @@ const Home = ({ navigation }) => {
       ) : (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: moderateScale(90) }}
+          contentContainerStyle={styles.scrollViewContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -256,71 +252,58 @@ const Home = ({ navigation }) => {
             />
           }
         >
-          {products?.map((category, index) => (
-            <View key={category?.id || index} style={styles.card}>
+          {products?.map((cat, index) => (
+            <View key={cat?.id || index} style={styles.card}>
               <TouchableOpacity
                 activeOpacity={1}
                 style={[
                   styles.header,
-                  expanded === (category.id || index) && styles.headerActive,
+                  expanded === (cat.id || index) && styles.headerActive,
                 ]}
-                onPress={() => toggleExpand(category?.id || index)}
+                onPress={() => toggleExpand(cat?.id || index)}
               >
                 <Text
                   style={[
                     styles.title,
-                    expanded === (category.id || index) && styles.titleActive,
+                    expanded === (cat.id || index) && styles.titleActive,
                   ]}
                 >
-                  {category?.main_heading}
+                  {cat?.main_heading}
                 </Text>
                 <View>
                   <Ionicons
                     name={
-                      expanded === (category?.id || index)
+                      expanded === (cat?.id || index)
                         ? 'chevron-down'
                         : 'chevron-up'
                     }
                     size={moderateScale(16)}
                     style={{ top: 5 }}
-                    color={
-                      expanded === (category.id || index) ? '#fff' : '#000'
-                    }
+                    color={expanded === (cat.id || index) ? '#fff' : '#000'}
                   />
                   <Ionicons
                     name={
-                      expanded === (category.id || index)
+                      expanded === (cat.id || index)
                         ? 'chevron-up'
                         : 'chevron-down'
                     }
                     size={moderateScale(16)}
-                    color={
-                      expanded === (category.id || index) ? '#fff' : '#000'
-                    }
+                    color={expanded === (cat.id || index) ? '#fff' : '#000'}
                     style={{ top: -4 }}
                   />
                 </View>
               </TouchableOpacity>
 
-              {expanded === (category.id || index) &&
-                category?.product_data?.length > 0 && (
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      flexWrap: 'wrap',
-                      paddingTop: moderateScale(5),
-                      paddingHorizontal: PADDING_HORIZONTAL,
-                      paddingBottom: moderateScale(10),
-                    }}
-                  >
-                    {category?.product_data?.map((item, idx) => (
+              {expanded === (cat.id || index) &&
+                cat?.product_data?.length > 0 && (
+                  <View style={styles.expandedItemsContainer}>
+                    {cat?.product_data?.map((item, idx) => (
                       <TouchableOpacity
                         key={idx}
                         style={[
                           styles.itemBox,
                           {
-                            width: itemWidth,
-                            backgroundColor: category?.color,
+                            backgroundColor: cat?.color,
                           },
                         ]}
                         onPress={() => handleItemPress(item)}
@@ -339,28 +322,8 @@ const Home = ({ navigation }) => {
 
           {categories?.length > 0 && (
             <>
-              <View
-                style={{
-                  width: '100%',
-                  height: verticalScale(35),
-                  backgroundColor: 'black',
-                  marginTop: 10,
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingHorizontal: verticalScale(10),
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: verticalScale(18),
-                    color: 'white',
-
-                    fontFamily: FONT.BOLD,
-                  }}
-                >
-                  Categories
-                </Text>
+              <View style={styles.categoriesHeaderContainer}>
+                <Text style={styles.categoriesHeaderText}>Categories</Text>
                 <TouchableOpacity onPress={() => setCategory(!category)}>
                   <Ionicons
                     name={category ? 'close' : 'menu'}
@@ -473,10 +436,40 @@ const styles = ScaledSheet.create({
     color: '#fff',
   },
 
+  flatListContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: moderateScale(120),
+  },
+  scrollViewContainer: {
+    paddingBottom: moderateScale(90),
+  },
+  expandedItemsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingTop: moderateScale(5),
+    paddingHorizontal: PADDING_HORIZONTAL,
+    paddingBottom: moderateScale(10),
+  },
+  categoriesHeaderContainer: {
+    width: '100%',
+    height: verticalScale(35),
+    backgroundColor: 'black',
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: verticalScale(10),
+  },
+  categoriesHeaderText: {
+    fontSize: verticalScale(18),
+    color: 'white',
+    fontFamily: FONT.BOLD,
+  },
   itemBox: {
     marginHorizontal: MARGIN_HORIZONTAL,
     marginVertical: MARGIN_HORIZONTAL,
     height: moderateScale(60),
+    width: itemWidth,
     backgroundColor: '#f4c69f',
     borderRadius: 2,
     justifyContent: 'center',
