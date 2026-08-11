@@ -1,10 +1,10 @@
 // // Local
-// export const BaseUrl ='https://backend.roncurry.co.uk/api/v1/frontend/';
-// export const ImageBaseUrl ='https://backend.roncurry.co.uk/image/';
+export const BaseUrl = 'https://backend.roncurry.co.uk/api/v1/frontend/';
+export const ImageBaseUrl = 'https://backend.roncurry.co.uk/image/';
 
-// Live Server
-export const BaseUrl = 'https://api.roncurrie.co.uk/api/v1/frontend/'; //New Live Server
-export const ImageBaseUrl = 'https://api.roncurrie.co.uk/image/';
+// // Live Server
+// export const BaseUrl = 'https://api.roncurrie.co.uk/api/v1/frontend/'; //New Live Server
+// export const ImageBaseUrl = 'https://api.roncurrie.co.uk/image/';
 
 export const Api = {
   LOGIN: 'login',

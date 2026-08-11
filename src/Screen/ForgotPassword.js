@@ -24,6 +24,7 @@ import { postData } from '../utility/ApiCall';
 import { Api } from '../utility/api';
 import Loader from '../Component/Loader';
 import { showToast } from '../utility/showToast';
+import axios from 'axios';
 
 const ForgotPassword = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -55,6 +56,28 @@ const ForgotPassword = ({ navigation }) => {
     } catch (error) {
       setLoader(false);
     }
+
+    // try {
+    //   const response = await axios.post(
+    //     'https://backend.roncurry.co.uk/api/v1/frontend/send-password-reset-link',
+    //     {
+    //       email,
+    //     },
+    //     {
+    //       headers: {
+    //         'Content-Type': 'application/json',
+    //       },
+    //     },
+    //   );
+
+    //   console.log(response.data);
+    // } catch (e) {
+    //   console.log('Message:', e.message);
+    //   console.log('Code:', e.code);
+    //   console.log('Status:', e.response?.status);
+    //   console.log('Data:', e.response?.data);
+    //   console.log('toJSON:', e.toJSON?.());
+    // }
   };
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>

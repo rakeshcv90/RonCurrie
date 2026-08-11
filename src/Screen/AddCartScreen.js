@@ -55,7 +55,10 @@ import DeliveryOptionsModal from '../Component/DeliveryOptionsModal';
 import { fetchA4PrintDetails } from '../Redux/Slice/A4PrintSlice';
 import { Dimensions } from 'react-native';
 import decodeHtml from '../utility/decodeHtml';
+
+import AddressMapPin from './Component/AddressMapPin';
 const windowHeight = Dimensions.get('window').height;
+
 const AddCartScreen = ({ navigation }) => {
   const [loader, setLoader] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -69,6 +72,7 @@ const AddCartScreen = ({ navigation }) => {
   const [imageErrorMap, setImageErrorMap] = useState({});
   const [phoneError, setPhoneError] = useState('');
   const [searchNoResults, setSearchNoResults] = useState(false);
+
   const {
     cartList,
     miscList: reduxMiscList,
@@ -94,6 +98,10 @@ const AddCartScreen = ({ navigation }) => {
   const [deliveryType, setDeliveryType] = useState(null);
   const [notes, setNotes] = useState('');
   const searchRef = useRef(null);
+
+  const [mapShow, setMapShow] = useState(false);
+  const [isLocationConfirmed, setIsLocationConfirmed] = useState(false);
+  const [confirmedLocationCoords, setConfirmedLocationCoords] = useState(null);
 
   useEffect(() => {
     const handleCartEmpty = async () => {
@@ -708,6 +716,8 @@ const AddCartScreen = ({ navigation }) => {
       shipping_country: selectedAddress?.country_name,
       notify: 0,
       comment: notes,
+      shipping_latitude: confirmedLocationCoords?.lat || '',
+      shipping_longitude: confirmedLocationCoords?.lng || '',
     };
 
     if (hasMisc) {
@@ -817,6 +827,10 @@ const AddCartScreen = ({ navigation }) => {
       }
     }
   };
+  const addressMapQuery = selectedAddress
+    ? `${selectedAddress.originalAddress}, ${postcode || ''}, UK`
+    : '';
+
   const handleApply = (id, date, name, price) => {
     setDeliveryType({
       id: id.id,
@@ -1189,6 +1203,96 @@ const AddCartScreen = ({ navigation }) => {
                               }}
                             />
                           </View>
+                        </>
+                      )}
+
+                      {selectedAddress && (
+                        <>
+                          <AddressMapPin
+                            addressQuery={addressMapQuery}
+                            onConfirm={coords => {
+                              console.log('Final Lat Long:', coords);
+                              setIsLocationConfirmed(true);
+                              setConfirmedLocationCoords(coords);
+                            }}
+                            onPinMoved={() => {
+                              setIsLocationConfirmed(false);
+                              setConfirmedLocationCoords(null);
+                            }}
+                          />
+
+                          <View style={{ marginTop: 10 }}>
+                            <Text style={styles.sectionTitle}>
+                              Customer Information
+                            </Text>
+                            <Text style={styles.label}>CUSTOMER NAME</Text>
+                            <TextInput
+                              style={styles.input2}
+                              placeholder="Enter Name"
+                              value={customerName}
+                              onChangeText={setCustomerName}
+                            />
+
+                            <Text style={styles.label}>
+                              CUSTOMER DELIVERY ADDRESS
+                            </Text>
+                            <TextInput
+                              style={[styles.input2, styles.multilineInput]}
+                              placeholder="Delivery Address"
+                              value={selectedAddress?.originalAddress}
+                              multiline={true}
+                              textAlignVertical="top"
+                              onChangeText={text =>
+                                setSelectedAddress(prev => ({
+                                  ...prev,
+                                  originalAddress: text,
+                                }))
+                              }
+                            />
+
+                            <Text style={styles.label}>
+                              CUSTOMER CONTACT NUMBER
+                              <Text style={{ color: Color.RED }}>*</Text>
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.input2,
+                                phoneError && { borderColor: Color.RED },
+                              ]}
+                              placeholder="Enter Contact Number"
+                              value={contactNumber}
+                              // onChangeText={setContactNumber}
+                              keyboardType="phone-pad"
+                              maxLength={16}
+                              onChangeText={text => {
+                                const cleaned = text.replace(/[^0-9]/g, '');
+
+                                setContactNumber(cleaned);
+
+                                if (cleaned.length === 0) {
+                                  setPhoneError(
+                                    'Please enter your phone number',
+                                  );
+                                } else if (cleaned.length > 16) {
+                                  setPhoneError('Maximum 16 digits allowed');
+                                } else {
+                                  setPhoneError(''); // valid
+                                }
+                              }}
+                            />
+
+                            {phoneError ? (
+                              <Text
+                                style={{
+                                  color: Color.RED,
+                                  fontSize: 12,
+                                  marginTop: 4,
+                                }}
+                              >
+                                {phoneError}
+                              </Text>
+                            ) : null}
+                          </View>
 
                           <TouchableOpacity
                             style={{
@@ -1201,6 +1305,14 @@ const AddCartScreen = ({ navigation }) => {
                               marginTop: 5,
                             }}
                             onPress={() => {
+                              if (!isLocationConfirmed) {
+                                Alert.alert(
+                                  'Validation Error',
+                                  'Please select address first',
+                                );
+                                return;
+                              }
+
                               const value =
                                 selectedAddress?.label || selectedAddress; // if it's an object with label
 
@@ -1225,208 +1337,136 @@ const AddCartScreen = ({ navigation }) => {
                                 lineHeight: 24,
                               }}
                             >
-                              Delivery Option
+                              Choose Deliver Service
                             </Text>
                           </TouchableOpacity>
-                        </>
-                      )}
-
-                      {deliveryType != null && (
-                        <>
-                          <View
-                            style={{
-                              width: '100%',
-                              height: moderateScale(116),
-                              backgroundColor: Color.GRAY3,
-                              borderRadius: moderateScale(4),
-                              alignItems: 'center',
-                              marginVertical: moderateScale(16),
-                            }}
-                          >
-                            <View
-                              style={{
-                                width: '100%',
-                                flexDirection: 'row',
-                                justifyContent: 'space-between',
-                                paddingHorizontal: 10,
-                                marginTop: 10,
-                              }}
-                            >
-                              <Text
+                          {deliveryType != null && (
+                            <>
+                              <View
                                 style={{
-                                  color: Color.GRAY,
-                                  fontFamily: FONT.BOLD,
-                                  fontSize: 14,
-                                  lineHeight: 20,
+                                  width: '100%',
+                                  height: moderateScale(116),
+                                  backgroundColor: Color.GRAY3,
+                                  borderRadius: moderateScale(4),
+                                  alignItems: 'center',
+                                  marginVertical: moderateScale(16),
                                 }}
                               >
-                                Sub-Total:
-                              </Text>
-
-                              <Text
-                                style={{
-                                  color: Color.BLACK,
-                                  fontFamily: FONT.BOLD,
-                                  fontSize: 14,
-                                  lineHeight: 20,
-                                }}
-                              >
-                                £{totalPrice}
-                              </Text>
-                            </View>
-                            <View
-                              style={{
-                                width: '100%',
-                                flexDirection: 'row',
-                                justifyContent: 'space-between',
-                                paddingHorizontal: 10,
-                              }}
-                            >
-                              <View style={{ width: 200 }}>
-                                <Text
-                                  numberOfLines={1}
+                                <View
                                   style={{
-                                    color: Color.GRAY,
-                                    fontFamily: FONT.BOLD,
-                                    fontSize: 14,
-                                    lineHeight: 20,
+                                    width: '100%',
+                                    flexDirection: 'row',
+                                    justifyContent: 'space-between',
+                                    paddingHorizontal: 10,
+                                    marginTop: 10,
                                   }}
                                 >
-                                  Local Date {deliveryType?.name}:
-                                </Text>
+                                  <Text
+                                    style={{
+                                      color: Color.GRAY,
+                                      fontFamily: FONT.BOLD,
+                                      fontSize: 14,
+                                      lineHeight: 20,
+                                    }}
+                                  >
+                                    Sub-Total:
+                                  </Text>
+
+                                  <Text
+                                    style={{
+                                      color: Color.BLACK,
+                                      fontFamily: FONT.BOLD,
+                                      fontSize: 14,
+                                      lineHeight: 20,
+                                    }}
+                                  >
+                                    £{totalPrice}
+                                  </Text>
+                                </View>
+                                <View
+                                  style={{
+                                    width: '100%',
+                                    flexDirection: 'row',
+                                    justifyContent: 'space-between',
+                                    paddingHorizontal: 10,
+                                  }}
+                                >
+                                  <View style={{ width: 200 }}>
+                                    <Text
+                                      numberOfLines={1}
+                                      style={{
+                                        color: Color.GRAY,
+                                        fontFamily: FONT.BOLD,
+                                        fontSize: 14,
+                                        lineHeight: 20,
+                                      }}
+                                    >
+                                      Local Date {deliveryType?.name}:
+                                    </Text>
+                                  </View>
+
+                                  <Text
+                                    style={{
+                                      color: Color.BLACK,
+                                      fontFamily: FONT.BOLD,
+                                      fontSize: 14,
+                                      lineHeight: 20,
+                                    }}
+                                  >
+                                    {deliveryType?.price}
+                                  </Text>
+                                </View>
+                                <View
+                                  style={{
+                                    width: '100%',
+                                    height: 1,
+                                    backgroundColor: Color.GRAY5,
+                                    marginTop: 10,
+                                  }}
+                                />
+                                <View
+                                  style={{
+                                    width: '100%',
+                                    flexDirection: 'row',
+                                    justifyContent: 'space-between',
+                                    paddingHorizontal: 10,
+                                    alignItems: 'center',
+                                    marginTop: 10,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: Color.GRAY,
+                                      fontFamily: FONT.BOLD,
+                                      fontSize: 14,
+                                      lineHeight: 20,
+                                    }}
+                                  >
+                                    Preferred Date:
+                                  </Text>
+                                  <Text
+                                    style={{
+                                      color: Color.BLACK,
+                                      fontFamily: FONT.BOLD,
+                                      fontSize: 14,
+                                      lineHeight: 20,
+                                    }}
+                                  >
+                                    {deliveryType?.date}
+                                  </Text>
+                                </View>
                               </View>
 
-                              <Text
-                                style={{
-                                  color: Color.BLACK,
-                                  fontFamily: FONT.BOLD,
-                                  fontSize: 14,
-                                  lineHeight: 20,
-                                }}
-                              >
-                                {deliveryType?.price}
-                              </Text>
-                            </View>
-                            <View
-                              style={{
-                                width: '100%',
-                                height: 1,
-                                backgroundColor: Color.GRAY5,
-                                marginTop: 10,
-                              }}
-                            />
-                            <View
-                              style={{
-                                width: '100%',
-                                flexDirection: 'row',
-                                justifyContent: 'space-between',
-                                paddingHorizontal: 10,
-                                alignItems: 'center',
-                                marginTop: 10,
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  color: Color.GRAY,
-                                  fontFamily: FONT.BOLD,
-                                  fontSize: 14,
-                                  lineHeight: 20,
-                                }}
-                              >
-                                Preferred Date:
-                              </Text>
-                              <Text
-                                style={{
-                                  color: Color.BLACK,
-                                  fontFamily: FONT.BOLD,
-                                  fontSize: 14,
-                                  lineHeight: 20,
-                                }}
-                              >
-                                {deliveryType?.date}
-                              </Text>
-                            </View>
-                          </View>
-
-                          <View style={styles.totalContainer}>
-                            <Text style={styles.totalLabel}>TOTAL</Text>
-                            <Text style={styles.totalValue}>
-                              £{getTotal(totalPrice, deliveryType?.price)}
-                            </Text>
-                          </View>
-
-                          <Text style={styles.sectionTitle}>
-                            Customer Information
-                          </Text>
+                              <View style={styles.totalContainer}>
+                                <Text style={styles.totalLabel}>TOTAL</Text>
+                                <Text style={styles.totalValue}>
+                                  £{getTotal(totalPrice, deliveryType?.price)}
+                                </Text>
+                              </View>
+                            </>
+                          )}
                         </>
                       )}
-                      <View style={{ marginTop: 10 }}>
-                        <Text style={styles.label}>CUSTOMER NAME</Text>
-                        <TextInput
-                          style={styles.input2}
-                          placeholder="Enter Name"
-                          value={customerName}
-                          onChangeText={setCustomerName}
-                        />
-
-                        <Text style={styles.label}>
-                          CUSTOMER DELIVERY ADDRESS
-                        </Text>
-                        <TextInput
-                          style={[styles.input2, styles.multilineInput]}
-                          placeholder="Delivery Address"
-                          value={selectedAddress?.originalAddress}
-                          multiline={true}
-                          textAlignVertical="top"
-                          onChangeText={text =>
-                            setSelectedAddress(prev => ({
-                              ...prev,
-                              originalAddress: text,
-                            }))
-                          }
-                        />
-
-                        <Text style={styles.label}>
-                          CUSTOMER CONTACT NUMBER
-                          <Text style={{ color: Color.RED }}>*</Text>
-                        </Text>
-                        <TextInput
-                          style={[
-                            styles.input2,
-                            phoneError && { borderColor: Color.RED },
-                          ]}
-                          placeholder="Enter Contact Number"
-                          value={contactNumber}
-                          // onChangeText={setContactNumber}
-                          keyboardType="phone-pad"
-                          maxLength={16}
-                          onChangeText={text => {
-                            const cleaned = text.replace(/[^0-9]/g, '');
-
-                            setContactNumber(cleaned);
-
-                            if (cleaned.length === 0) {
-                              setPhoneError('Please enter your phone number');
-                            } else if (cleaned.length > 16) {
-                              setPhoneError('Maximum 16 digits allowed');
-                            } else {
-                              setPhoneError(''); // valid
-                            }
-                          }}
-                        />
-
-                        {phoneError ? (
-                          <Text
-                            style={{
-                              color: Color.RED,
-                              fontSize: 12,
-                              marginTop: 4,
-                            }}
-                          >
-                            {phoneError}
-                          </Text>
-                        ) : null}
-                      </View>
                     </View>
                   </>
                 ) : (
