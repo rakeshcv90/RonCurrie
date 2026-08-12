@@ -2,17 +2,17 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { Api } from '../../utility/api';
 import { getData } from '../../utility/ApiCall';
 
-
 export const fetchProductsList = createAsyncThunk(
   'productsList/fetchProductsList',
   async (payload, { rejectWithValue }) => {
     try {
       // Append payload in URL
-      const response = await getData(`${Api.EPOS_PRODUCTLIST_PAGE}?name=${payload}`);
- 
+      // const response = await getData(`${Api.EPOS_PRODUCTLIST_PAGE}?name=${payload}&clicked_product_id=${clickedProductId}`);
+      const response = await getData(
+        `${Api.EPOS_PRODUCTLIST_PAGE}?name=${payload.slug}&clicked_product_id=${payload.clicked_product_id}`,
+      );
       return response?.data;
     } catch (error) {
-     
       return rejectWithValue(error);
     }
   },

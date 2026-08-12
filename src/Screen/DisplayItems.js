@@ -53,13 +53,14 @@ import {
 import SearchComponent from './Component/SearchComponent';
 import { Dropdown } from 'react-native-element-dropdown';
 import decodeHtml from '../utility/decodeHtml';
+import CompositeProduct from './Component/DisplayItems/CompositeProduct';
 
 const DisplayItems = ({ navigation, route }) => {
   const ItemData = route.params.itemData;
 
   const dispatch = useDispatch();
   const { productsList, loading } = useSelector(state => state.productsList);
-
+  console.log('ItemDataproductsList', productsList);
   const [selectedTab, setSelectedTab] = useState('Sales');
   const [customLength, setCustomLength] = useState('');
   const [visibleModal, setVisibleModaL] = useState(false);
@@ -121,8 +122,14 @@ const DisplayItems = ({ navigation, route }) => {
   useFocusEffect(
     useCallback(() => {
       dispatch(clearProducts());
-      dispatch(fetchProductsList(ItemData?.slug));
-
+      // dispatch(fetchProductsList(ItemData?.slug));
+      dispatch(
+        fetchProductsList({
+          slug: ItemData?.slug,
+          clicked_product_id:
+            ItemData?.clicked_product_id || ItemData?.product_id,
+        }),
+      );
       // dispatch(
       //   fetchProductsList('made-to-measure-solid-boarded-garage-doors-pair'),
       // );
@@ -566,7 +573,13 @@ const DisplayItems = ({ navigation, route }) => {
   const handleItemPress = useCallback(
     item => {
       setPayload(prev => ({ ...prev, product_id: item?.id }));
-      dispatch(fetchProductsList(item?.slug));
+      // dispatch(fetchProductsList(item?.slug));
+      dispatch(
+        fetchProductsList({
+          slug: item?.slug,
+          clicked_product_id: item?.product_id,
+        }),
+      );
       setResults([]);
       setTimeout(() => {
         searchRef.current?.clearSearch();
@@ -625,7 +638,14 @@ const DisplayItems = ({ navigation, route }) => {
     try {
       // Re-fetch your products or any data
       dispatch(clearProducts());
-      dispatch(fetchProductsList(ItemData?.slug));
+      // dispatch(fetchProductsList(ItemData?.slug));
+      dispatch(
+        fetchProductsList({
+          slug: ItemData?.slug,
+          clicked_product_id:
+            ItemData?.clicked_product_id || ItemData?.product_id,
+        }),
+      );
     } catch (error) {
       showToast('danger', 'Error', error.message || 'Something went wrong');
     }
@@ -808,22 +828,9 @@ const DisplayItems = ({ navigation, route }) => {
 
                 {productsList?.matrix?.length <= 0 &&
                 productsList?.allow_calculator === 0 ? (
-                  <>
-                    {productsList?.options?.length > 0 &&
-                      productsList?.has_option !== 0 && (
-                        <View style={styles.headerRow}>
-                          <Text style={styles.headerText}>
-                            {
-                              productsList?.options?.[0]?.option_descriptions
-                                ?.name
-                            }
-                          </Text>
-                        </View>
-                      )}
-
-                    {productsList?.has_option !== 0 &&
-                    productsList?.options?.length > 0 ? (
-                      <OptionsTable
+                  productsList?.is_composite !== 0 ? (
+                    <>
+                      <CompositeProduct
                         productsList={productsList}
                         selectedTab={selectedTab}
                         rowQuantities={rowQuantities}
@@ -833,83 +840,111 @@ const DisplayItems = ({ navigation, route }) => {
                         handleFinalQty={handleFinalQty}
                         styles={styles}
                       />
-                    ) : (
-                      <SingleItemTable
-                        productsList={productsList}
-                        rowQuantities={rowQuantities}
-                        handleDecrease={handleDecrease}
-                        handleIncrease={handleIncrease}
-                        handleSingleTyping={handleSingleTyping}
-                        handleSingleFinal={handleSingleFinal}
-                        styles={styles}
-                      />
-                    )}
+                    </>
+                  ) : (
+                    <>
+                      {productsList?.options?.length > 0 &&
+                        productsList?.has_option !== 0 && (
+                          <View style={styles.headerRow}>
+                            <Text style={styles.headerText}>
+                              {
+                                productsList?.options?.[0]?.option_descriptions
+                                  ?.name
+                              }
+                            </Text>
+                          </View>
+                        )}
 
-                    {productsList?.options?.[0]?.display === 1 &&
-                      productsList?.options?.[0]?.bespoke_value_req_epos ===
-                        1 && (
-                        <BespokeCalculator
-                          customLength={customLength}
+                      {productsList?.has_option !== 0 &&
+                      productsList?.options?.length > 0 ? (
+                        <OptionsTable
                           productsList={productsList}
+                          selectedTab={selectedTab}
                           rowQuantities={rowQuantities}
-                          bespokeFactor={bespokeFactor}
-                          handleCustomLengthChange={handleCustomLengthChange}
                           handleDecrease={handleDecrease}
                           handleIncrease={handleIncrease}
-                          handleCustomTyping={handleCustomTyping}
-                          handleCustomFinal={handleCustomFinal}
+                          handleQtyTyping={handleQtyTyping}
+                          handleFinalQty={handleFinalQty}
+                          styles={styles}
+                        />
+                      ) : (
+                        <SingleItemTable
+                          productsList={productsList}
+                          rowQuantities={rowQuantities}
+                          handleDecrease={handleDecrease}
+                          handleIncrease={handleIncrease}
+                          handleSingleTyping={handleSingleTyping}
+                          handleSingleFinal={handleSingleFinal}
                           styles={styles}
                         />
                       )}
 
-                    {productsList?.has_option !== 0 &&
-                      productsList?.options?.length >= 2 && (
-                        <>
-                          <View
-                            style={{
-                              flexDirection: 'row',
-                              flex: 1,
-                              paddingHorizontal: 10,
-                              alignItems: 'center',
-                            }}
-                          >
-                            <Text
+                      {productsList?.options?.[0]?.display === 1 &&
+                        productsList?.options?.[0]?.bespoke_value_req_epos ===
+                          1 && (
+                          <BespokeCalculator
+                            customLength={customLength}
+                            productsList={productsList}
+                            rowQuantities={rowQuantities}
+                            bespokeFactor={bespokeFactor}
+                            handleCustomLengthChange={handleCustomLengthChange}
+                            handleDecrease={handleDecrease}
+                            handleIncrease={handleIncrease}
+                            handleCustomTyping={handleCustomTyping}
+                            handleCustomFinal={handleCustomFinal}
+                            styles={styles}
+                          />
+                        )}
+
+                      {productsList?.has_option !== 0 &&
+                        productsList?.options?.length >= 2 && (
+                          <>
+                            <View
                               style={{
-                                fontSize: 14,
-                                fontWeight: FONT.SEMIBOLD,
-                                color: Color.RED,
-                                flex: 0.3,
+                                flexDirection: 'row',
+                                flex: 1,
+                                paddingHorizontal: 10,
+                                alignItems: 'center',
                               }}
                             >
-                              {
-                                productsList?.options[1]?.option_descriptions
-                                  ?.name
-                              }
-                            </Text>
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: FONT.SEMIBOLD,
+                                  color: Color.RED,
+                                  flex: 0.3,
+                                }}
+                              >
+                                {
+                                  productsList?.options[1]?.option_descriptions
+                                    ?.name
+                                }
+                              </Text>
 
-                            <Dropdown
-                              style={[styles.dropdown, { flex: 0.7 }]}
-                              placeholderStyle={styles.placeholderStyle}
-                              selectedTextStyle={styles.selectedTextStyle}
-                              iconStyle={styles.iconStyle}
-                              data={dropdownData}
-                              search={false}
-                              maxHeight={verticalScale(150)}
-                              labelField="label"
-                              valueField="value"
-                              placeholder="Select item"
-                              searchPlaceholder="Search..."
-                              value={value}
-                              onChange={item => {
-                                setValue(item.value);
-                                setSelectedValue(item);
-                              }}
-                              renderItem={renderItem3}
-                            />
-                          </View>
-                        </>
-                      )}
-                  </>
+                              <Dropdown
+                                style={[styles.dropdown, { flex: 0.7 }]}
+                                placeholderStyle={styles.placeholderStyle}
+                                selectedTextStyle={styles.selectedTextStyle}
+                                iconStyle={styles.iconStyle}
+                                data={dropdownData}
+                                search={false}
+                                maxHeight={verticalScale(150)}
+                                labelField="label"
+                                valueField="value"
+                                placeholder="Select item"
+                                searchPlaceholder="Search..."
+                                value={value}
+                                onChange={item => {
+                                  setValue(item.value);
+                                  setSelectedValue(item);
+                                }}
+                                renderItem={renderItem3}
+                              />
+                            </View>
+                          </>
+                        )}
+                    </>
+                  )
                 ) : (
                   <MatrixCalculator
                     width={width}
