@@ -36,7 +36,7 @@ const ImageItem = ({ item }) => {
           duration: 1000,
           easing: Easing.linear,
           useNativeDriver: true,
-        })
+        }),
       );
       animation.start();
     }
@@ -53,7 +53,12 @@ const ImageItem = ({ item }) => {
   });
 
   return (
-    <View style={[styles.productImage, { overflow: 'hidden', backgroundColor: '#E0E0E0' }]}>
+    <View
+      style={[
+        styles.productImage,
+        { overflow: 'hidden', backgroundColor: '#E0E0E0' },
+      ]}
+    >
       <FastImage
         style={StyleSheet.absoluteFill}
         source={{
@@ -68,10 +73,7 @@ const ImageItem = ({ item }) => {
       />
       {loading && (
         <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            { transform: [{ translateX }] },
-          ]}
+          style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}
         >
           <LinearGradient
             colors={['transparent', 'rgba(255,255,255,0.7)', 'transparent']}
@@ -88,13 +90,13 @@ const ImageItem = ({ item }) => {
 const ProductModal = ({ visible, onClose, product }) => {
   const { width } = useWindowDimensions();
 
-  const decodedHtml = decode(product?.descriptions?.description);
+  const decodedHtml = decode(product?.descriptions?.description || product?.description || '');
 
   const tagsStyles = {
     h3: { fontSize: 18, fontWeight: FONT.EXTRABOLD, marginBottom: 8 },
     ul: { marginVertical: 8, paddingLeft: 20 },
-    li: { fontSize: 14, marginBottom: 6, lineHeight: 20, color: Color.BLACK2},
-    p: { fontSize: 14, marginTop: 8, lineHeight: 20 ,color: Color.BLACK2},
+    li: { fontSize: 14, marginBottom: 6, lineHeight: 20, color: Color.BLACK2 },
+    p: { fontSize: 14, marginTop: 8, lineHeight: 20, color: Color.BLACK2 },
   };
   return (
     <Modal

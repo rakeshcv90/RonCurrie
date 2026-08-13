@@ -1,6 +1,13 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet, Easing } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Animated,
+  StyleSheet,
+  Easing,
+} from 'react-native';
 import FastImage from 'react-native-fast-image';
 import { verticalScale } from 'react-native-size-matters';
 import { ImageBaseUrl, ImageData } from '../../../utility/api';
@@ -10,7 +17,7 @@ import LinearGradient from 'react-native-linear-gradient';
 const ProductHeader = ({ productsList, setVisibleModal, styles }) => {
   const [loading, setLoading] = useState(true);
   const shimmerTranslate = useRef(new Animated.Value(-1)).current;
-
+  console.log('test ', productsList);
   useEffect(() => {
     let animation;
     if (loading) {
@@ -20,7 +27,7 @@ const ProductHeader = ({ productsList, setVisibleModal, styles }) => {
           duration: 1000,
           easing: Easing.linear,
           useNativeDriver: true,
-        })
+        }),
       );
       animation.start();
     }
@@ -39,7 +46,12 @@ const ProductHeader = ({ productsList, setVisibleModal, styles }) => {
   return (
     <View style={styles.productContainer}>
       {productsList?.image && productsList?.image.trim() !== '' ? (
-        <View style={[styles.productImage, { overflow: 'hidden', backgroundColor: '#E0E0E0' }]}>
+        <View
+          style={[
+            styles.productImage,
+            { overflow: 'hidden', backgroundColor: '#E0E0E0' },
+          ]}
+        >
           <FastImage
             style={StyleSheet.absoluteFill}
             source={{
@@ -54,10 +66,7 @@ const ProductHeader = ({ productsList, setVisibleModal, styles }) => {
           />
           {loading && (
             <Animated.View
-              style={[
-                StyleSheet.absoluteFill,
-                { transform: [{ translateX }] },
-              ]}
+              style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}
             >
               <LinearGradient
                 colors={['transparent', 'rgba(255,255,255,0.7)', 'transparent']}

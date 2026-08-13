@@ -7,7 +7,7 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dropdown } from 'react-native-element-dropdown';
 import { moderateScale, verticalScale } from 'react-native-size-matters';
 import { Color, FONT, ImageData } from '../../../Component/Image';
@@ -111,12 +111,122 @@ const CompositeProduct = ({
   handleIncrease,
   handleQtyTyping,
   handleFinalQty,
+
+  onLinkedProductChange,
   styles,
 }) => {
-  const [selectedValues, setSelectedValues] = useState({});
-  console.log('ItemDataproductsList', productsList);
-  const options = productsList?.options || [];
-  const optionValues = productsList?.options?.[0]?.option_values ?? [];
+  const [allSelectedCompositeOptions, setAllSelectedCompositeOptions] =
+    useState({});
+
+  // ── Derived values (mirror EposProductPage.jsx logic) ─────────────────────
+  const compositeLinks = useMemo(
+    () => productsList?.composite_links || [],
+    [productsList],
+  );
+
+  // Set of option_ids belonging to the shell's own options tree
+  const compositeOptionIds = useMemo(
+    () => new Set((productsList?.options || []).map(o => o.option_id)),
+    [productsList],
+  );
+
+  // Resolve exactly one linked_product when all composite picks match
+  const linkedProduct = useMemo(() => {
+    if (!compositeLinks.length) return null;
+
+    const matches = compositeLinks.filter(
+      link =>
+        link.options?.length > 0 &&
+        link.options.every(o => {
+          const sel = allSelectedCompositeOptions[o.option_id];
+          return sel && Number(sel.option_value_id) === o.option_value_id;
+        }),
+    );
+
+    if (matches.length !== 1) return null;
+    return matches[0].linked_product || null;
+  }, [compositeLinks, allSelectedCompositeOptions]);
+
+  // Per option_id: which option_value_ids remain valid given the OTHER picks
+  const compositeValidValuesByOptionId = useMemo(() => {
+    const map = new Map();
+
+    compositeOptionIds.forEach(optionId => {
+      const otherSelections = Object.values(allSelectedCompositeOptions).filter(
+        sel =>
+          compositeOptionIds.has(sel.option_id) && sel.option_id !== optionId,
+      );
+
+      const validLinks = compositeLinks.filter(
+        link =>
+          link.is_linked === 1 &&
+          otherSelections.every(sel =>
+            link.options?.some(
+              o =>
+                o.option_id === sel.option_id &&
+                o.option_value_id === Number(sel.option_value_id),
+            ),
+          ),
+      );
+
+      map.set(
+        optionId,
+        new Set(
+          validLinks
+            .flatMap(link => link.options || [])
+            .filter(o => o.option_id === optionId)
+            .map(o => o.option_value_id),
+        ),
+      );
+    });
+
+    return map;
+  }, [compositeOptionIds, compositeLinks, allSelectedCompositeOptions]);
+
+  // ── Preselect from preselect_options on mount / productsList change ─────────
+  useEffect(() => {
+    const preselect = productsList?.preselect_options || {};
+    const seeded = {};
+
+    (productsList?.options || []).forEach(option => {
+      option.option_values?.forEach(val => {
+        if (
+          String(val.product_option_id) in preselect &&
+          String(preselect[val.product_option_id]) ===
+            String(val.product_option_value_id)
+        ) {
+          seeded[option.option_id] = {
+            option_id: option.option_id,
+            option_value_id: val.option_value_id,
+            option_name: option.option_descriptions?.name || null,
+            option_value_name: val.option_values_name?.[0]?.name || null,
+            product_option_id: val.product_option_id,
+            product_option_value_id: val.product_option_value_id,
+          };
+        }
+      });
+    });
+
+    setAllSelectedCompositeOptions(seeded);
+  }, [productsList]);
+
+  // ── Notify parent whenever linkedProduct or selections change ──────────────
+  useEffect(() => {
+    onLinkedProductChange?.(linkedProduct);
+  }, [linkedProduct, onLinkedProductChange]);
+
+  // ── FlatList data from linkedProduct (empty while unresolved) ─────────────
+  const tableOptionValues = useMemo(() => {
+    if (!linkedProduct) return [];
+    const nonMinorOptions = (linkedProduct?.options || []).filter(
+      opt => opt.minor === 0,
+    );
+    return nonMinorOptions.length > 0
+      ? nonMinorOptions[0]?.option_values ?? []
+      : [];
+  }, [linkedProduct]);
+
+  // ── FlatList render helpers ───────────────────────────────────────────────
   const renderRow = useCallback(
     ({ item, index }) => {
       const qty = rowQuantities[index] ?? 0;
@@ -146,38 +256,36 @@ const CompositeProduct = ({
   );
 
   const itemKeyExtractor = useCallback((_item, index) => index.toString(), []);
+
+  const options = productsList?.options || [];
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={localStyles.container}>
+    <View style={localStyles.outerContainer}>
+      {/* ── Composite shell dropdowns ── */}
       {options.map((option, index) => {
         const optionName =
           option?.option_descriptions?.name || `Option ${index + 1}`;
 
-        const optionValues1 = option?.option_values || [];
-
-        console.log(
-          `Dropdown [${optionName}] optionValues length:`,
-          optionValues1.length,
+        const validValueIds = compositeValidValuesByOptionId.get(
+          option.option_id,
         );
 
-        const dropdownData = optionValues1.map(item => ({
-          label: decodeHtml(
-            item?.option_values_name?.[0]?.name || item?.name || 'No Name',
-          ),
-          value: item?.option_value_id || item?.id || Math.random().toString(),
-          original: item,
-        }));
+        const dropdownData = (option?.option_values || [])
+          .filter(
+            val => !validValueIds || validValueIds.has(val.option_value_id),
+          )
+          .map(item => ({
+            label: decodeHtml(
+              item?.option_values_name?.[0]?.name || item?.name || 'No Name',
+            ),
+            value: item?.option_value_id,
+            original: item,
+          }));
 
-        console.log(`Dropdown [${optionName}] dropdownData:`, dropdownData);
-
-        const currentValue = selectedValues[option?.product_option_id];
-
-        const renderItem = item => {
-          return (
-            <View style={localStyles.itemContainer}>
-              <Text style={localStyles.itemText}>{item.label}</Text>
-            </View>
-          );
-        };
+        const currentValue =
+          allSelectedCompositeOptions[option?.option_id]?.option_value_id ??
+          null;
 
         return (
           <View
@@ -197,19 +305,87 @@ const CompositeProduct = ({
               placeholder={`Select ${optionName}`}
               value={currentValue}
               onChange={item => {
-                setSelectedValues(prev => ({
+                setAllSelectedCompositeOptions(prev => ({
                   ...prev,
-                  [option?.product_option_id]: item.value,
+                  [option.option_id]: {
+                    option_id: option.option_id,
+                    option_value_id: item.value,
+                    option_name: option.option_descriptions?.name || null,
+                    option_value_name:
+                      item.original?.option_values_name?.[0]?.name || null,
+                    product_option_id: item.original?.product_option_id,
+                    product_option_value_id:
+                      item.original?.product_option_value_id,
+                  },
                 }));
               }}
-              renderItem={renderItem}
+              renderItem={dropItem => (
+                <View style={localStyles.itemContainer}>
+                  <Text style={localStyles.itemText}>{dropItem.label}</Text>
+                </View>
+              )}
             />
           </View>
         );
       })}
+
+      {/* ── Linked-product option name heading — same style as DisplayItems non-composite ── */}
+      {linkedProduct?.options?.length > 0 && (
+        <View
+          style={[
+            styles.headerRow,
+            { alignItems: 'center', gap: moderateScale(15) },
+          ]}
+        >
+          <Text style={[styles.headerText, { color: '#8B0000', flex: 0 }]}>
+            {(
+              linkedProduct.options.find(o => o.minor === 0) ??
+              linkedProduct.options[0]
+            )?.option_descriptions?.name || ''}
+          </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: moderateScale(15),
+            }}
+          >
+            {/* {linkedProduct?.model ? (
+              <Text
+                style={{
+                  fontSize: moderateScale(14),
+                  fontWeight: '700',
+                  color: '#555',
+                }}
+              >
+                Model: {linkedProduct.model}
+              </Text>
+            ) : null} */}
+
+            {/* {linkedProduct?.options?.[0]?.bespoke_factor_val &&
+            parseFloat(linkedProduct.options[0].bespoke_factor_val) > 0 ? (
+              <Text
+                style={{
+                  fontSize: moderateScale(14),
+                  fontWeight: '700',
+                  color: '#555',
+                }}
+              >
+                £
+                {parseFloat(
+                  linkedProduct.options[0].bespoke_factor_val,
+                ).toFixed(2)}
+                /m
+              </Text>
+            ) : null} */}
+          </View>
+        </View>
+      )}
+
+      {/* ── Options table driven by resolved linkedProduct ── */}
       <View style={styles.tableContainer}>
         <FlatList
-          data={optionValues}
+          data={tableOptionValues}
           keyExtractor={itemKeyExtractor}
           renderItem={renderRow}
           showsVerticalScrollIndicator={false}
@@ -218,7 +394,12 @@ const CompositeProduct = ({
           windowSize={5}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              {Platform.OS === 'android' ? (
+              {linkedProduct === null ? (
+                // Still selecting composite dropdowns — show a hint
+                <Text style={styles.emptyText}>
+                  Please select all options above
+                </Text>
+              ) : Platform.OS === 'android' ? (
                 <FastImage
                   source={ImageData.NoData}
                   style={styles.gif}
@@ -230,7 +411,7 @@ const CompositeProduct = ({
             </View>
           }
           contentContainerStyle={
-            optionValues.length === 0 ? styles.emptyContentContainer : {}
+            tableOptionValues.length === 0 ? styles.emptyContentContainer : {}
           }
         />
       </View>
@@ -239,17 +420,17 @@ const CompositeProduct = ({
 };
 
 const localStyles = StyleSheet.create({
-  container: {
-    paddingHorizontal: moderateScale(10),
+  outerContainer: {
     paddingVertical: moderateScale(0),
   },
   dropdownContainer: {
     marginBottom: moderateScale(15),
+    paddingHorizontal: moderateScale(10),
   },
   label: {
     fontSize: moderateScale(14),
     fontWeight: '700',
-    color: '#8B0000', // Dark red color matching the image
+    color: '#8B0000',
     marginBottom: moderateScale(6),
   },
   dropdown: {
@@ -282,13 +463,14 @@ const localStyles = StyleSheet.create({
     fontSize: moderateScale(14),
     color: '#333',
   },
-  tableContainer1: {
-    borderWidth: 1,
-    borderColor: '#D1D1D1',
-    borderRadius: 2,
-    overflow: 'hidden', // important for clean edges
-
-    margin: 0,
+  optionHeadingContainer: {
+    paddingHorizontal: moderateScale(20),
+    marginBottom: moderateScale(4),
+  },
+  optionHeading: {
+    fontSize: moderateScale(14),
+    fontWeight: '700',
+    color: '#555',
   },
 });
 

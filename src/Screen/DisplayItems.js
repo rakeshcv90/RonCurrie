@@ -60,7 +60,6 @@ const DisplayItems = ({ navigation, route }) => {
 
   const dispatch = useDispatch();
   const { productsList, loading } = useSelector(state => state.productsList);
-  console.log('ItemDataproductsList', productsList);
   const [selectedTab, setSelectedTab] = useState('Sales');
   const [customLength, setCustomLength] = useState('');
   const [visibleModal, setVisibleModaL] = useState(false);
@@ -82,6 +81,16 @@ const DisplayItems = ({ navigation, route }) => {
   const searchRef = useRef(null);
   const [value, setValue] = useState(null);
   const [selectedValue, setSelectedValue] = useState(null);
+
+  const [linkedProduct, setLinkedProduct] = useState(null);
+
+  useEffect(() => {
+    if (productsList?.is_composite !== 0) {
+      setRowQuantities({});
+      setCustomLength('');
+    }
+  }, [linkedProduct]);
+
   useEffect(() => {
     if (quantity >= 1 && width && length && productsList?.matrix?.length > 0) {
       calculatePrice();
@@ -109,6 +118,14 @@ const DisplayItems = ({ navigation, route }) => {
   }, [userData, ItemData]);
   const bespokeFactor =
     Number(productsList?.options?.[0]?.bespoke_factor_val) || 0;
+  // Bespoke factor for composite: comes from the resolved linkedProduct
+  const linkedBespokeFactor =
+    Number(linkedProduct?.options?.[0]?.bespoke_factor_val) || 0;
+  // Pick the right factor: composite uses linkedProduct's value, normal uses productsList's
+  const effectiveBespokeFactor =
+    productsList?.is_composite !== 0 && linkedProduct
+      ? linkedBespokeFactor
+      : bespokeFactor;
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -163,8 +180,12 @@ const DisplayItems = ({ navigation, route }) => {
           if (customLength === '') return prev;
           const qty = (prev.custom?.qty || 0) + 1;
           const customLen = Number(customLength) || 1;
-          const computedPrice = (customLen * bespokeFactor * qty).toFixed(2);
-          const price2 = (customLen * bespokeFactor).toFixed(2);
+          const computedPrice = (
+            customLen *
+            effectiveBespokeFactor *
+            qty
+          ).toFixed(2);
+          const price2 = (customLen * effectiveBespokeFactor).toFixed(2);
 
           return {
             ...prev,
@@ -187,7 +208,7 @@ const DisplayItems = ({ navigation, route }) => {
         }
       });
     },
-    [selectedTab, bespokeFactor, customLength],
+    [selectedTab, effectiveBespokeFactor, customLength],
   );
 
   const handleDecrease = index => {
@@ -196,8 +217,12 @@ const DisplayItems = ({ navigation, route }) => {
         if (customLength === '') return prev;
         const qty = Math.max((prev.custom?.qty || 0) - 1, 0);
         const customLen = Number(customLength) || 1;
-        const computedPrice = (customLen * bespokeFactor * qty).toFixed(2);
-        const price2 = (customLen * bespokeFactor).toFixed(2);
+        const computedPrice = (
+          customLen *
+          effectiveBespokeFactor *
+          qty
+        ).toFixed(2);
+        const price2 = (customLen * effectiveBespokeFactor).toFixed(2);
 
         return {
           ...prev,
@@ -231,8 +256,10 @@ const DisplayItems = ({ navigation, route }) => {
 
     setRowQuantities(prev => {
       const qty = prev.custom?.qty || 1;
-      const computedPrice = (lengthNum * bespokeFactor * qty).toFixed(2);
-      const price2 = (lengthNum * bespokeFactor).toFixed(2);
+      const computedPrice = (lengthNum * effectiveBespokeFactor * qty).toFixed(
+        2,
+      );
+      const price2 = (lengthNum * effectiveBespokeFactor).toFixed(2);
       return {
         ...prev,
         custom: { qty, length: lengthNum, price: computedPrice, price2 },
@@ -292,8 +319,8 @@ const DisplayItems = ({ navigation, route }) => {
     if (isNaN(qty) || qty <= 0) qty = 1;
 
     const customLen = Number(customLength) || 1;
-    const computedPrice = (customLen * bespokeFactor * qty).toFixed(2);
-    const price2 = (customLen * bespokeFactor).toFixed(2);
+    const computedPrice = (customLen * effectiveBespokeFactor * qty).toFixed(2);
+    const price2 = (customLen * effectiveBespokeFactor).toFixed(2);
 
     setRowQuantities(prev => ({
       ...prev,
@@ -303,6 +330,92 @@ const DisplayItems = ({ navigation, route }) => {
 
   const addToBasket = async () => {
     let items = [];
+
+    // ── Composite product ─────────────────────────────────────────────────────
+    if (productsList?.is_composite !== 0) {
+      if (!linkedProduct) {
+        showToast(
+          'danger',
+          'Selection required',
+          'Please select all options to identify the product.',
+        );
+        return;
+      }
+
+      // Collect quantities from the linked product's option values
+      const linkedOptionValues = (linkedProduct?.options || [])
+        .filter(opt => opt.minor === 0)
+        .flatMap(opt => opt.option_values ?? []);
+
+      linkedOptionValues.forEach((item, index) => {
+        const rowQty = rowQuantities[index] ?? 0;
+        if (rowQty === 0) return;
+
+        // Only the linked product's own option value goes in the option string.
+        // The composite shell selections (e.g. 5922, 5923) are NOT sent to the API.
+        let optionString = '[]';
+        if (item.product_option_id && item.product_option_value_id) {
+          optionString = `{'${item.product_option_id}':'${item.product_option_value_id}'}`;
+        }
+
+        let modeObj = {};
+        if (selectedTab === 'Refund') modeObj.mode = 1;
+        else if (selectedTab === 'Refund - No Stock') modeObj.mode = 2;
+
+        items.push({
+          customer_id: userData?.customer_id,
+          product_id: linkedProduct?.product_id ?? item.product_id,
+          option: optionString,
+          quantity: rowQty,
+          ...modeObj,
+        });
+      });
+
+      // Handle bespoke (custom length) item for composite linked product
+      if (rowQuantities?.custom?.qty > 0) {
+        const custom = rowQuantities.custom;
+        const bespokeOptionId = linkedProduct?.options?.[0]?.product_option_id;
+        const bespokeOption = `{'${bespokeOptionId}':'bespoke_option#${custom.length}#${custom.price2}'}`;
+
+        let modeObj = {};
+        if (selectedTab === 'Refund') modeObj.mode = 1;
+        else if (selectedTab === 'Refund - No Stock') modeObj.mode = 2;
+
+        items.push({
+          customer_id: userData?.customer_id,
+          product_id: linkedProduct?.product_id,
+          option: bespokeOption,
+          quantity: custom.qty,
+          ...modeObj,
+        });
+      }
+
+      if (items.length === 0) {
+        showToast(
+          'danger',
+          'No items selected',
+          'Please select at least one item to add.',
+        );
+        return;
+      }
+      console.log('Xcvcxvcx', items);
+      try {
+        const response = await postData(Api.ADD_CART, { items });
+        const resData = response?.data;
+        if (resData?.success && resData?.responseCode === 200) {
+          navigation.replace('Home');
+          setRowQuantities({});
+          dispatch(triggerCartRefresh());
+          dispatch(triggerMiscRefresh());
+        }
+      } catch (error) {
+        console.error('Error adding composite to basket:', error);
+        showToast('danger', 'Error', error.message || 'Something went wrong.');
+      }
+      return;
+    }
+
+    // ── Non-composite product (existing logic) ────────────────────────────────
 
     if (productsList?.options?.[0]?.option_values?.length > 0) {
       items = productsList.options[0].option_values
@@ -811,7 +924,12 @@ const DisplayItems = ({ navigation, route }) => {
                 }
               >
                 <ProductHeader
-                  productsList={productsList}
+                  // productsList={productsList}
+                  productsList={
+                    productsList?.is_composite !== 0 && linkedProduct
+                      ? linkedProduct
+                      : productsList
+                  }
                   setVisibleModal={setVisibleModaL}
                   styles={styles}
                 />
@@ -838,8 +956,26 @@ const DisplayItems = ({ navigation, route }) => {
                         handleIncrease={handleIncrease}
                         handleQtyTyping={handleQtyTyping}
                         handleFinalQty={handleFinalQty}
+                        onLinkedProductChange={setLinkedProduct}
                         styles={styles}
                       />
+                      {/* BespokeCalculator for composite linked product */}
+                      {linkedProduct?.options?.[0]?.display === 1 &&
+                        linkedProduct?.options?.[0]?.bespoke_value_req_epos ===
+                          1 && (
+                          <BespokeCalculator
+                            customLength={customLength}
+                            productsList={linkedProduct}
+                            rowQuantities={rowQuantities}
+                            bespokeFactor={linkedBespokeFactor}
+                            handleCustomLengthChange={handleCustomLengthChange}
+                            handleDecrease={handleDecrease}
+                            handleIncrease={handleIncrease}
+                            handleCustomTyping={handleCustomTyping}
+                            handleCustomFinal={handleCustomFinal}
+                            styles={styles}
+                          />
+                        )}
                     </>
                   ) : (
                     <>
@@ -980,7 +1116,11 @@ const DisplayItems = ({ navigation, route }) => {
       <ProductModal
         visible={visibleModal}
         onClose={() => setVisibleModaL(false)}
-        product={productsList}
+        product={
+          productsList?.is_composite !== 0 && linkedProduct
+            ? linkedProduct
+            : productsList
+        }
       />
     </SafeAreaView>
   );
@@ -1344,7 +1484,6 @@ const styles = ScaledSheet.create({
     borderColor: '#D1D1D1',
     borderRadius: 2,
     overflow: 'hidden', // important for clean edges
-
     margin: 5,
   },
 
