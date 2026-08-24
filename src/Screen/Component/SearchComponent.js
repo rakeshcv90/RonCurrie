@@ -344,6 +344,33 @@ const SearchComponent = forwardRef(
       }, 50);
     }, [navigation, route.name]);
 
+    const handleTextChange = useCallback(
+      text => {
+        setSearchText(text);
+
+        if (!text.trim()) {
+          setResults([]);
+          setNoResults(false);
+          onResults?.([]);
+          onNoResults?.(false);
+        }
+      },
+      [onResults, onNoResults],
+    );
+
+    const handleSubmit = useCallback(
+      e => {
+        const code = e.nativeEvent.text.trim();
+
+        if (code?.length >= 12) {
+          searchByBarcode(code);
+        } else {
+          Keyboard.dismiss();
+        }
+      },
+      [searchByBarcode],
+    );
+
     return (
       <View style={styles.headerContainer}>
         <StatusBar
@@ -377,26 +404,8 @@ const SearchComponent = forwardRef(
             autoFocus={false}
             // returnKeyType="search"
             returnKeyType="done"
-            onChangeText={text => {
-              setSearchText(text);
-              // // barcodeBufferRef.current = text;
-
-              if (!text.trim()) {
-                setResults([]);
-                setNoResults(false);
-                onResults?.([]);
-                onNoResults?.(false);
-              }
-            }}
-            onSubmitEditing={e => {
-              const code = e.nativeEvent.text.trim();
-
-              if (code?.length >= 12) {
-                searchByBarcode(code);
-              } else {
-                Keyboard.dismiss();
-              }
-            }}
+            onChangeText={handleTextChange}
+            onSubmitEditing={handleSubmit}
             onTouchStart={() => {
               setAllowKeyboard(true); // enable keyboard when user taps
             }}

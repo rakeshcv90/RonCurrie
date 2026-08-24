@@ -8,12 +8,16 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastImage from 'react-native-fast-image';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { Color, FONT, ImageData } from '../Component/Image';
-import { moderateScale, ScaledSheet, verticalScale } from 'react-native-size-matters';
+import {
+  moderateScale,
+  ScaledSheet,
+  verticalScale,
+} from 'react-native-size-matters';
 import { showToast } from '../utility/showToast';
 import Loader from '../Component/Loader';
 import { postData } from '../utility/ApiCall';
@@ -29,15 +33,16 @@ const ResetPassword = ({ navigation }) => {
 
   const [loader, setLoader] = useState(false);
 
-  const handleConfirmPassword = text => {
+  const handleConfirmPassword = useCallback((text) => {
     setRepeatPassword(text);
     if (newPassword && text !== newPassword) {
       setConfirmPasswordError('Passwords do not match');
     } else {
       setConfirmPasswordError('');
     }
-  };
-  const changePassword = async () => {
+  }, [newPassword]);
+
+  const changePassword = useCallback(async () => {
     if (!currentPassword.trim()) {
       Alert.alert('Validation Error', 'Please enter your current password');
       return;
@@ -79,7 +84,7 @@ const ResetPassword = ({ navigation }) => {
         setCurrentPassword('');
         setNewPassword('');
         setRepeatPassword('');
-        navigation.goBack()
+        navigation.goBack();
       } else {
         setLoader(false);
         // Alert.alert('Error', response?.message || 'Something went wrong');
@@ -88,7 +93,11 @@ const ResetPassword = ({ navigation }) => {
       setLoader(false);
       showToast('danger', 'Error', error.message || 'Something went wrong');
     }
-  };
+  }, [currentPassword, newPassword, repeatPassword, navigation]);
+
+  const toggleShowCurrent = useCallback(() => setShowCurrent(prev => !prev), []);
+  const toggleShowNew = useCallback(() => setShowNew(prev => !prev), []);
+  const toggleShowRepeat = useCallback(() => setShowRepeat(prev => !prev), []);
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar
@@ -158,7 +167,7 @@ const ResetPassword = ({ navigation }) => {
                   placeholderTextColor={Color.GRAY2}
                   onChangeText={setCurrentPassword}
                 />
-                <TouchableOpacity onPress={() => setShowCurrent(!showCurrent)}>
+                <TouchableOpacity onPress={toggleShowCurrent}>
                   <Ionicons
                     name={showCurrent ? 'eye-off-outline' : 'eye-outline'}
                     size={moderateScale(20)}
@@ -209,7 +218,7 @@ const ResetPassword = ({ navigation }) => {
                   placeholderTextColor={Color.GRAY2}
                   onChangeText={setNewPassword}
                 />
-                <TouchableOpacity onPress={() => setShowNew(!showNew)}>
+                <TouchableOpacity onPress={toggleShowNew}>
                   <Ionicons
                     name={showNew ? 'eye-off-outline' : 'eye-outline'}
                     size={moderateScale(20)}
@@ -259,7 +268,7 @@ const ResetPassword = ({ navigation }) => {
                   placeholderTextColor={Color.GRAY2}
                   onChangeText={handleConfirmPassword}
                 />
-                <TouchableOpacity onPress={() => setShowRepeat(!showRepeat)}>
+                <TouchableOpacity onPress={toggleShowRepeat}>
                   <Ionicons
                     name={showRepeat ? 'eye-off-outline' : 'eye-outline'}
                     size={moderateScale(20)}
@@ -273,9 +282,7 @@ const ResetPassword = ({ navigation }) => {
             ) : null}
             <TouchableOpacity
               style={styles.loginBtn}
-              onPress={() => {
-                changePassword();
-              }}
+              onPress={changePassword}
             >
               <Text style={styles.loginText}>Reset Password</Text>
             </TouchableOpacity>

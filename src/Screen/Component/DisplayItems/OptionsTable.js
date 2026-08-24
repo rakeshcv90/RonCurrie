@@ -130,15 +130,10 @@ const OptionsTable = ({
 
   return (
     <View style={styles.tableContainer}>
-      <FlatList
-        data={optionValues}
-        keyExtractor={itemKeyExtractor}
-        renderItem={renderRow}
-        showsVerticalScrollIndicator={false}
-        initialNumToRender={10}
-        maxToRenderPerBatch={5}
-        windowSize={5}
-        ListEmptyComponent={
+      <View
+        style={optionValues.length === 0 ? styles.emptyContentContainer : {}}
+      >
+        {optionValues.length === 0 ? (
           <View style={styles.emptyContainer}>
             {Platform.OS === 'android' ? (
               <FastImage
@@ -150,11 +145,14 @@ const OptionsTable = ({
               <Text style={styles.emptyText}>No items available</Text>
             )}
           </View>
-        }
-        contentContainerStyle={
-          optionValues.length === 0 ? styles.emptyContentContainer : {}
-        }
-      />
+        ) : (
+          optionValues.map((item, index) => (
+            <React.Fragment key={item.id || item.product_option_value_id || index}>
+              {renderRow({ item, index })}
+            </React.Fragment>
+          ))
+        )}
+      </View>
     </View>
   );
 };

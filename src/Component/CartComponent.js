@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { View, Text, TouchableOpacity, Keyboard } from 'react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 
 import {
   ScaledSheet,
@@ -161,34 +161,51 @@ const CartComponent = () => {
 
     return finalTotal.toFixed(2);
   }, [cartList, reduxMiscList]);
-  const getItemCount = () => {
+  const itemCount = useMemo(() => {
     const subTotal = cartList?.reduce(
-      (sum, item) => sum + item?.cart_quantity,
+      (sum, item) => sum + (item?.cart_quantity || 0),
       0,
     );
 
-    return Number(subTotal);
-  };
+    return Number(subTotal) || 0;
+  }, [cartList]);
+
+  const cartTimeoutRef = useRef(null);
+  const barcodeTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    // Cleanup timeouts on unmount
+    return () => {
+      if (cartTimeoutRef.current) clearTimeout(cartTimeoutRef.current);
+      if (barcodeTimeoutRef.current) clearTimeout(barcodeTimeoutRef.current);
+    };
+  }, []);
+
+  const handleCartPress = useCallback(() => {
+    Keyboard.dismiss();
+    if (cartList?.length > 0) {
+      cartTimeoutRef.current = setTimeout(() => {
+        navigation.navigate('AddCartScreen');
+      }, 80);
+    } else {
+      showToast(
+        'warning',
+        'Warning!',
+        'Your cart is empty. Please add items before proceeding.',
+      );
+    }
+  }, [cartList?.length, navigation]);
+
+  const handleBarcodePress = useCallback(() => {
+    Keyboard.dismiss();
+    barcodeTimeoutRef.current = setTimeout(() => {
+      navigation.navigate('BarCodeReader');
+    }, 80);
+  }, [navigation]);
   return (
     <View style={styles.bottomWrapper}>
       <View style={styles.bottomCard}>
-        <TouchableOpacity
-          style={styles.circleLeft}
-          onPress={() => {
-            Keyboard.dismiss();
-            if (cartList?.length > 0) {
-              setTimeout(() => {
-                navigation.navigate('AddCartScreen');
-              }, 80);
-            } else {
-              showToast(
-                'warning',
-                'Warning!',
-                'Your cart is empty. Please add items before proceeding.',
-              );
-            }
-          }}
-        >
+        <TouchableOpacity style={styles.circleLeft} onPress={handleCartPress}>
           <View style={styles.circleLeft1}>
             <MaterialDesignIcons name="cart" color={Color.WHITE} size={25} />
           </View>
@@ -212,7 +229,7 @@ const CartComponent = () => {
               Groups
             </Text>
             <Text style={{ color: 'white', fontSize: 11 }}>
-              {getItemCount()} Items
+              {itemCount} Items
             </Text>
           </View>
         </TouchableOpacity>
@@ -226,12 +243,7 @@ const CartComponent = () => {
         />
         <TouchableOpacity
           style={styles.circleRight}
-          onPress={() => {
-            Keyboard.dismiss();
-            setTimeout(() => {
-              navigation.navigate('BarCodeReader');
-            }, 80);
-          }}
+          onPress={handleBarcodePress}
         >
           <View
             style={{

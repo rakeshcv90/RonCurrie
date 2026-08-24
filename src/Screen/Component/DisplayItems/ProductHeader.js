@@ -17,7 +17,7 @@ import LinearGradient from 'react-native-linear-gradient';
 const ProductHeader = ({ productsList, setVisibleModal, styles }) => {
   const [loading, setLoading] = useState(true);
   const shimmerTranslate = useRef(new Animated.Value(-1)).current;
-  console.log('test ', productsList);
+
   useEffect(() => {
     let animation;
     if (loading) {

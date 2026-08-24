@@ -42,6 +42,47 @@ import FastImage from 'react-native-fast-image';
 import decodeHtml from '../utility/decodeHtml';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import * as Keychain from 'react-native-keychain';
+const ItemRow = memo(({ item, handleItemPress }) => {
+  const [hasError, setHasError] = useState(false);
+  const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+  return (
+    <TouchableOpacity
+      style={styles.itemRow1}
+      onPress={() => handleItemPress(item)}
+    >
+      {imageUrl && !hasError ? (
+        <FastImage
+          style={styles.itemImage1}
+          source={{
+            uri: imageUrl,
+            priority: FastImage.priority.high,
+            cache: FastImage.cacheControl.immutable,
+          }}
+          resizeMode={FastImage.resizeMode.cover}
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <FastImage
+          style={styles.itemImage}
+          source={ImageData?.NOIMAGE}
+          resizeMode={FastImage.resizeMode.cover}
+          onError={() => setHasError(true)}
+        />
+      )}
+
+      <View style={styles.itemTextContainer1}>
+        <Text style={styles.itemName1} numberOfLines={2}>
+          {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+        </Text>
+        <Text style={styles.itemPrice1}>
+          £ {Number(item.price).toFixed(2)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 const OrderHistoryDetails = ({ navigation, route }) => {
   const order_id = route?.params?.orderItem;
 
@@ -53,7 +94,6 @@ const OrderHistoryDetails = ({ navigation, route }) => {
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [imageErrorMap, setImageErrorMap] = useState({});
   const dispatch = useDispatch();
   const [searchNoResults, setSearchNoResults] = useState(false);
   const { orderDisplay, loading, error } = useSelector(
@@ -178,51 +218,15 @@ const OrderHistoryDetails = ({ navigation, route }) => {
   //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
   //     .trim();
   // };
-  const renderItem = ({ item }) => {
-    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+  const renderItem = useCallback(({ item }) => {
+    return <ItemRow item={item} handleItemPress={handleItemPress} />;
+  }, [handleItemPress]);
 
-    const handleError = () => {
-      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
-    };
-
-    const hasError = imageErrorMap[item.id] || false;
-
-    return (
-      <TouchableOpacity
-        style={styles.itemRow1}
-        onPress={() => handleItemPress(item)}
-      >
-        {imageUrl && !hasError ? (
-          <FastImage
-            style={styles.itemImage1}
-            source={{
-              uri: imageUrl,
-              priority: FastImage.priority.high,
-              cache: FastImage.cacheControl.immutable,
-            }}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
-        ) : (
-          <FastImage
-            style={styles.itemImage}
-            source={ImageData?.NOIMAGE}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
-        )}
-
-        <View style={styles.itemTextContainer1}>
-          <Text style={styles.itemName1} numberOfLines={2}>
-            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
-          </Text>
-          <Text style={styles.itemPrice1}>
-            £ {Number(item.price).toFixed(2)}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const keyExtractor = useCallback((item, index) => `${item.id || item.product_id || index}`, []);
+  
+  const handleEndReached = useCallback(() => {
+    if (loadMoreFunc) loadMoreFunc();
+  }, [loadMoreFunc]);
 
   const formatDateDDMMYYYY = dateString => {
     if (!dateString) return '';
@@ -353,15 +357,13 @@ const OrderHistoryDetails = ({ navigation, route }) => {
           <FlatList
             data={results}
             showsVerticalScrollIndicator={false}
-            keyExtractor={(item, index) =>
-              `${item.id || item.product_id || index}`
-            }
+            keyExtractor={keyExtractor}
             renderItem={renderItem}
             contentContainerStyle={{
               paddingHorizontal: 12,
               paddingBottom: moderateScale(120),
             }}
-            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReached={handleEndReached}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
               loadingMore && (

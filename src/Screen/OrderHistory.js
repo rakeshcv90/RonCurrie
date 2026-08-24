@@ -37,6 +37,45 @@ import ActionBottomSheet from '../Component/ActionBottomSheet';
 const FLATLIST_STYLE = { flexGrow: 0 };
 const FLATLIST_CONTENT_STYLE = { paddingBottom: 0 };
 
+const ItemRow = React.memo(({ item, handleItemPress }) => {
+  const [hasError, setHasError] = useState(false);
+  const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+  return (
+    <TouchableOpacity
+      style={styles.itemRow}
+      onPress={() => handleItemPress(item)}
+    >
+      {imageUrl && !hasError ? (
+        <FastImage
+          style={styles.itemImage}
+          source={{
+            uri: imageUrl,
+            priority: FastImage.priority.high,
+            cache: FastImage.cacheControl.immutable,
+          }}
+          resizeMode={FastImage.resizeMode.cover}
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <FastImage
+          style={styles.itemImage}
+          source={ImageData?.NOIMAGE}
+          resizeMode={FastImage.resizeMode.cover}
+          onError={() => setHasError(true)}
+        />
+      )}
+
+      <View style={styles.itemTextContainer}>
+        <Text style={styles.itemName}>
+          {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+        </Text>
+        <Text style={styles.itemPrice}>£ {Number(item.price).toFixed(2)}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 const OrderHistory = ({ navigation }) => {
   const dispatch = useDispatch();
   const [search, setSearch] = useState('');
@@ -44,7 +83,6 @@ const OrderHistory = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const limit = 10;
   const { orderList, loading, hasMore } = useSelector(state => state.orderList);
-  const [imageErrorMap, setImageErrorMap] = useState({});
   const [lastFetched, setLastFetched] = useState(null);
   const [loader, setLoader] = useState(false);
   const [results, setResults] = useState([]);
@@ -149,51 +187,21 @@ const OrderHistory = ({ navigation }) => {
     }, 200);
   }, []);
 
-  const renderItem = ({ item }) => {
-    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+  const renderItem = useCallback(
+    ({ item }) => {
+      return <ItemRow item={item} handleItemPress={handleItemPress} />;
+    },
+    [handleItemPress],
+  );
 
-    const handleError = () => {
-      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
-    };
+  const keyExtractor = useCallback(
+    (item, index) => `${item.id || item.product_id || index}`,
+    [],
+  );
 
-    const hasError = imageErrorMap[item.id] || false;
-
-    return (
-      <TouchableOpacity
-        style={styles.itemRow}
-        onPress={() => handleItemPress(item)}
-      >
-        {imageUrl && !hasError ? (
-          <FastImage
-            style={styles.itemImage}
-            source={{
-              uri: imageUrl,
-              priority: FastImage.priority.high,
-              cache: FastImage.cacheControl.immutable,
-            }}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
-        ) : (
-          <FastImage
-            style={styles.itemImage}
-            source={ImageData?.NOIMAGE}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
-        )}
-
-        <View style={styles.itemTextContainer}>
-          <Text style={styles.itemName}>
-            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
-          </Text>
-          <Text style={styles.itemPrice}>
-            £ {Number(item.price).toFixed(2)}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const handleEndReached = useCallback(() => {
+    if (loadMoreFunc) loadMoreFunc();
+  }, [loadMoreFunc]);
 
   const formatDate = useCallback(date => {
     if (!date) return '';
@@ -402,15 +410,13 @@ const OrderHistory = ({ navigation }) => {
           <FlatList
             data={results}
             showsVerticalScrollIndicator={false}
-            keyExtractor={(item, index) =>
-              `${item.id || item.product_id || index}`
-            }
+            keyExtractor={keyExtractor}
             renderItem={renderItem}
             contentContainerStyle={{
               paddingHorizontal: 12,
               paddingBottom: moderateScale(120),
             }}
-            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReached={handleEndReached}
             onEndReachedThreshold={0.5}
           />
         </>

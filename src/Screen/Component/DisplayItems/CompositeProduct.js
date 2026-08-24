@@ -130,6 +130,13 @@ const CompositeProduct = ({
     [productsList],
   );
 
+  // The composite tree's own display order (Type, then Timber Section, …)
+  // — parent → child hierarchy. Mirrors compositeOptionOrder in EposProductPage.jsx.
+  const compositeOptionOrder = useMemo(
+    () => (productsList?.options || []).map(o => o.option_id),
+    [productsList],
+  );
+
   // Resolve exactly one linked_product when all composite picks match
   const linkedProduct = useMemo(() => {
     if (!compositeLinks.length) return null;
@@ -147,20 +154,30 @@ const CompositeProduct = ({
     return matches[0].linked_product || null;
   }, [compositeLinks, allSelectedCompositeOptions]);
 
-  // Per option_id: which option_value_ids remain valid given the OTHER picks
+  // Per composite option_id, the set of option_value_ids that have at least one
+  // active (is_linked: 1) combination consistent with the ANCESTOR composite
+  // options already picked. Later ("child") picks never filter an earlier option.
+  // Mirrors EposProductPage.jsx exactly.
   const compositeValidValuesByOptionId = useMemo(() => {
     const map = new Map();
 
     compositeOptionIds.forEach(optionId => {
-      const otherSelections = Object.values(allSelectedCompositeOptions).filter(
+      const optionIndex = compositeOptionOrder.indexOf(optionId);
+
+      // Only selections from options that appear BEFORE this one (ancestors)
+      const ancestorSelections = Object.values(
+        allSelectedCompositeOptions,
+      ).filter(
         sel =>
-          compositeOptionIds.has(sel.option_id) && sel.option_id !== optionId,
+          compositeOptionIds.has(sel.option_id) &&
+          sel.option_id !== optionId &&
+          compositeOptionOrder.indexOf(sel.option_id) < optionIndex,
       );
 
       const validLinks = compositeLinks.filter(
         link =>
           link.is_linked === 1 &&
-          otherSelections.every(sel =>
+          ancestorSelections.every(sel =>
             link.options?.some(
               o =>
                 o.option_id === sel.option_id &&
@@ -181,7 +198,12 @@ const CompositeProduct = ({
     });
 
     return map;
-  }, [compositeOptionIds, compositeLinks, allSelectedCompositeOptions]);
+  }, [
+    compositeOptionIds,
+    compositeOptionOrder,
+    compositeLinks,
+    allSelectedCompositeOptions,
+  ]);
 
   // ── Preselect from preselect_options on mount / productsList change ─────────
   useEffect(() => {
@@ -384,15 +406,12 @@ const CompositeProduct = ({
 
       {/* ── Options table driven by resolved linkedProduct ── */}
       <View style={styles.tableContainer}>
-        <FlatList
-          data={tableOptionValues}
-          keyExtractor={itemKeyExtractor}
-          renderItem={renderRow}
-          showsVerticalScrollIndicator={false}
-          initialNumToRender={10}
-          maxToRenderPerBatch={5}
-          windowSize={5}
-          ListEmptyComponent={
+        <View
+          style={
+            tableOptionValues.length === 0 ? styles.emptyContentContainer : {}
+          }
+        >
+          {tableOptionValues.length === 0 ? (
             <View style={styles.emptyContainer}>
               {linkedProduct === null ? (
                 // Still selecting composite dropdowns — show a hint
@@ -409,11 +428,16 @@ const CompositeProduct = ({
                 <Text style={styles.emptyText}>No items available</Text>
               )}
             </View>
-          }
-          contentContainerStyle={
-            tableOptionValues.length === 0 ? styles.emptyContentContainer : {}
-          }
-        />
+          ) : (
+            tableOptionValues.map((item, index) => (
+              <React.Fragment
+                key={item.id || item.product_option_value_id || index}
+              >
+                {renderRow({ item, index })}
+              </React.Fragment>
+            ))
+          )}
+        </View>
       </View>
     </View>
   );

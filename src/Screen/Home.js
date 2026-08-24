@@ -84,6 +84,61 @@ const ProductRowItem = React.memo(
   },
 );
 
+const ProductCategoryCard = React.memo(
+  ({ cat, index, expanded, toggleExpand, handleItemPress }) => {
+    const isExpanded = expanded === (cat.id || index);
+
+    return (
+      <View style={styles.card}>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[styles.header, isExpanded && styles.headerActive]}
+          onPress={() => toggleExpand(cat?.id || index)}
+        >
+          <Text style={[styles.title, isExpanded && styles.titleActive]}>
+            {cat?.main_heading}
+          </Text>
+          <View>
+            <Ionicons
+              name={isExpanded ? 'chevron-down' : 'chevron-up'}
+              size={moderateScale(16)}
+              style={{ top: 5 }}
+              color={isExpanded ? '#fff' : '#000'}
+            />
+            <Ionicons
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={moderateScale(16)}
+              color={isExpanded ? '#fff' : '#000'}
+              style={{ top: -4 }}
+            />
+          </View>
+        </TouchableOpacity>
+
+        {isExpanded && cat?.product_data?.length > 0 && (
+          <View style={styles.expandedItemsContainer}>
+            {cat?.product_data?.map((item, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={[
+                  styles.itemBox,
+                  {
+                    backgroundColor: cat?.color,
+                  },
+                ]}
+                onPress={() => handleItemPress(item)}
+              >
+                <Text style={styles.itemText}>
+                  {item.epos_tile_title ? decodeHtml(item.epos_tile_title) : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  },
+);
+
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
   const { products, loading } = useSelector(
@@ -217,6 +272,10 @@ const Home = ({ navigation }) => {
             contentContainerStyle={styles.flatListContainer}
             onEndReached={() => loadMoreFunc && loadMoreFunc()}
             onEndReachedThreshold={0.5}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={true}
             ListFooterComponent={
               loadingMore && (
                 <Text style={{ textAlign: 'center' }}>Loading...</Text>
@@ -239,10 +298,25 @@ const Home = ({ navigation }) => {
           </Text>
         </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={products}
+          keyExtractor={(cat, index) => `${cat?.id || index}`}
+          renderItem={({ item: cat, index }) => (
+            <ProductCategoryCard
+              cat={cat}
+              index={index}
+              expanded={expanded}
+              toggleExpand={toggleExpand}
+              handleItemPress={handleItemPress}
+            />
+          )}
           style={{ flex: 1 }}
           contentContainerStyle={styles.scrollViewContainer}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -251,102 +325,34 @@ const Home = ({ navigation }) => {
               tintColor={Color.RED} // iOS
             />
           }
-        >
-          {products?.map((cat, index) => (
-            <View key={cat?.id || index} style={styles.card}>
-              <TouchableOpacity
-                activeOpacity={1}
-                style={[
-                  styles.header,
-                  expanded === (cat.id || index) && styles.headerActive,
-                ]}
-                onPress={() => toggleExpand(cat?.id || index)}
-              >
-                <Text
-                  style={[
-                    styles.title,
-                    expanded === (cat.id || index) && styles.titleActive,
-                  ]}
-                >
-                  {cat?.main_heading}
-                </Text>
-                <View>
-                  <Ionicons
-                    name={
-                      expanded === (cat?.id || index)
-                        ? 'chevron-down'
-                        : 'chevron-up'
-                    }
-                    size={moderateScale(16)}
-                    style={{ top: 5 }}
-                    color={expanded === (cat.id || index) ? '#fff' : '#000'}
-                  />
-                  <Ionicons
-                    name={
-                      expanded === (cat.id || index)
-                        ? 'chevron-up'
-                        : 'chevron-down'
-                    }
-                    size={moderateScale(16)}
-                    color={expanded === (cat.id || index) ? '#fff' : '#000'}
-                    style={{ top: -4 }}
-                  />
+          ListFooterComponent={
+            categories?.length > 0 && (
+              <>
+                <View style={styles.categoriesHeaderContainer}>
+                  <Text style={styles.categoriesHeaderText}>Categories</Text>
+                  <TouchableOpacity onPress={() => setCategory(!category)}>
+                    <Ionicons
+                      name={category ? 'close' : 'menu'}
+                      size={25}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-
-              {expanded === (cat.id || index) &&
-                cat?.product_data?.length > 0 && (
-                  <View style={styles.expandedItemsContainer}>
-                    {cat?.product_data?.map((item, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        style={[
-                          styles.itemBox,
-                          {
-                            backgroundColor: cat?.color,
-                          },
-                        ]}
-                        onPress={() => handleItemPress(item)}
-                      >
-                        <Text style={styles.itemText}>
-                          {item.epos_tile_title
-                            ? decodeHtml(item.epos_tile_title)
-                            : ''}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-            </View>
-          ))}
-
-          {categories?.length > 0 && (
-            <>
-              <View style={styles.categoriesHeaderContainer}>
-                <Text style={styles.categoriesHeaderText}>Categories</Text>
-                <TouchableOpacity onPress={() => setCategory(!category)}>
-                  <Ionicons
-                    name={category ? 'close' : 'menu'}
-                    size={25}
-                    color="#fff"
+                {category && (
+                  <CategoryComponent
+                    categoryData={categories}
+                    navigation={navigation}
                   />
-                </TouchableOpacity>
-              </View>
-              {category && (
-                <CategoryComponent
-                  categoryData={categories}
-                  navigation={navigation}
-                />
-              )}
-            </>
-          )}
-        </ScrollView>
+                )}
+              </>
+            )
+          }
+        />
       )}
       <CartComponent />
 
       {loading && products?.length === 0 && <Loader visible />}
 
-      {/* Exit App Modal */}
       <Modal
         transparent
         visible={showExitModal}

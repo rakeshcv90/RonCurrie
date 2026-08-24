@@ -211,122 +211,137 @@ const DisplayItems = ({ navigation, route }) => {
     [selectedTab, effectiveBespokeFactor, customLength],
   );
 
-  const handleDecrease = index => {
-    setRowQuantities(prev => {
-      if (index === 'custom') {
-        if (customLength === '') return prev;
-        const qty = Math.max((prev.custom?.qty || 0) - 1, 0);
-        const customLen = Number(customLength) || 1;
+  const handleDecrease = useCallback(
+    index => {
+      setRowQuantities(prev => {
+        if (index === 'custom') {
+          if (customLength === '') return prev;
+          const qty = Math.max((prev.custom?.qty || 0) - 1, 0);
+          const customLen = Number(customLength) || 1;
+          const computedPrice = (
+            customLen *
+            effectiveBespokeFactor *
+            qty
+          ).toFixed(2);
+          const price2 = (customLen * effectiveBespokeFactor).toFixed(2);
+
+          return {
+            ...prev,
+            custom: { qty, length: customLen, price: computedPrice, price2 },
+          };
+        } else if (index === 'single') {
+          const qty = Math.max((prev.single?.qty || 0) - 1, 0);
+          return { ...prev, single: { qty } };
+        } else {
+          const qty = Math.max((prev[index] || 0) - 1, 0);
+
+          return { ...prev, [index]: qty };
+        }
+      });
+    },
+    [customLength, effectiveBespokeFactor],
+  );
+
+  const handleCustomLengthChange = useCallback(
+    val => {
+      setCustomLength(val);
+
+      if (val === '') {
+        setRowQuantities(prev => {
+          return {
+            ...prev,
+            custom: { qty: 0, length: 0, price: '0.00', price2: '0.00' },
+          };
+        });
+        return;
+      }
+
+      const lengthNum = parseFloat(val) || 0;
+
+      setRowQuantities(prev => {
+        const qty = prev.custom?.qty || 1;
         const computedPrice = (
-          customLen *
+          lengthNum *
           effectiveBespokeFactor *
           qty
         ).toFixed(2);
-        const price2 = (customLen * effectiveBespokeFactor).toFixed(2);
-
+        const price2 = (lengthNum * effectiveBespokeFactor).toFixed(2);
         return {
           ...prev,
-          custom: { qty, length: customLen, price: computedPrice, price2 },
-        };
-      } else if (index === 'single') {
-        const qty = Math.max((prev.single?.qty || 0) - 1, 0);
-        return { ...prev, single: { qty } };
-      } else {
-        const qty = Math.max((prev[index] || 0) - 1, 0);
-
-        return { ...prev, [index]: qty };
-      }
-    });
-  };
-
-  const handleCustomLengthChange = val => {
-    setCustomLength(val);
-
-    if (val === '') {
-      setRowQuantities(prev => {
-        return {
-          ...prev,
-          custom: { qty: 0, length: 0, price: '0.00', price2: '0.00' },
+          custom: { qty, length: lengthNum, price: computedPrice, price2 },
         };
       });
-      return;
-    }
+    },
+    [effectiveBespokeFactor],
+  );
 
-    const lengthNum = parseFloat(val) || 0;
-
-    setRowQuantities(prev => {
-      const qty = prev.custom?.qty || 1;
-      const computedPrice = (lengthNum * effectiveBespokeFactor * qty).toFixed(
-        2,
-      );
-      const price2 = (lengthNum * effectiveBespokeFactor).toFixed(2);
-      return {
-        ...prev,
-        custom: { qty, length: lengthNum, price: computedPrice, price2 },
-      };
-    });
-  };
-
-  const handleQtyTyping = (index, text) => {
+  const handleQtyTyping = useCallback((index, text) => {
     setRowQuantities(prev => ({
       ...prev,
       [index]: text,
     }));
-  };
+  }, []);
 
-  const handleFinalQty = (index, stock) => {
-    const raw = rowQuantities[index];
+  const handleFinalQty = useCallback((index, stock) => {
+    setRowQuantities(prev => {
+      const raw = prev[index];
+      let num = parseInt(raw, 10);
+      if (isNaN(num) || num <= 0) num = 1;
+      if (num > stock) num = stock;
 
-    let num = parseInt(raw, 10);
-    if (isNaN(num) || num <= 0) num = 1;
-    if (num > stock) num = stock;
+      return {
+        ...prev,
+        [index]: num,
+      };
+    });
+  }, []);
 
-    setRowQuantities(prev => ({
-      ...prev,
-      [index]: num,
-    }));
-  };
-  const handleSingleTyping = text => {
+  const handleSingleTyping = useCallback(text => {
     setRowQuantities(prev => ({
       ...prev,
       single: { qty: text },
     }));
-  };
+  }, []);
 
-  const handleSingleFinal = stock => {
-    let raw = rowQuantities.single?.qty;
+  const handleSingleFinal = useCallback(stock => {
+    setRowQuantities(prev => {
+      let raw = prev.single?.qty;
+      let num = parseInt(raw, 10);
+      if (isNaN(num) || num <= 0) num = 1;
+      if (num > stock) num = stock;
 
-    let num = parseInt(raw, 10);
-    if (isNaN(num) || num <= 0) num = 1;
-    if (num > stock) num = stock;
+      return {
+        ...prev,
+        single: { qty: num },
+      };
+    });
+  }, []);
 
-    setRowQuantities(prev => ({
-      ...prev,
-      single: { qty: num },
-    }));
-  };
-  const handleCustomTyping = text => {
+  const handleCustomTyping = useCallback(text => {
     setRowQuantities(prev => ({
       ...prev,
       custom: { qty: text },
     }));
-  };
+  }, []);
 
-  const handleCustomFinal = () => {
-    let raw = rowQuantities.custom?.qty;
+  const handleCustomFinal = useCallback(() => {
+    setRowQuantities(prev => {
+      let raw = prev.custom?.qty;
+      let qty = parseInt(raw, 10);
+      if (isNaN(qty) || qty <= 0) qty = 1;
 
-    let qty = parseInt(raw, 10);
-    if (isNaN(qty) || qty <= 0) qty = 1;
+      const customLen = Number(customLength) || 1;
+      const computedPrice = (customLen * effectiveBespokeFactor * qty).toFixed(
+        2,
+      );
+      const price2 = (customLen * effectiveBespokeFactor).toFixed(2);
 
-    const customLen = Number(customLength) || 1;
-    const computedPrice = (customLen * effectiveBespokeFactor * qty).toFixed(2);
-    const price2 = (customLen * effectiveBespokeFactor).toFixed(2);
-
-    setRowQuantities(prev => ({
-      ...prev,
-      custom: { qty, length: customLen, price: computedPrice, price2 },
-    }));
-  };
+      return {
+        ...prev,
+        custom: { qty, length: customLen, price: computedPrice, price2 },
+      };
+    });
+  }, [customLength, effectiveBespokeFactor]);
 
   const addToBasket = async () => {
     let items = [];
@@ -398,7 +413,7 @@ const DisplayItems = ({ navigation, route }) => {
         );
         return;
       }
-      console.log('Xcvcxvcx', items);
+
       try {
         const response = await postData(Api.ADD_CART, { items });
         const resData = response?.data;

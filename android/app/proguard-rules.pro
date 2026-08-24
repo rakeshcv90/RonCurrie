@@ -8,3 +8,9 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# React Native Maps
+-keep class com.rnmaps.maps.** { *; }
+-dontwarn com.rnmaps.maps.**
+-keep class com.airbnb.android.react.maps.** { *; }
+-dontwarn com.airbnb.android.react.maps.**

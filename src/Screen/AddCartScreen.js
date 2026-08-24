@@ -484,15 +484,15 @@ const AddCartScreen = ({ navigation }) => {
     [imageErrorMap, handleImageError, handleItemPress],
   );
 
-  const getItemCount = () => {
+  const itemCount = useMemo(() => {
     const subTotal = cartList?.reduce(
-      (sum, item) => sum + item?.cart_quantity,
+      (sum, item) => sum + (item?.cart_quantity || 0),
       0,
     );
+    return Number(subTotal) || 0;
+  }, [cartList]);
 
-    return Number(subTotal);
-  };
-  const getTotalCluster = () => {
+  const totalCluster = useMemo(() => {
     const clusterMap = cartList?.reduce((acc, item) => {
       const productId = item?.product_id;
       if (productId) {
@@ -500,9 +500,8 @@ const AddCartScreen = ({ navigation }) => {
       }
       return acc;
     }, {});
-
     return Object.keys(clusterMap || {}).length;
-  };
+  }, [cartList]);
   const onCreateOrder1 = async data => {
     const hasInvalidMisc = miscList?.some(item => {
       const hasDescription =
@@ -952,25 +951,23 @@ const AddCartScreen = ({ navigation }) => {
                 </Text>
                 <Text style={styles.groupText}>
                   {' '}
-                  Cluster= {getTotalCluster()}
+                  Cluster= {totalCluster}
                 </Text>
-                <Text style={styles.groupText}> Items= {getItemCount()}</Text>
+                <Text style={styles.groupText}> Items= {itemCount}</Text>
               </View>
             </View>
-            <ScrollView
+            <FlatList
               style={{ flex: 1, marginBottom: moderateScale(20) }}
               contentContainerStyle={{ paddingBottom: moderateScale(200) }}
               showsVerticalScrollIndicator={false}
-            >
-              <FlatList
-                data={cartList}
-                keyExtractor={(item, index) => String(item.cart_id ?? index)}
-                renderItem={({ item }) => (
-                  <RenderItem item={item} navigation={navigation} />
-                )}
-              />
-
-              {miscList?.map((item, index) => (
+              data={cartList}
+              keyExtractor={(item, index) => String(item.cart_id ?? index)}
+              renderItem={({ item }) => (
+                <RenderItem item={item} navigation={navigation} />
+              )}
+              ListFooterComponent={
+                <View>
+                  {miscList?.map((item, index) => (
                 <View
                   key={item.id}
                   style={{
@@ -994,7 +991,7 @@ const AddCartScreen = ({ navigation }) => {
                       ]}
                     >
                       <TextInput
-                        style={styles.cashInput1}
+                        style={[styles.cashInput1, { flex: 1 }]}
                         placeholder="Enter Misc Product"
                         // placeholderTextColor={'#000'}
                         value={item.description}
@@ -1515,7 +1512,9 @@ const AddCartScreen = ({ navigation }) => {
                   </View>
                 )}
               </View>
-            </ScrollView>
+            </View>
+            }
+          />
             <View style={{ top: verticalScale(10) }}>
               <CartComponent />
             </View>

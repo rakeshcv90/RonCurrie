@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,47 @@ import { useDispatch } from 'react-redux';
 import FastImage from 'react-native-fast-image';
 import CartComponent from '../Component/CartComponent';
 import decodeHtml from '../utility/decodeHtml';
+const ItemRow = React.memo(({ item, handleItemPress }) => {
+  const [hasError, setHasError] = useState(false);
+  const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+
+  return (
+    <TouchableOpacity
+      style={styles.itemRow}
+      onPress={() => handleItemPress(item)}
+    >
+      {imageUrl && !hasError ? (
+        <FastImage
+          style={styles.itemImage}
+          source={{
+            uri: imageUrl,
+            priority: FastImage.priority.high,
+            cache: FastImage.cacheControl.immutable,
+          }}
+          resizeMode={FastImage.resizeMode.cover}
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <FastImage
+          style={styles.itemImage}
+          source={ImageData?.NOIMAGE}
+          resizeMode={FastImage.resizeMode.cover}
+          onError={() => setHasError(true)}
+        />
+      )}
+
+      <View style={styles.itemTextContainer}>
+        <Text style={styles.itemName}>
+          {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
+        </Text>
+        <Text style={styles.itemPrice}>
+          £ {Number(item.price).toFixed(2)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 const EditInfotmation = ({ navigation }) => {
   const dispatch = useDispatch();
   const searchRef = useRef(null);
@@ -37,7 +78,6 @@ const EditInfotmation = ({ navigation }) => {
   const [results, setResults] = useState([]);
   const [loadMoreFunc, setLoadMoreFunc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [imageErrorMap, setImageErrorMap] = useState({});
   const [searchNoResults, setSearchNoResults] = useState(false);
   const [defaultValues, setDefaultValues] = useState({
     firstname: '',
@@ -64,7 +104,7 @@ const EditInfotmation = ({ navigation }) => {
     fetchUserData();
   }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     const phoneRegex = /^[0-9]{10,15}$/;
 
     if (!firstName.trim()) {
@@ -103,72 +143,25 @@ const EditInfotmation = ({ navigation }) => {
       setLoader(false);
       showToast('danger', 'Error', error.message || 'Something went wrong');
     }
-  };
-  const handleItemPress = item => {
+  }, [firstName, lastName, email, phone]);
+
+  const handleItemPress = useCallback(item => {
     dispatch(clearProducts());
     navigation.navigate('DisplayItems', { itemData: item });
     setTimeout(() => {
       searchRef.current?.clearSearch();
     }, 200);
-  };
+  }, [dispatch, navigation]);
 
-  // const decodeHtml = text => {
-  //   if (!text) return '';
-  //   return text
-  //     .replace(/&quot;/g, '')
-  //     .replace(/&apos;/g, '')
-  //     .replace(/&amp;/g, '&')
-  //     .replace(/&lt;/g, '<')
-  //     .replace(/&gt;/g, '>')
-  //     .replace(/["']/g, '')
-  //     .replace(/[^a-zA-Z0-9\s.,-]/g, '')
-  //     .trim();
-  // };
-  const renderItem = ({ item }) => {
-    const imageUrl = item?.image ? ImageBaseUrl + item.image : null;
+  const renderItem = useCallback(({ item }) => {
+    return <ItemRow item={item} handleItemPress={handleItemPress} />;
+  }, [handleItemPress]);
 
-    const handleError = () => {
-      setImageErrorMap(prev => ({ ...prev, [item.id]: true }));
-    };
-
-    const hasError = imageErrorMap[item.id] || false;
-
-    return (
-      <TouchableOpacity
-        style={styles.itemRow}
-        onPress={() => handleItemPress(item)}
-      >
-        {imageUrl && !hasError ? (
-          <FastImage
-            style={styles.itemImage}
-            source={{
-              uri: imageUrl,
-              priority: FastImage.priority.high,
-              cache: FastImage.cacheControl.immutable,
-            }}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
-        ) : (
-          <FastImage
-            style={styles.itemImage}
-            source={ImageData?.NOIMAGE}
-            resizeMode={FastImage.resizeMode.cover}
-            onError={handleError}
-          />
-        )}
-
-        <View style={styles.itemTextContainer}>
-          <Text style={styles.itemName}>
-            {decodeHtml(item.name) || decodeHtml(item.descriptions?.name)}
-          </Text>
-          <Text style={styles.itemPrice}>
-            £ {Number(item.price).toFixed(2)}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const keyExtractor = useCallback((item, index) => `${item.id || item.product_id || index}`, []);
+  
+  const handleEndReached = useCallback(() => {
+    if (loadMoreFunc) loadMoreFunc();
+  }, [loadMoreFunc]);
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -189,15 +182,13 @@ const EditInfotmation = ({ navigation }) => {
           <FlatList
             data={results}
             showsVerticalScrollIndicator={false}
-            keyExtractor={(item, index) =>
-              `${item.id || item.product_id || index}`
-            }
+            keyExtractor={keyExtractor}
             renderItem={renderItem}
             contentContainerStyle={{
               paddingHorizontal: 12,
               paddingBottom: moderateScale(120),
             }}
-            onEndReached={() => loadMoreFunc && loadMoreFunc()}
+            onEndReached={handleEndReached}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
               loadingMore && (
