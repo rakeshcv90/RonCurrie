@@ -49,23 +49,53 @@ const WebViewScreen = ({ navigation, route }) => {
   // so it always wins the race against the anchor's real href navigation
   // (no more waiting on a poller before the R icon becomes clickable).
   document.addEventListener("click", function(e) {
-    const target = e.target.closest("a, button");
-    if (!target) return;
+    const clickable = e.target.closest("a, button, img");
+    if (!clickable) return;
 
-    // R ICON -> always send the user to the native App Home screen
-    if (target.querySelector("img[src*='ricon']")) {
-      e.preventDefault();
-      e.stopPropagation();
-      window.ReactNativeWebView.postMessage("GO_TO_APP_HOME");
-      return;
+    // Check if the clicked element is an image, or contains an image
+    const img = clickable.tagName && clickable.tagName.toLowerCase() === "img" ? clickable : clickable.querySelector("img");
+    
+    if (img) {
+      const src = (img.getAttribute("src") || "").toLowerCase();
+      const alt = (img.getAttribute("alt") || "").toLowerCase();
+      // Match ricon, logo, r.png, or r icon
+      if (src.includes("ricon") || src.includes("logo") || src.includes("r.png") || src.includes("r_icon") || src.includes("r icon") || alt === "logo" || alt === "home") {
+        e.preventDefault();
+        e.stopPropagation();
+        window.ReactNativeWebView.postMessage("GO_TO_APP_HOME");
+        return;
+      }
     }
 
-    // PRODUCT PAGE BUTTON -> return to the product page inside the app
-    if (target.innerText && target.innerText.includes("Product Page")) {
-      e.preventDefault();
-      e.stopPropagation();
-      window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
-      return;
+    const anchor = e.target.closest("a, button");
+    if (anchor) {
+      const hrefAbsolute = anchor.href || ""; // This gets the resolved absolute URL
+      const hrefLower = hrefAbsolute.toLowerCase();
+      
+      // If the link goes to the storefront homepage, we intercept it
+      if (
+        anchor.classList.contains("navbar-brand") || 
+        hrefLower === "https://roncurrie.co.uk/" || 
+        hrefLower === "https://roncurrie.co.uk" || 
+        hrefLower === "http://roncurrie.co.uk/" || 
+        hrefLower === "https://www.roncurrie.co.uk/" || 
+        hrefLower === "https://www.roncurrie.co.uk" ||
+        hrefLower.includes("route=common/home")
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.ReactNativeWebView.postMessage("GO_TO_APP_HOME");
+        return;
+      }
+
+      // PRODUCT PAGE BUTTON -> return to the product page inside the app
+      const text = anchor.innerText || "";
+      if (text.includes("Product Page") || text.includes("Back To Product Page")) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.ReactNativeWebView.postMessage("GO_BACK_PRODUCT_PAGE");
+        return;
+      }
     }
   }, true);
 

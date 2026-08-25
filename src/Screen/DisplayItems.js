@@ -418,7 +418,6 @@ const DisplayItems = ({ navigation, route }) => {
         const response = await postData(Api.ADD_CART, { items });
         const resData = response?.data;
         if (resData?.success && resData?.responseCode === 200) {
-          navigation.replace('Home');
           setRowQuantities({});
           dispatch(triggerCartRefresh());
           dispatch(triggerMiscRefresh());
@@ -951,7 +950,16 @@ const DisplayItems = ({ navigation, route }) => {
 
                 <ActionButtons
                   navigation={navigation}
-                  payload={payload}
+                  payload={
+                    productsList?.is_composite !== 0 && linkedProduct
+                      ? {
+                          ...payload,
+                          product_id:
+                            linkedProduct?.product_id ||
+                            linkedProduct?.linked_product_id,
+                        }
+                      : payload
+                  }
                   productsList={productsList}
                   selectedTab={selectedTab}
                   addToBasket={addToBasket}
@@ -1110,11 +1118,26 @@ const DisplayItems = ({ navigation, route }) => {
                   />
                 )}
 
-                {productsList?.options?.[0]?.option_values?.length > 4 &&
+                {((productsList?.is_composite === 0 &&
+                  productsList?.options?.[0]?.option_values?.length > 4) ||
+                  (productsList?.is_composite !== 0 &&
+                    linkedProduct &&
+                    (linkedProduct?.options || []).filter(
+                      opt => opt.minor === 0,
+                    )?.[0]?.option_values?.length > 4)) &&
                   productsList?.matrix?.length <= 0 && (
                     <ActionButtons
                       navigation={navigation}
-                      payload={payload}
+                      payload={
+                        productsList?.is_composite !== 0 && linkedProduct
+                          ? {
+                              ...payload,
+                              product_id:
+                                linkedProduct?.product_id ||
+                                linkedProduct?.linked_product_id,
+                            }
+                          : payload
+                      }
                       productsList={productsList}
                       selectedTab={selectedTab}
                       addToBasket={addToBasket}
