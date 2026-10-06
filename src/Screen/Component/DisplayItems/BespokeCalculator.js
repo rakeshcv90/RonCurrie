@@ -18,7 +18,7 @@ const BespokeCalculator = ({
   styles,
 }) => {
   return (
-    <View style={[styles.tableContainer, { top: verticalScale(-10) }]}>
+    <View style={styles.tableContainer}>
       <View
         style={[styles.tableRow, styles.greyRow, { backgroundColor: '#fff' }]}
       >

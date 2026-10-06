@@ -229,7 +229,6 @@ const LiveFeeds = ({ navigation }) => {
   };
 
   const renderUserCard = useCallback(({ item }) => {
-    console.log('dfdsfsdfdsfdsf', item);
     const latestTime = getLatestTimestamp(item);
     const timeAgoText = item.time_ago || formatTimeAgo(latestTime);
 

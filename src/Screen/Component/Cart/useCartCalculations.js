@@ -115,6 +115,8 @@ export const useCartCalculations = (cartList, miscList) => {
       }
       
       let availableQty = 0;
+      let shouldLimit = false;
+
       if (!matrix || matrix?.length === 0) {
         if (
           parsedOption &&
@@ -123,17 +125,19 @@ export const useCartCalculations = (cartList, miscList) => {
         ) {
           const firstValue = Object.values(parsedOption)[0];
           if (typeof firstValue === 'string' && firstValue.includes('#')) {
-            availableQty = item?.quantity || 0;
+            // custom, no limit
           } else {
-            availableQty = item?.options?.[0]?.values?.[0]?.quantity || 0;
+            availableQty = item?.options?.[0]?.values?.[0]?.available_quantity ?? item?.options?.[0]?.values?.[0]?.quantity ?? 0;
+            shouldLimit = true;
           }
         } else {
-          availableQty = item?.quantity || 0;
+          availableQty = item?.available_quantity ?? item?.quantity ?? 0;
+          shouldLimit = true;
         }
       } else {
-        availableQty = item?.quantity || 0;
+        // matrix, no limit
       }
-      return cart_quantity > availableQty;
+      return shouldLimit && (cart_quantity > availableQty);
     });
   }, [cartList]);
 

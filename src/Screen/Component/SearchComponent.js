@@ -130,7 +130,7 @@ const SearchComponent = forwardRef(
             query,
           )}&page=${pageNumber}&limit=${LIMIT}`,
         );
-        console.log('Test', res);
+
         const response = res?.data?.data;
         let extracted = [];
         let currentPage = 1;

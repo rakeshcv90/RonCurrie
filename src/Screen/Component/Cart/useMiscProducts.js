@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { fetchMiscData, triggerMiscRefresh, triggerCartRefresh } from '../../../Redux/Slice/CartDataShowSlice';
+import {
+  fetchMiscData,
+  triggerMiscRefresh,
+  triggerCartRefresh,
+} from '../../../Redux/Slice/CartDataShowSlice';
 import { postData } from '../../../utility/ApiCall';
 import { Api } from '../../../utility/api';
 import { MMKVStorage } from '../../../utility/MmkvStore';
@@ -80,7 +84,7 @@ export const useMiscProducts = (reduxMiscList, loading) => {
         dispatch(triggerCartRefresh());
       }
     } catch (error) {
-      console.error('Misc Sync Error:', error);
+      console.log('Misc Sync Error:', error);
     }
   };
 

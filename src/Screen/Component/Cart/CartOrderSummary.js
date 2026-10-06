@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { moderateScale } from 'react-native-size-matters';
-import Color from '../../../Theme/Color';
-import { FONT } from '../../../Theme/Font';
+// import Color from '../../../Theme/Color';
+// import { FONT, } from '../../../Theme/Font';
+import { Color, FONT } from '../../../Component/Image';
 
 const CartOrderSummary = ({ deliveryType, totalPrice }) => {
   if (!deliveryType) return null;
@@ -103,13 +104,13 @@ const styles = StyleSheet.create({
   totalLabel: {
     color: Color.BLACK,
     fontFamily: FONT.BOLD,
-    fontSize: 20,
+    fontSize: moderateScale(14),
     lineHeight: 24,
   },
   totalValue: {
     color: Color.RED,
     fontFamily: FONT.BOLD,
-    fontSize: 20,
+    fontSize: moderateScale(14),
     lineHeight: 24,
   },
 });

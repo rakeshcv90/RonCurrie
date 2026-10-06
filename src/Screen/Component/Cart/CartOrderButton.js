@@ -1,5 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Keyboard, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Keyboard,
+  StyleSheet,
+} from 'react-native';
 import { moderateScale } from 'react-native-size-matters';
 import { Color } from '../../../Component/Image';
 
@@ -17,10 +23,7 @@ const CartOrderButton = ({ hasInvalidQuantity, onPress }) => {
           Keyboard.dismiss();
           if (onPress) onPress();
         }}
-        style={[
-          styles.createBtn,
-          { opacity: hasInvalidQuantity ? 0.5 : 1 },
-        ]}
+        style={[styles.createBtn, { opacity: hasInvalidQuantity ? 0.5 : 1 }]}
       >
         <Text style={styles.bottomBtnText}>Create Order</Text>
       </TouchableOpacity>

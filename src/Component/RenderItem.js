@@ -384,6 +384,7 @@ const RenderItem = ({ item, navigation }) => {
   };
   return (
     <>
+      {console.log('pppppppppp', item)}
       {optionType == 'normal' && (
         <>
           <View style={styles.cartRowWrapper}>
@@ -438,16 +439,26 @@ const RenderItem = ({ item, navigation }) => {
             <View style={styles.inlineRow}>
               <View style={styles.stockRow}>
                 <Text style={styles.stockLabel}>In-Stock:</Text>
-                <Text
-                  style={[
-                    styles.stockValue,
-                    item?.options[0]?.values[0]?.quantity <= 10 && {
-                      color: Color.RED2,
-                    },
-                  ]}
-                >
-                  {item?.options[0]?.values[0]?.quantity}
-                </Text>
+                {item?.stock_rule_linked && (item?.options[0]?.values[0]?.quantity ?? 0) !== (item?.options[0]?.values[0]?.available_quantity ?? item?.options[0]?.values[0]?.quantity ?? 0) ? (
+                  <View style={{ alignItems: 'center', width: '100%', paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#333' }}>
+                      P: {item?.options[0]?.values[0]?.quantity ?? 0}
+                    </Text>
+                    <View style={{ height: 1, backgroundColor: '#E0E0E0', width: '90%', marginVertical: 2 }} />
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#333' }}>
+                      A: {item?.options[0]?.values[0]?.available_quantity ?? item?.options[0]?.values[0]?.quantity ?? 0}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    style={[
+                      styles.stockValue,
+                      item?.options[0]?.values[0]?.quantity <= 10 && { color: Color.RED2 },
+                    ]}
+                  >
+                    {item?.options[0]?.values[0]?.quantity ?? 0}
+                  </Text>
+                )}
               </View>
 
               <View style={styles.qtyBox}>
@@ -562,16 +573,26 @@ const RenderItem = ({ item, navigation }) => {
               {/* STOCK */}
               <View style={styles.stockRow}>
                 <Text style={styles.stockLabel}>In-Stock:</Text>
-                <Text
-                  style={[
-                    styles.stockValue,
-                    item?.quantity <= 10 && {
-                      color: Color.RED,
-                    },
-                  ]}
-                >
-                  {item?.quantity}
-                </Text>
+                {item?.stock_rule_linked && (item?.quantity ?? 0) !== (item?.available_quantity ?? item?.quantity ?? 0) ? (
+                  <View style={{ alignItems: 'center', width: '100%', paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#333' }}>
+                      P: {item?.quantity ?? 0}
+                    </Text>
+                    <View style={{ height: 1, backgroundColor: '#E0E0E0', width: '90%', marginVertical: 2 }} />
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#333' }}>
+                      A: {item?.available_quantity ?? item?.quantity ?? 0}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    style={[
+                      styles.stockValue,
+                      item?.quantity <= 10 && { color: Color.RED2 },
+                    ]}
+                  >
+                    {item?.quantity ?? 0}
+                  </Text>
+                )}
               </View>
 
               <View style={styles.qtyBox}>
@@ -596,7 +617,7 @@ const RenderItem = ({ item, navigation }) => {
                   style={styles.qtyInput}
                   value={inputQty}
                   keyboardType="numeric"
-                  maxLength={3}
+                  maxLength={5}
                   onChangeText={text => {
                     const cleaned = text.replace(/[^0-9]/g, '');
                     setInputQty(cleaned);
@@ -712,16 +733,26 @@ const RenderItem = ({ item, navigation }) => {
             <View style={styles.inlineRow}>
               <View style={styles.stockRow}>
                 <Text style={styles.stockLabel}>In-Stock:</Text>
-                <Text
-                  style={[
-                    styles.stockValue,
-                    item?.quantity <= 10 && {
-                      color: Color.RED,
-                    },
-                  ]}
-                >
-                  {item?.quantity}
-                </Text>
+                {item?.stock_rule_linked && (item?.quantity ?? 0) !== (item?.available_quantity ?? item?.quantity ?? 0) ? (
+                  <View style={{ alignItems: 'center', width: '100%', paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#333' }}>
+                      P: {item?.quantity ?? 0}
+                    </Text>
+                    <View style={{ height: 1, backgroundColor: '#E0E0E0', width: '90%', marginVertical: 2 }} />
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#333' }}>
+                      A: {item?.available_quantity ?? item?.quantity ?? 0}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    style={[
+                      styles.stockValue,
+                      item?.quantity <= 10 && { color: Color.RED2 },
+                    ]}
+                  >
+                    {item?.quantity ?? 0}
+                  </Text>
+                )}
               </View>
 
               <View style={styles.qtyBox}>
@@ -861,16 +892,26 @@ const RenderItem = ({ item, navigation }) => {
               {/* STOCK */}
               <View style={styles.stockRow}>
                 <Text style={styles.stockLabel}>In-Stock:</Text>
-                <Text
-                  style={[
-                    styles.stockValue,
-                    item?.quantity <= 10 && {
-                      color: Color.RED,
-                    },
-                  ]}
-                >
-                  {item?.quantity}
-                </Text>
+                {item?.stock_rule_linked && (item?.quantity ?? 0) !== (item?.available_quantity ?? item?.quantity ?? 0) ? (
+                  <View style={{ alignItems: 'center', width: '100%', paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#333' }}>
+                      P: {item?.quantity ?? 0}
+                    </Text>
+                    <View style={{ height: 1, backgroundColor: '#E0E0E0', width: '90%', marginVertical: 2 }} />
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#333' }}>
+                      A: {item?.available_quantity ?? item?.quantity ?? 0}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    style={[
+                      styles.stockValue,
+                      item?.quantity <= 10 && { color: Color.RED2 },
+                    ]}
+                  >
+                    {item?.quantity ?? 0}
+                  </Text>
+                )}
               </View>
 
               <View style={styles.qtyBox}>

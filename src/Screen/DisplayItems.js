@@ -83,6 +83,7 @@ const DisplayItems = ({ navigation, route }) => {
   const [selectedValue, setSelectedValue] = useState(null);
 
   const [linkedProduct, setLinkedProduct] = useState(null);
+  const [showTotalStock, setShowTotalStock] = useState(false);
 
   useEffect(() => {
     if (productsList?.is_composite !== 0) {
@@ -138,6 +139,7 @@ const DisplayItems = ({ navigation, route }) => {
   }, []);
   useFocusEffect(
     useCallback(() => {
+      setShowTotalStock(false);
       dispatch(clearProducts());
       // dispatch(fetchProductsList(ItemData?.slug));
       dispatch(
@@ -151,6 +153,7 @@ const DisplayItems = ({ navigation, route }) => {
       //   fetchProductsList('made-to-measure-solid-boarded-garage-doors-pair'),
       // );
       return () => {
+        setShowTotalStock(false);
         dispatch(clearProducts());
       };
     }, [dispatch, ItemData]),
@@ -501,7 +504,11 @@ const DisplayItems = ({ navigation, route }) => {
       items.push(customItem);
     }
 
-    if (productsList?.options?.length === 0 && rowQuantities?.single?.qty > 0) {
+    if (
+      (productsList?.options?.length === 0 ||
+        Boolean(productsList?.direct_add_available)) &&
+      rowQuantities?.single?.qty > 0
+    ) {
       const singleItem = {
         customer_id: userData?.customer_id,
         product_id: productsList?.product_id,
@@ -839,36 +846,61 @@ const DisplayItems = ({ navigation, route }) => {
                 color={Color.GRAY}
               />
             </TouchableOpacity>
+            <View style={styles.headerRight}>
+              {Boolean(productsList?.stock_rule_linked) ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={[
+                    styles.tsButton,
+                    showTotalStock && styles.tsButtonActive,
+                  ]}
+                  onPress={() => setShowTotalStock(prev => !prev)}
+                >
+                  <Text style={styles.tsButtonText}>TS</Text>
+                </TouchableOpacity>
+              ) : Number(productsList?.is_composite) === 1 ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={[
+                    styles.tsButton,
+                    showTotalStock && styles.tsButtonActive,
+                  ]}
+                  onPress={() => setShowTotalStock(prev => !prev)}
+                >
+                  <Text style={styles.tsButtonText}>TS</Text>
+                </TouchableOpacity>
+              ) : null}
 
-            <View style={styles.tab}>
-              <TouchableOpacity
-                style={[
-                  styles.tabButton,
-                  selectedTab === 'Sales' && styles.selectedTab,
-                ]}
-                onPress={() => setSelectedTab('Sales')}
-              >
-                <Text style={styles.textStyle}>SM</Text>
-              </TouchableOpacity>
+              <View style={styles.tab}>
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    selectedTab === 'Sales' && styles.selectedTab,
+                  ]}
+                  onPress={() => setSelectedTab('Sales')}
+                >
+                  <Text style={styles.textStyle}>SM</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.tabButton,
-                  selectedTab === 'Refund' && styles.selectedTab,
-                ]}
-                onPress={() => setSelectedTab('Refund')}
-              >
-                <Text style={styles.textStyle}>RS</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.tabButton,
-                  selectedTab === 'Refund - No Stock' && styles.selectedTab,
-                ]}
-                onPress={() => setSelectedTab('Refund - No Stock')}
-              >
-                <Text style={styles.textStyle}>RNS</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    selectedTab === 'Refund' && styles.selectedTab,
+                  ]}
+                  onPress={() => setSelectedTab('Refund')}
+                >
+                  <Text style={styles.textStyle}>RS</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.tabButton,
+                    selectedTab === 'Refund - No Stock' && styles.selectedTab,
+                  ]}
+                  onPress={() => setSelectedTab('Refund - No Stock')}
+                >
+                  <Text style={styles.textStyle}>RNS</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -981,6 +1013,7 @@ const DisplayItems = ({ navigation, route }) => {
                         handleFinalQty={handleFinalQty}
                         onLinkedProductChange={setLinkedProduct}
                         styles={styles}
+                        showTotalStock={showTotalStock}
                       />
                       {/* BespokeCalculator for composite linked product */}
                       {linkedProduct?.options?.[0]?.display === 1 &&
@@ -1024,17 +1057,22 @@ const DisplayItems = ({ navigation, route }) => {
                           handleIncrease={handleIncrease}
                           handleQtyTyping={handleQtyTyping}
                           handleFinalQty={handleFinalQty}
+                          handleSingleTyping={handleSingleTyping}
+                          handleSingleFinal={handleSingleFinal}
                           styles={styles}
+                          showTotalStock={showTotalStock}
                         />
                       ) : (
                         <SingleItemTable
                           productsList={productsList}
+                          selectedTab={selectedTab}
                           rowQuantities={rowQuantities}
                           handleDecrease={handleDecrease}
                           handleIncrease={handleIncrease}
                           handleSingleTyping={handleSingleTyping}
                           handleSingleFinal={handleSingleFinal}
                           styles={styles}
+                          showTotalStock={showTotalStock}
                         />
                       )}
 
@@ -1272,6 +1310,30 @@ const styles = ScaledSheet.create({
     gap: 0,
     paddingHorizontal: '20@s',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
+  },
+  tsButton: {
+    backgroundColor: Color.GREEN2,
+    height: moderateScale(40),
+    paddingHorizontal: moderateScale(14),
+    borderRadius: moderateScale(40),
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: moderateScale(42),
+  },
+  tsButtonActive: {
+    backgroundColor: Color.GREEN,
+    borderWidth: 1.5,
+    borderColor: Color.WHITE,
+  },
+  tsButtonText: {
+    color: Color.WHITE,
+    fontFamily: FONT.BOLD,
+    fontSize: moderateScale(13),
+  },
   headerText: {
     fontSize: 14,
     fontWeight: '700',
@@ -1462,6 +1524,8 @@ const styles = ScaledSheet.create({
     borderBottomWidth: 1,
     backgroundColor: '#fff',
     borderColor: '#D1D1D1',
+    minHeight: verticalScale(35),
+    alignItems: 'stretch',
   },
 
   greyRow: {
@@ -1470,7 +1534,7 @@ const styles = ScaledSheet.create({
 
   cell: {
     flex: 1,
-    height: verticalScale(35),
+    minHeight: verticalScale(35),
     paddingVertical: 5,
     justifyContent: 'center',
     paddingHorizontal: 10,
@@ -1491,6 +1555,29 @@ const styles = ScaledSheet.create({
   stockText: {
     fontSize: 12,
     fontFamily: FONT.BOLD,
+  },
+  stockTextSmall: {
+    fontSize: moderateScale(10),
+    fontFamily: FONT.BOLD,
+    textAlign: 'center',
+  },
+  detailedStockContainer: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  stockSubRow: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 1,
+  },
+  stockDivider: {
+    height: 1,
+    width: '100%',
+    backgroundColor: '#D9D9D9',
+    marginVertical: 1,
   },
 
   qtyText: {
@@ -1539,16 +1626,17 @@ const styles = ScaledSheet.create({
   },
   sizeCell: {
     flex: 1,
-    height: verticalScale(35),
+    minHeight: verticalScale(35),
     justifyContent: 'center',
     paddingHorizontal: 6,
+    paddingVertical: 4,
     borderRightWidth: 1,
     borderColor: '#D9D9D9',
   },
 
   priceCell: {
     width: verticalScale(65),
-    height: verticalScale(35),
+    minHeight: verticalScale(35),
     justifyContent: 'center',
     alignItems: 'center',
     borderRightWidth: 1,
@@ -1556,8 +1644,8 @@ const styles = ScaledSheet.create({
   },
 
   stockCell: {
-    width: verticalScale(40),
-    height: verticalScale(35),
+    width: verticalScale(48),
+    minHeight: verticalScale(35),
     justifyContent: 'center',
     alignItems: 'center',
     borderRightWidth: 1,
@@ -1566,7 +1654,7 @@ const styles = ScaledSheet.create({
 
   iconCell: {
     width: verticalScale(40),
-    height: verticalScale(35),
+    minHeight: verticalScale(35),
     justifyContent: 'center',
     alignItems: 'center',
     borderRightWidth: 1,
@@ -1575,7 +1663,7 @@ const styles = ScaledSheet.create({
 
   qtyCellFixed: {
     width: verticalScale(45),
-    height: verticalScale(35),
+    minHeight: verticalScale(35),
     justifyContent: 'center',
     alignItems: 'center',
     borderRightWidth: 1,

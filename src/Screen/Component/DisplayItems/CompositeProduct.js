@@ -12,6 +12,7 @@ import { moderateScale, verticalScale } from 'react-native-size-matters';
 import { Color, ImageData } from '../../../Component/Image';
 import decodeHtml from '../../../utility/decodeHtml';
 import FastImage from 'react-native-fast-image';
+import { getStockColorHex, getStockColorTextHex } from '../../../utility/Color';
 
 const OptionRowItem = React.memo(
   ({
@@ -24,9 +25,12 @@ const OptionRowItem = React.memo(
     handleQtyTyping,
     handleFinalQty,
     styles,
+    showTotalStock,
+    linkedProduct,
   }) => {
     const inStock = item?.quantity ?? 0;
-    const isDisabled = inStock === 0 && selectedTab === 'Sales';
+    const availStock = item?.available_quantity ?? item?.quantity ?? 0;
+    const isDisabled = availStock <= 0 && selectedTab === 'Sales';
 
     return (
       <View style={[styles.tableRow, index % 2 !== 0 && styles.greyRow]}>
@@ -44,15 +48,64 @@ const OptionRowItem = React.memo(
           </Text>
         </View>
 
-        <View style={styles.stockCell}>
-          <Text
-            style={[
-              styles.stockText,
-              inStock === 0 ? styles.redQty : styles.blackQty,
-            ]}
-          >
-            {inStock}
-          </Text>
+        <View
+          style={[
+            styles.stockCell,
+            item?.physical_colour && getStockColorHex(item.physical_colour)
+              ? { backgroundColor: getStockColorHex(item.physical_colour) }
+              : null,
+          ]}
+        >
+          {showTotalStock && linkedProduct?.stock_rule_linked && inStock !== availStock ? (
+            <View
+              style={{
+                alignItems: 'center',
+                width: '100%',
+                paddingVertical: 2,
+              }}
+            >
+              <Text
+                style={[
+                  { fontSize: 10, fontWeight: '600', color: '#333' },
+                  item?.physical_colour && getStockColorTextHex(item.physical_colour)
+                    ? { color: getStockColorTextHex(item.physical_colour) }
+                    : null,
+                ]}
+              >
+                P: {inStock}
+              </Text>
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: '#E0E0E0',
+                  width: '90%',
+                  marginVertical: 2,
+                }}
+              />
+              <Text
+                style={[
+                  { fontSize: 10, fontWeight: '600', color: '#333' },
+                  item?.physical_colour && getStockColorTextHex(item.physical_colour)
+                    ? { color: getStockColorTextHex(item.physical_colour) }
+                    : null,
+                ]}
+              >
+                A: {availStock}
+              </Text>
+            </View>
+          ) : (
+            <Text
+              style={[
+                styles.stockText,
+                inStock === 0 ? styles.redQty : styles.blackQty,
+                item?.physical_colour && getStockColorTextHex(item.physical_colour)
+                  ? { color: getStockColorTextHex(item.physical_colour) }
+                  : null,
+              ]}
+            >
+              {inStock}
+            </Text>
+          )}
         </View>
 
         <View style={styles.iconCell}>
@@ -71,7 +124,7 @@ const OptionRowItem = React.memo(
         </View>
 
         <View style={styles.qtyCellFixed}>
-          {inStock === 0 && selectedTab === 'Sales' ? (
+          {availStock <= 0 && selectedTab === 'Sales' ? (
             <Text style={styles.nsText}>NS</Text>
           ) : (
             <TextInput
@@ -79,7 +132,7 @@ const OptionRowItem = React.memo(
               value={String(qty)}
               keyboardType="numeric"
               onChangeText={v => handleQtyTyping(index, v)}
-              onEndEditing={() => handleFinalQty(index, inStock)}
+              onEndEditing={() => handleFinalQty(index, availStock)}
             />
           )}
         </View>
@@ -93,7 +146,7 @@ const OptionRowItem = React.memo(
                 ? styles.iconDisabled
                 : [styles.iconActive, { backgroundColor: Color.GREEN2 }],
             ]}
-            onPress={() => handleIncrease(index, inStock)}
+            onPress={() => handleIncrease(index, availStock)}
           >
             <Text style={styles.iconSymbol}>+</Text>
           </TouchableOpacity>
@@ -113,11 +166,12 @@ const CompositeProduct = ({
 
   onLinkedProductChange,
   styles,
+  showTotalStock,
 }) => {
   const [allSelectedCompositeOptions, setAllSelectedCompositeOptions] =
     useState({});
   const [openDropdownId, setOpenDropdownId] = useState(null);
-
+  console.log('CXccccccc', productsList);
   const compositeLinks = useMemo(
     () => productsList?.composite_links || [],
     [productsList],
@@ -249,6 +303,8 @@ const CompositeProduct = ({
           handleQtyTyping={handleQtyTyping}
           handleFinalQty={handleFinalQty}
           styles={styles}
+          showTotalStock={showTotalStock}
+          linkedProduct={linkedProduct}
         />
       );
     },
@@ -260,6 +316,8 @@ const CompositeProduct = ({
       handleQtyTyping,
       handleFinalQty,
       styles,
+      showTotalStock,
+      linkedProduct,
     ],
   );
 
@@ -276,15 +334,24 @@ const CompositeProduct = ({
         option.option_id,
       );
 
-      const dropdownData = (option?.option_values || [])
-        .filter(val => !validValueIds || validValueIds.has(val.option_value_id))
-        .map(item => ({
-          label: decodeHtml(
-            item?.option_values_name?.[0]?.name || item?.name || 'No Name',
-          ),
-          value: item?.option_value_id,
-          original: item,
-        }));
+      const dropdownData = [
+        {
+          label: `Select ${optionName}`,
+          value: '',
+          isPlaceholder: true,
+        },
+        ...(option?.option_values || [])
+          .filter(
+            val => !validValueIds || validValueIds.has(val.option_value_id),
+          )
+          .map(item => ({
+            label: decodeHtml(
+              item?.option_values_name?.[0]?.name || item?.name || 'No Name',
+            ),
+            value: item?.option_value_id,
+            original: item,
+          })),
+      ];
 
       const currentValue =
         allSelectedCompositeOptions[option?.option_id]?.option_value_id ?? null;
@@ -317,6 +384,16 @@ const CompositeProduct = ({
             onBlur={() => setOpenDropdownId(null)}
             onChange={item => {
               setOpenDropdownId(null);
+
+              if (item.value === '') {
+                setAllSelectedCompositeOptions(prev => {
+                  const updated = { ...prev };
+                  delete updated[option.option_id];
+                  return updated;
+                });
+                return;
+              }
+
               setAllSelectedCompositeOptions(prev => ({
                 ...prev,
                 [option.option_id]: {
@@ -331,11 +408,28 @@ const CompositeProduct = ({
                 },
               }));
             }}
-            renderItem={dropItem => (
-              <View style={localStyles.itemContainer}>
-                <Text style={localStyles.itemText}>{dropItem.label}</Text>
-              </View>
-            )}
+            renderItem={dropItem => {
+              const isSelected =
+                dropItem.value === currentValue ||
+                (dropItem.value === '' && !currentValue);
+              return (
+                <View
+                  style={[
+                    localStyles.itemContainer,
+                    isSelected && { backgroundColor: '#007BFF' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      localStyles.itemText,
+                      isSelected && { color: '#FFFFFF' },
+                    ]}
+                  >
+                    {dropItem.label}
+                  </Text>
+                </View>
+              );
+            }}
           />
         </View>
       );
